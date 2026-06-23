@@ -5,12 +5,16 @@ Serves the single-page frontend and proxies dashboard data from pktFlow.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from pathlib import Path
+from typing import Any
 
 import yaml
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from app.pktflow_client import PktFlowClient
 
@@ -19,18 +23,29 @@ log = logging.getLogger("pktdashboard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-def _load_config() -> dict:
-    candidates = [
-        Path("/mnt/software/pktdashboard/config.yaml"),
-        Path("config.yaml"),
-    ]
-    for p in candidates:
+_CONFIG_CANDIDATES = [
+    Path("/mnt/software/pktdashboard/config.yaml"),
+    Path("config.yaml"),
+]
+
+def _config_path() -> Path:
+    for p in _CONFIG_CANDIDATES:
         if p.exists():
-            with p.open() as f:
-                cfg = yaml.safe_load(f) or {}
-            log.info("Loaded config from %s", p)
-            return cfg
+            return p
     raise FileNotFoundError("config.yaml not found")
+
+def _load_config() -> dict:
+    p = _config_path()
+    with p.open() as f:
+        cfg = yaml.safe_load(f) or {}
+    log.info("Loaded config from %s", p)
+    return cfg
+
+def _save_config(data: dict) -> None:
+    p = _config_path()
+    with p.open("w") as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+    log.info("Saved config to %s", p)
 
 cfg = _load_config()
 
@@ -55,14 +70,19 @@ app.add_middleware(
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
-_frontend = Path("/mnt/software/pktdashboard/frontend/index.html")
-if not _frontend.exists():
-    _frontend = Path(__file__).parent.parent / "frontend" / "index.html"
+_frontend_dir = Path("/mnt/software/pktdashboard/frontend")
+if not _frontend_dir.exists():
+    _frontend_dir = Path(__file__).parent.parent / "frontend"
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return FileResponse(str(_frontend))
+    return FileResponse(str(_frontend_dir / "index.html"))
+
+
+@app.get("/settings", include_in_schema=False)
+async def settings_page():
+    return FileResponse(str(_frontend_dir / "settings.html"))
 
 
 # ── API ───────────────────────────────────────────────────────────────────────
@@ -75,6 +95,60 @@ async def health():
 @app.get("/api/dashboard")
 async def dashboard():
     return await pktflow.get_dashboard_data()
+
+
+@app.get("/api/settings")
+async def get_settings():
+    c = _load_config()
+    return {
+        "ssl_enabled":      c.get("ssl_enabled", False),
+        "ssl_cert":         c.get("ssl_cert", ""),
+        "ssl_key":          c.get("ssl_key", ""),
+        "pktflow_url":      c.get("pktflow_url", ""),
+        "pktflow_username": c.get("pktflow_username", ""),
+        "host":             c.get("host", "0.0.0.0"),
+        "port":             c.get("port", 8760),
+    }
+
+
+class SettingsBody(BaseModel):
+    ssl_enabled:      bool   = False
+    ssl_cert:         str    = ""
+    ssl_key:          str    = ""
+    pktflow_url:      str    = ""
+    pktflow_username: str    = ""
+    pktflow_password: str    = ""
+    host:             str    = "0.0.0.0"
+    port:             int    = 8760
+
+
+@app.post("/api/settings")
+async def post_settings(body: SettingsBody):
+    try:
+        c = _load_config()
+        c["ssl_enabled"]      = body.ssl_enabled
+        c["ssl_cert"]         = body.ssl_cert
+        c["ssl_key"]          = body.ssl_key
+        c["pktflow_url"]      = body.pktflow_url      or c.get("pktflow_url", "")
+        c["pktflow_username"] = body.pktflow_username  or c.get("pktflow_username", "")
+        if body.pktflow_password:
+            c["pktflow_password"] = body.pktflow_password
+        c["host"] = body.host or c.get("host", "0.0.0.0")
+        c["port"] = body.port or c.get("port", 8760)
+        _save_config(c)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/restart")
+async def restart():
+    def _do():
+        time.sleep(0.8)
+        import os, sys
+        os._exit(0)
+    threading.Thread(target=_do, daemon=True).start()
+    return {"ok": True}
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

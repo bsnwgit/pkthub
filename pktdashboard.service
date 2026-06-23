@@ -10,9 +10,9 @@ WorkingDirectory=/mnt/software/pktdashboard
 
 Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/mnt/software/pktdashboard/venv/bin/python3 app/main.py
+ExecStart=/mnt/software/pktdashboard/venv/bin/python3 -m app.main
 
-Restart=on-failure
+Restart=always
 RestartSec=5
 StartLimitInterval=60
 StartLimitBurst=3
