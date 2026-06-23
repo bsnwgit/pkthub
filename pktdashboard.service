@@ -10,12 +10,7 @@ WorkingDirectory=/mnt/software/pktdashboard
 
 Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/mnt/software/pktdashboard/venv/bin/uvicorn app.main:app \
-    --host 0.0.0.0 \
-    --port 8760 \
-    --workers 1 \
-    --log-level info \
-    --no-access-log
+ExecStart=/mnt/software/pktdashboard/venv/bin/python3 app/main.py
 
 Restart=on-failure
 RestartSec=5

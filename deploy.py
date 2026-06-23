@@ -1,5 +1,6 @@
 import os
 import time
+import yaml
 import paramiko
 
 HOST = "172.23.80.5"
@@ -10,6 +11,14 @@ PROJECT = r"C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktDashbo
 REMOTE  = "/mnt/software/pktdashboard"
 
 SVC_PASSWORD = "Pkt@Dash2026"
+
+# Read local config.yaml to pick up SSL settings
+_cfg_path = os.path.join(PROJECT, "config.yaml")
+with open(_cfg_path) as _f:
+    _cfg = yaml.safe_load(_f) or {}
+SSL_ENABLED = bool(_cfg.get("ssl_enabled", False))
+SSL_CERT    = _cfg.get("ssl_cert", "").strip()
+SSL_KEY     = _cfg.get("ssl_key", "").strip()
 
 
 def ssh_connect():
@@ -97,8 +106,24 @@ def main():
     run(client, REMOTE + "/venv/bin/pip install --quiet --upgrade pip")
     run(client, REMOTE + "/venv/bin/pip install --quiet -r " + REMOTE + "/requirements.txt")
 
-    # 5. systemd
-    print("\n[5/5] Installing systemd service...")
+    # 5. SSL certs (optional)
+    if SSL_ENABLED:
+        print("\n[5/6] Uploading SSL cert and key...")
+        if not SSL_CERT or not os.path.isfile(SSL_CERT):
+            raise FileNotFoundError("ssl_cert not found locally: " + SSL_CERT)
+        if not SSL_KEY or not os.path.isfile(SSL_KEY):
+            raise FileNotFoundError("ssl_key not found locally: " + SSL_KEY)
+        run(client, "mkdir -p " + REMOTE + "/tls && chmod 700 " + REMOTE + "/tls")
+        sftp.put(SSL_CERT, REMOTE + "/tls/cert.pem")
+        print("  upload: cert.pem")
+        sftp.put(SSL_KEY, REMOTE + "/tls/key.pem")
+        print("  upload: key.pem")
+        run(client, "chmod 600 " + REMOTE + "/tls/key.pem")
+    else:
+        print("\n[5/6] SSL disabled — skipping cert upload")
+
+    # 6. systemd
+    print("\n[6/6] Installing systemd service...")
     sftp.put(os.path.join(PROJECT, "pktdashboard.service"), "/tmp/pktdashboard.service")
     run(client, "sudo cp /tmp/pktdashboard.service /etc/systemd/system/pktdashboard.service")
     run(client, "sudo systemctl daemon-reload")
@@ -109,7 +134,8 @@ def main():
 
     sftp.close()
     client.close()
-    print("\n==> Deploy complete: http://172.23.80.5:8760")
+    scheme = "https" if SSL_ENABLED else "http"
+    print("\n==> Deploy complete: " + scheme + "://172.23.80.5:8760")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 # Config (contains credentials — never commit)
 config.yaml
 
+# TLS certs and keys — never commit private keys
+tls/
+
 # Python
 __pycache__/
 *.py[cod]

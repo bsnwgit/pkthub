@@ -11,3 +11,11 @@ pktflow_password: "CHANGE_ME"
 # Server bind settings
 host: "0.0.0.0"
 port: 8760
+
+# SSL — optional
+# Set ssl_enabled to true and provide absolute paths to your cert and key files.
+# The service restarts with HTTPS on the same port — no nginx required.
+# Place cert/key in /mnt/software/pktdashboard/tls/ on the server (excluded from git).
+ssl_enabled: false
+ssl_cert: ""   # e.g. /mnt/software/pktdashboard/tls/cert.pem
+ssl_key:  ""   # e.g. /mnt/software/pktdashboard/tls/key.pem

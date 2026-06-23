@@ -75,3 +75,41 @@ async def health():
 @app.get("/api/dashboard")
 async def dashboard():
     return await pktflow.get_dashboard_data()
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+
+    host = cfg.get("host", "0.0.0.0")
+    port = int(cfg.get("port", 8760))
+
+    ssl_enabled  = cfg.get("ssl_enabled", False)
+    ssl_certfile = cfg.get("ssl_cert", "")
+    ssl_keyfile  = cfg.get("ssl_key", "")
+
+    ssl_args: dict = {}
+    scheme = "http"
+
+    if ssl_enabled:
+        if not ssl_certfile or not os.path.isfile(ssl_certfile):
+            log.warning("SSL enabled but ssl_cert not found: %s — starting without SSL", ssl_certfile)
+        elif not ssl_keyfile or not os.path.isfile(ssl_keyfile):
+            log.warning("SSL enabled but ssl_key not found: %s — starting without SSL", ssl_keyfile)
+        else:
+            ssl_args = {"ssl_certfile": ssl_certfile, "ssl_keyfile": ssl_keyfile}
+            scheme = "https"
+
+    log.info("Starting pktDashboard on %s://%s:%d", scheme, host, port)
+
+    uvicorn.run(
+        "app.main:app",
+        host=host,
+        port=port,
+        workers=1,
+        log_level="info",
+        access_log=False,
+        **ssl_args,
+    )
