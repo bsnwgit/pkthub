@@ -20,10 +20,8 @@
     position: sticky; top: 0; z-index: 10;
   }
   .header-logo {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 15px; font-weight: 700; color: #e6edf3; letter-spacing: -0.3px;
+    display: flex; align-items: center;
   }
-  .header-logo svg { color: #58a6ff; }
   .header-back {
     margin-left: auto; background: none; border: 1px solid #30363d;
     color: #e6edf3; border-radius: 6px; padding: 4px 12px;
@@ -108,16 +106,109 @@
   .status-msg.ok  { display: flex; background: rgba(46,160,67,.15); color: #3fb950; border: 1px solid rgba(46,160,67,.3); }
   .status-msg.err { display: flex; background: rgba(248,81,73,.15); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
   .status-msg.warn { display: flex; background: rgba(227,179,65,.15); color: #e3b341; border: 1px solid rgba(227,179,65,.3); }
+
+  /* Apps list */
+  .app-row {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;
+    align-items: center; padding: 10px 0; border-bottom: 1px solid #21262d;
+  }
+  .app-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .app-row-fields { display: contents; }
+  .app-row input { margin: 0; }
+  .app-row-actions { display: flex; gap: 6px; }
+  .app-row-expand { grid-column: 1 / -1; display: none; padding-top: 8px; }
+  .app-row-expand.open { display: block; }
+  .icon-btn {
+    background: none; border: 1px solid #30363d; color: #8b949e;
+    border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 12px;
+    font-family: inherit; transition: border-color 0.15s, color 0.15s;
+    line-height: 1;
+  }
+  .icon-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+  .icon-btn.del:hover { border-color: #f85149; color: #f85149; }
+  .add-app-btn {
+    background: none; border: 1px dashed #30363d; color: #8b949e;
+    border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: 12px;
+    font-family: inherit; width: 100%; margin-top: 12px; transition: all 0.15s;
+  }
+  .add-app-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+  .apps-header {
+    display: grid; grid-template-columns: 1fr 1fr auto;
+    gap: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.4px; color: #484f58; padding-bottom: 8px;
+    border-bottom: 1px solid #21262d; margin-bottom: 4px;
+  }
+  .save-apps-btn {
+    background: none; border: 1px solid #238636; color: #3fb950;
+    border-radius: 8px; padding: 9px 20px; font-size: 12px; font-weight: 600;
+    font-family: inherit; cursor: pointer; margin-top: 14px; transition: all 0.2s;
+  }
+  .save-apps-btn:hover:not(:disabled) { background: rgba(46,160,67,.1); }
+  .save-apps-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* System status */
+  .svc-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+    letter-spacing: 0.3px;
+  }
+  .svc-badge.active   { background: rgba(46,160,67,.15); color: #3fb950; border: 1px solid rgba(46,160,67,.3); }
+  .svc-badge.inactive { background: rgba(248,81,73,.15);  color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+  .svc-badge.unknown  { background: rgba(139,148,158,.1); color: #8b949e; border: 1px solid #30363d; }
+  .svc-badge::before { content: '●'; font-size: 8px; }
+  .status-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .status-meta { font-size: 11px; color: #8b949e; }
+
+  /* Test connection */
+  .input-with-btn { display: flex; gap: 8px; }
+  .input-with-btn input { flex: 1; }
+  .test-btn {
+    background: none; border: 1px solid #30363d; color: #8b949e;
+    border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 600;
+    font-family: inherit; cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .test-btn:hover:not(:disabled) { border-color: #58a6ff; color: #58a6ff; }
+  .test-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .test-result { font-size: 11px; margin-top: 5px; }
+  .test-result.ok  { color: #3fb950; }
+  .test-result.err { color: #f85149; }
+
+  /* Log terminal */
+  .log-terminal {
+    background: #010409; border: 1px solid #21262d; border-radius: 6px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 11px; line-height: 1.5; color: #8b949e;
+    height: 300px; overflow-y: auto; padding: 12px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .log-line { display: block; }
+  .log-line.err { color: #f85149; }
+  .log-line.warn { color: #e3b341; }
+  .log-toolbar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .log-toolbar-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #8b949e; flex: 1; }
+  .log-toggle-btn {
+    background: none; border: 1px solid #30363d; color: #8b949e;
+    border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: all 0.15s;
+  }
+  .log-toggle-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+  .log-clear-btn {
+    background: none; border: 1px solid #30363d; color: #8b949e;
+    border-radius: 6px; padding: 4px 10px; font-size: 11px;
+    font-family: inherit; cursor: pointer; transition: all 0.15s;
+  }
+  .log-clear-btn:hover { border-color: #f85149; color: #f85149; }
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-logo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 12h4l3-9 4 18 3-9h4"/>
-    </svg>
-    pktDashboard — Settings
+    <img src="../logos/lockup-64h.png" alt="pktsuite" height="32">
   </div>
   <a href="/" class="header-back">← Dashboard</a>
 </div>
@@ -125,6 +216,16 @@
 <div class="content">
   <h1>Configuration</h1>
   <p class="subtitle">Settings are saved to <code>config.yaml</code> on the server. Restart the service to apply SSL or port changes.</p>
+
+  <!-- System Status -->
+  <div class="section">
+    <div class="section-title">Service Status</div>
+    <div class="status-row">
+      <span class="svc-badge unknown" id="svc-badge">checking…</span>
+      <span class="status-meta" id="svc-since"></span>
+      <span class="status-meta" id="svc-pid"></span>
+    </div>
+  </div>
 
   <!-- SSL / HTTPS -->
   <div class="section">
@@ -155,10 +256,17 @@
 
   <!-- pktFlow Connection -->
   <div class="section">
+    <div style="text-align:center; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #21262d;">
+      <img src="../logos/lockup-128h.png" alt="pktsuite" style="height:64px;">
+    </div>
     <div class="section-title">pktFlow Connection</div>
     <div class="field">
       <label>pktFlow URL</label>
-      <input type="text" id="pktflow_url" placeholder="http://127.0.0.1:8766">
+      <div class="input-with-btn">
+        <input type="text" id="pktflow_url" placeholder="https://127.0.0.1:8766">
+        <button class="test-btn" id="test-btn" onclick="testConnection()">Test</button>
+      </div>
+      <div class="test-result" id="test-result"></div>
       <p class="field-hint">Internal URL used to reach the pktFlow service from this server.</p>
     </div>
     <div class="field">
@@ -187,6 +295,31 @@
     </div>
   </div>
 
+  <!-- pktsuite Apps -->
+  <div class="section">
+    <div class="section-title">pktsuite Apps</div>
+    <p class="field-hint" style="margin-bottom:12px;">These entries appear as launch cards on the dashboard. Changes take effect immediately — no restart needed.</p>
+    <div class="apps-header">
+      <span>Name</span><span>URL</span><span></span>
+    </div>
+    <div id="apps-list"></div>
+    <button class="add-app-btn" onclick="addAppRow()">+ Add App</button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="save-apps-btn" id="save-apps-btn" onclick="saveApps()">Save Apps</button>
+      <div class="status-msg" id="apps-status-msg"></div>
+    </div>
+  </div>
+
+  <!-- Live Logs -->
+  <div class="section">
+    <div class="log-toolbar">
+      <span class="log-toolbar-label">Live Logs</span>
+      <button class="log-clear-btn" onclick="clearLog()">Clear</button>
+      <button class="log-toggle-btn" id="log-toggle-btn" onclick="toggleLog()">▶ Start</button>
+    </div>
+    <div class="log-terminal" id="log-terminal"><span style="color:#484f58">Press ▶ Start to tail the service log.</span></div>
+  </div>
+
   <div class="actions">
     <button class="save-btn" id="save-btn" onclick="saveSettings()">Save Settings</button>
     <button class="restart-btn" id="restart-btn" onclick="restartService()">↺ Restart Service</button>
@@ -199,9 +332,12 @@
 
 async function load() {
   try {
-    const r = await fetch('/api/settings');
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const cfg = await r.json();
+    const [settingsRes, appsRes] = await Promise.all([
+      fetch('/api/settings'),
+      fetch('/api/apps'),
+    ]);
+    if (!settingsRes.ok) throw new Error('HTTP ' + settingsRes.status);
+    const cfg = await settingsRes.json();
 
     document.getElementById('ssl-toggle').checked  = !!cfg.ssl_enabled;
     document.getElementById('ssl_cert').value       = cfg.ssl_cert || '';
@@ -213,9 +349,99 @@ async function load() {
 
     document.getElementById('port').value = cfg.port || 8760;
     document.getElementById('host').value = cfg.host || '0.0.0.0';
+
+    if (appsRes.ok) {
+      const apps = await appsRes.json();
+      apps.forEach(a => addAppRow(a));
+    }
   } catch (e) {
     showStatus('err', 'Failed to load settings: ' + e.message);
   }
+}
+
+// ── Apps ──────────────────────────────────────────────────────────────────────
+
+let _appId = 0;
+
+function addAppRow(app = {}) {
+  const id = ++_appId;
+  const list = document.getElementById('apps-list');
+  const row = document.createElement('div');
+  row.className = 'app-row';
+  row.dataset.id = id;
+  row.innerHTML = `
+    <input type="text" placeholder="Name" value="${esc(app.name || '')}" data-field="name">
+    <input type="text" placeholder="https://host:port" value="${esc(app.url || '')}" data-field="url">
+    <div class="app-row-actions">
+      <button class="icon-btn" title="Expand" onclick="toggleExpand(${id})">⋯</button>
+      <button class="icon-btn del" title="Remove" onclick="removeAppRow(${id})">✕</button>
+    </div>
+    <div class="app-row-expand" id="app-expand-${id}">
+      <div class="field" style="margin-bottom:8px;">
+        <label>Description</label>
+        <input type="text" placeholder="Short description shown on card" value="${esc(app.description || '')}" data-field="description">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Icon</label>
+        <select data-field="icon" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#e6edf3;font-family:inherit;font-size:13px;">
+          <option value="flow" ${(app.icon||'generic')==='flow'?'selected':''}>flow (NetFlow / traffic)</option>
+          <option value="pcap" ${(app.icon||'')==='pcap'?'selected':''}>pcap (packet capture)</option>
+          <option value="generic" ${(!app.icon||app.icon==='generic')?'selected':''}>generic</option>
+        </select>
+      </div>
+    </div>
+  `;
+  list.appendChild(row);
+}
+
+function removeAppRow(id) {
+  document.querySelector(`.app-row[data-id="${id}"]`)?.remove();
+}
+
+function toggleExpand(id) {
+  document.getElementById(`app-expand-${id}`)?.classList.toggle('open');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function collectApps() {
+  return [...document.querySelectorAll('#apps-list .app-row')].map(row => ({
+    name:        row.querySelector('[data-field="name"]').value.trim(),
+    url:         row.querySelector('[data-field="url"]').value.trim(),
+    description: row.querySelector('[data-field="description"]')?.value.trim() || '',
+    icon:        row.querySelector('[data-field="icon"]')?.value || 'generic',
+  })).filter(a => a.name && a.url);
+}
+
+async function saveApps() {
+  const btn = document.getElementById('save-apps-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const r = await fetch('/api/apps', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(collectApps()),
+    });
+    const result = await r.json();
+    if (result.ok) {
+      showAppsStatus('ok', '✓ Apps saved');
+    } else {
+      showAppsStatus('err', result.detail || 'Save failed');
+    }
+  } catch (e) {
+    showAppsStatus('err', 'Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Apps';
+  }
+}
+
+function showAppsStatus(type, msg) {
+  const el = document.getElementById('apps-status-msg');
+  el.textContent = msg;
+  el.className = 'status-msg ' + type;
+  setTimeout(() => { el.className = 'status-msg'; }, 5000);
 }
 
 function toggleSslFields(enabled) {
@@ -285,7 +511,121 @@ function showStatus(type, msg) {
   setTimeout(() => { el.className = 'status-msg'; }, 6000);
 }
 
+// ── Service status ────────────────────────────────────────────────────────────
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/admin/status');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const s = await r.json();
+    const badge = document.getElementById('svc-badge');
+    const badgeClass = s.active === 'active' ? 'active'
+                     : s.active === 'inactive' || s.active === 'failed' ? 'inactive'
+                     : 'unknown';
+    badge.textContent = s.active || 'unknown';
+    badge.className = 'svc-badge ' + badgeClass;
+
+    const sinceEl = document.getElementById('svc-since');
+    if (s.since && s.since !== 'n/a' && s.since.trim()) {
+      sinceEl.textContent = 'since ' + s.since.replace('ActiveEnterTimestamp=', '');
+    }
+    const pidEl = document.getElementById('svc-pid');
+    if (s.pid && s.pid !== '0') pidEl.textContent = 'PID ' + s.pid;
+  } catch (_) {
+    // systemctl not available (dev environment) — just hide the section
+    document.getElementById('svc-badge').textContent = 'not available';
+  }
+}
+
+// ── Test pktFlow connection ───────────────────────────────────────────────────
+
+async function testConnection() {
+  const btn = document.getElementById('test-btn');
+  const resultEl = document.getElementById('test-result');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  resultEl.textContent = ''; resultEl.className = 'test-result';
+  try {
+    const body = {
+      url:      document.getElementById('pktflow_url').value.trim(),
+      username: document.getElementById('pktflow_username').value.trim(),
+      password: document.getElementById('pktflow_password').value ||
+                '__use_saved__',  // sentinel — server will use stored password
+    };
+    const r = await fetch('/api/admin/test-pktflow', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const result = await r.json();
+    if (result.ok) {
+      resultEl.textContent = `✓ Connected (${result.latency_ms} ms)`;
+      resultEl.className = 'test-result ok';
+    } else {
+      resultEl.textContent = '✗ ' + (result.error || 'Failed');
+      resultEl.className = 'test-result err';
+    }
+  } catch (e) {
+    resultEl.textContent = '✗ ' + e.message;
+    resultEl.className = 'test-result err';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Test';
+  }
+}
+
+// ── Live log tail ─────────────────────────────────────────────────────────────
+
+let _logEs = null;
+let _logRunning = false;
+
+function toggleLog() {
+  if (_logRunning) stopLog(); else startLog();
+}
+
+function startLog() {
+  if (_logEs) { _logEs.close(); _logEs = null; }
+  const term = document.getElementById('log-terminal');
+  term.innerHTML = '<span style="color:#484f58">Connecting…</span>';
+
+  _logEs = new EventSource('/api/admin/logs');
+  _logRunning = true;
+  document.getElementById('log-toggle-btn').textContent = '■ Stop';
+
+  let firstRealLine = true;
+  _logEs.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (firstRealLine) { term.innerHTML = ''; firstRealLine = false; }
+    const span = document.createElement('span');
+    span.className = 'log-line' +
+      (data.line.includes(' ERROR ') || data.line.includes(' CRITICAL ') ? ' err' : '') +
+      (data.line.includes(' WARNING ') ? ' warn' : '');
+    span.textContent = data.line + '\n';
+    term.appendChild(span);
+    term.scrollTop = term.scrollHeight;
+  };
+  _logEs.onerror = () => {
+    if (_logRunning) {
+      const span = document.createElement('span');
+      span.className = 'log-line err';
+      span.textContent = '[stream disconnected]\n';
+      term.appendChild(span);
+      stopLog();
+    }
+  };
+}
+
+function stopLog() {
+  if (_logEs) { _logEs.close(); _logEs = null; }
+  _logRunning = false;
+  document.getElementById('log-toggle-btn').textContent = '▶ Start';
+}
+
+function clearLog() {
+  document.getElementById('log-terminal').innerHTML = '<span style="color:#484f58">Cleared.</span>';
+}
+
 load();
+loadStatus();
 </script>
 </body>
 </html>
+                                                                                               
