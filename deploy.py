@@ -90,12 +90,13 @@ def main():
 
     # 2. Create directories
     print("\n[2/5] Creating remote directories...")
-    run(client, "mkdir -p " + REMOTE + "/app " + REMOTE + "/frontend /mnt/software/logs")
+    run(client, "mkdir -p " + REMOTE + "/app " + REMOTE + "/frontend " + REMOTE + "/logos /mnt/software/logs")
 
     # 3. Upload files
     print("\n[3/5] Uploading files...")
     sftp_upload_dir(sftp, os.path.join(PROJECT, "app"),      REMOTE + "/app")
     sftp_upload_dir(sftp, os.path.join(PROJECT, "frontend"), REMOTE + "/frontend")
+    sftp_upload_dir(sftp, os.path.join(PROJECT, "logos"),    REMOTE + "/logos")
     for fname in ["requirements.txt", "config.yaml"]:
         sftp.put(os.path.join(PROJECT, fname), REMOTE + "/" + fname)
         print("  upload: " + fname)

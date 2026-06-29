@@ -26,7 +26,7 @@ class PktFlowClient:
     # ── Auth ──────────────────────────────────────────────────────────────────
 
     async def _login(self) -> None:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, verify=False) as client:
             resp = await client.post(
                 f"{self.base_url}/api/auth/login",
                 json={"username": self.username, "password": self.password},
@@ -48,7 +48,7 @@ class PktFlowClient:
     async def _get(self, path: str, params: dict | None = None) -> Any:
         await self._ensure_token()
         headers = {"Authorization": f"Bearer {self._token}"}
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, verify=False) as client:
             resp = await client.get(
                 f"{self.base_url}{path}",
                 headers=headers,
