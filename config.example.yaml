@@ -19,3 +19,16 @@ port: 8760
 ssl_enabled: false
 ssl_cert: ""   # e.g. /mnt/software/pktdashboard/tls/cert.pem
 ssl_key:  ""   # e.g. /mnt/software/pktdashboard/tls/key.pem
+
+# pktsuite app registry — shown in the dashboard launcher
+# Add, remove, or reorder entries here; the dashboard renders them dynamically.
+# icon: flow | pcap | generic
+apps:
+  - name: pktFlow
+    url: "http://127.0.0.1:8766"
+    description: "Real-time NetFlow analysis"
+    icon: "flow"
+  - name: pktAnalyzer
+    url: "http://127.0.0.1:8765"
+    description: "Upload a .pcap to get started"
+    icon: "pcap"

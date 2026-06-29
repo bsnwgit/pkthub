@@ -25,7 +25,7 @@ body {
 .header {
   background: #161b22;
   border-bottom: 1px solid #30363d;
-  height: 48px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -38,14 +38,7 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  color: #e6edf3;
-  letter-spacing: -0.3px;
 }
-
-.logo svg { color: #58a6ff; }
 
 .status-pill {
   font-size: 11px;
@@ -251,10 +244,7 @@ body {
 
 <header class="header">
   <div class="logo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 12h4l3-9 4 18 3-9h4"/>
-    </svg>
-    pktsuite
+    <img src="/logos/lockup.svg" alt="pktsuite" width="258" height="80">
   </div>
   <div id="status-pill" class="status-pill pill-dim">Connecting...</div>
   <div class="header-right" id="refresh-info"></div>
@@ -298,45 +288,11 @@ body {
     </div>
   </section>
 
-  <!-- App launcher -->
+  <!-- App launcher — rendered dynamically from /api/apps -->
   <section>
     <div class="section-label">Applications</div>
-    <div class="apps-grid">
-
-      <a class="app-card" href="http://172.23.80.5:8766" target="_blank" rel="noopener">
-        <div class="app-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </div>
-        <div class="app-info">
-          <div class="app-name">pktFlow</div>
-          <div class="app-desc">NetFlow visualization &amp; alerting platform</div>
-          <div class="app-status" id="pktflow-app-status"><span class="status-na">● checking...</span></div>
-        </div>
-        <div class="ext-arrow">↗</div>
-      </a>
-
-      <a class="app-card" href="http://172.23.80.5:8765" target="_blank" rel="noopener">
-        <div class="app-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
-          </svg>
-        </div>
-        <div class="app-info">
-          <div class="app-name">pktAnalyzer</div>
-          <div class="app-desc">Deep packet inspection — upload a .pcap to get started</div>
-          <div class="app-status"><span class="status-na">● standalone</span></div>
-        </div>
-        <div class="ext-arrow">↗</div>
-      </a>
-
+    <div class="apps-grid" id="apps-grid">
+      <div class="empty-state loading-pulse">Loading apps…</div>
     </div>
   </section>
 
@@ -346,6 +302,15 @@ body {
 "use strict";
 
 let lastFetch = null;
+let _lastData;
+
+function updateAppStatuses(data) {
+  document.querySelectorAll('.app-card[data-app-icon="flow"] .app-status').forEach(el => {
+    el.innerHTML = data.pktflow_up
+      ? '<span class="status-live">● live</span>'
+      : '<span class="status-down">● unreachable</span>';
+  });
+}
 
 function timeAgo(isoStr) {
   const sec = Math.floor((Date.now() - new Date(isoStr)) / 1000);
@@ -432,13 +397,9 @@ function render(data) {
       </div>`).join('');
   }
 
-  // App card status
-  const appStatus = document.getElementById('pktflow-app-status');
-  if (data.pktflow_up) {
-    appStatus.innerHTML = '<span class="status-live">● live</span>';
-  } else {
-    appStatus.innerHTML = '<span class="status-down">● unreachable</span>';
-  }
+  // App card status — update all flow-type cards
+  _lastData = data;
+  updateAppStatuses(data);
 
   lastFetch = new Date();
 }
@@ -464,7 +425,47 @@ async function fetchData() {
   }
 }
 
+// ── App launcher ──────────────────────────────────────────────────────────────
+
+const ICONS = {
+  flow: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+  pcap: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+  generic: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+};
+
+async function loadApps() {
+  try {
+    const r = await fetch('/api/apps');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const apps = await r.json();
+    const grid = document.getElementById('apps-grid');
+    if (!apps.length) {
+      grid.innerHTML = '<div class="empty-state">No apps configured — add them in <a href="/settings" style="color:#58a6ff">Settings</a>.</div>';
+      return;
+    }
+    grid.innerHTML = apps.map(a => `
+      <a class="app-card" href="${esc(a.url)}" target="_blank" rel="noopener" data-app-icon="${esc(a.icon||'generic')}">
+        <div class="app-icon">${ICONS[a.icon] || ICONS.generic}</div>
+        <div class="app-info">
+          <div class="app-name">${esc(a.name)}</div>
+          <div class="app-desc">${esc(a.description || '')}</div>
+          <div class="app-status">${a.icon === 'flow'
+            ? '<span class="status-na">● checking…</span>'
+            : `<span class="status-na">● ${esc(a.url)}</span>`
+          }</div>
+        </div>
+        <div class="ext-arrow">↗</div>
+      </a>
+    `).join('');
+    // Trigger a status update if data already loaded
+    if (typeof _lastData !== 'undefined') updateAppStatuses(_lastData);
+  } catch (e) {
+    document.getElementById('apps-grid').innerHTML = '<div class="empty-state">Failed to load apps</div>';
+  }
+}
+
 fetchData();
+loadApps();
 setInterval(fetchData, 30000);
 setInterval(updateRefreshInfo, 5000);
 </script>
