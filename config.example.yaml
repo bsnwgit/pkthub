@@ -1,13 +1,32 @@
-# pktDashboard configuration
-# Copy this file to config.yaml and fill in values before starting the service.
-
-# pktFlow connection — internal URL (same host, no need to go through external port if running locally)
-pktflow_url: "http://127.0.0.1:8766"
-
-# Service account credentials — must match a viewer-role user in pktFlow's SQLite database
-pktflow_username: "pktdashboard"
-pktflow_password: "CHANGE_ME"
-
-# Server bind settings
 host: "0.0.0.0"
 port: 8760
+https: true
+ssl_certfile: "/etc/ssl/pktsuite/cert.pem"
+ssl_keyfile: "/etc/ssl/pktsuite/key.pem"
+
+# Secret key for JWT signing — generate with: openssl rand -hex 32
+jwt_secret: "CHANGE_ME_generate_with_openssl_rand_hex_32"
+jwt_algorithm: "HS256"
+jwt_expire_minutes: 60
+
+# Initial admin user (created on first boot if no users exist)
+initial_admin_username: "admin"
+initial_admin_password: "CHANGE_ME"
+initial_admin_email: "admin@example.com"
+
+# Okta/OIDC (optional — leave blank to disable)
+okta_domain: ""
+okta_client_id: ""
+okta_client_secret: ""
+
+# SQLite database path
+db_path: "/mnt/software/pktsuite/pktsuite.db"
+
+# Health polling interval (seconds)
+health_poll_interval: 30
+
+# Audit log retention (days)
+audit_retention_days: 90
+
+# Trusted CIDRs (empty = allow all)
+trusted_cidrs: []

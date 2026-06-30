@@ -1,27 +1,23 @@
-# Config (contains credentials — never commit)
-config.yaml
-
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
-*.pyd
 venv/
 .venv/
 *.egg-info/
 
-# Logs
-*.log
+# Config (contains secrets)
+config.yaml
 
-# Environment
-.env
-.env.*
+# Frontend build
+frontend/node_modules/
+frontend/dist/
 
-# OS
+# DB
+*.db
+*.db-wal
+*.db-shm
+
+# Misc
 .DS_Store
-Thumbs.db
-
-# Editor
-.vscode/
-.idea/
-*.swp
+*.log

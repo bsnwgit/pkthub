@@ -1,77 +1,81 @@
-"""
-pktDashboard — FastAPI entry point.
-Serves the single-page frontend and proxies dashboard data from pktFlow.
-"""
-from __future__ import annotations
-
-import logging
-from pathlib import Path
-
-import yaml
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import os
+import aiosqlite
 
-from app.pktflow_client import PktFlowClient
+from app.config import get_settings
+from app.database import init_db, get_db
+from app.auth import router as auth_router, ensure_initial_admin
+from app.users import router as users_router
+from app.registry import router as registry_router, poll_health
+from app.proxy import router as proxy_router
+from app.kiosk import router as kiosk_router
+from app.audit import router as audit_router
+from app.settings_api import router as settings_router
+from app.dashboard import router as dashboard_router
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-log = logging.getLogger("pktdashboard")
-
-# ── Config ────────────────────────────────────────────────────────────────────
-
-def _load_config() -> dict:
-    candidates = [
-        Path("/mnt/software/pktdashboard/config.yaml"),
-        Path("config.yaml"),
-    ]
-    for p in candidates:
-        if p.exists():
-            with p.open() as f:
-                cfg = yaml.safe_load(f) or {}
-            log.info("Loaded config from %s", p)
-            return cfg
-    raise FileNotFoundError("config.yaml not found")
-
-cfg = _load_config()
-
-# ── pktFlow client ────────────────────────────────────────────────────────────
-
-pktflow = PktFlowClient(
-    base_url=cfg["pktflow_url"],
-    username=cfg["pktflow_username"],
-    password=cfg["pktflow_password"],
-)
-
-# ── App ───────────────────────────────────────────────────────────────────────
-
-app = FastAPI(title="pktDashboard", docs_url=None, redoc_url=None)
+app = FastAPI(title="pktSuite", version="1.0.0", docs_url="/api/docs")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Frontend ──────────────────────────────────────────────────────────────────
-
-_frontend = Path("/mnt/software/pktdashboard/frontend/index.html")
-if not _frontend.exists():
-    _frontend = Path(__file__).parent.parent / "frontend" / "index.html"
-
-
-@app.get("/", include_in_schema=False)
-async def root():
-    return FileResponse(str(_frontend))
-
-
-# ── API ───────────────────────────────────────────────────────────────────────
+# Register routers
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(registry_router)
+app.include_router(proxy_router)
+app.include_router(kiosk_router)
+app.include_router(audit_router)
+app.include_router(settings_router)
+app.include_router(dashboard_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "pktsuite", "version": "1.0.0"}
 
+@app.on_event("startup")
+async def startup():
+    await init_db()
+    settings = get_settings()
+    async with aiosqlite.connect(settings.db_path) as db:
+        db.row_factory = aiosqlite.Row
+        await ensure_initial_admin(db)
+    asyncio.create_task(health_poller())
 
-@app.get("/api/dashboard")
-async def dashboard():
-    return await pktflow.get_dashboard_data()
+async def health_poller():
+    """Background loop: poll health of all registered apps every N seconds."""
+    settings = get_settings()
+    while True:
+        await asyncio.sleep(settings.health_poll_interval)
+        try:
+            async with aiosqlite.connect(settings.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute("SELECT id, base_url, suite_token FROM registered_apps") as cur:
+                    apps = await cur.fetchall()
+            for app_row in apps:
+                asyncio.create_task(
+                    poll_health(app_row["id"], app_row["base_url"], app_row["suite_token"])
+                )
+        except Exception:
+            pass
+
+# Serve React frontend — catch-all for SPA routing
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+
+if os.path.exists(FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        index = os.path.join(FRONTEND_DIST, "index.html")
+        if os.path.exists(index):
+            return FileResponse(index)
+        return {"error": "Frontend not built"}
