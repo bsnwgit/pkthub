@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktFlow — User Guide</title>
+  <style>
+    :root {
+      --bg-primary:#111827; --bg-card:#0d1f3d; --bg-surface:#1a2744;
+      --accent:#60a5fa; --accent-dim:#3b82f6;
+      --text-primary:#ffffff; --text-secondary:#9ca3af; --text-muted:#6b7280;
+      --border:#1e3a5f; --success:#22c55e; --warning:#f59e0b; --danger:#ef4444;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;}
+    a{color:var(--accent);}
+
+    /* LAYOUT */
+    .shell{display:flex;min-height:100vh;}
+    .sidebar{
+      width:260px;flex-shrink:0;background:var(--bg-card);
+      border-right:1px solid var(--border);padding:2rem 1.5rem;
+      position:sticky;top:0;height:100vh;overflow-y:auto;
+    }
+    .sidebar-logo{margin-bottom:2rem;}
+    .sidebar-logo img{height:34px;}
+    .sidebar-section{font-size:0.7rem;font-weight:700;letter-spacing:2px;
+      text-transform:uppercase;color:var(--text-muted);margin:1.5rem 0 0.5rem;}
+    .sidebar nav a{
+      display:block;padding:7px 12px;border-radius:7px;font-size:0.875rem;
+      color:var(--text-secondary);text-decoration:none;margin-bottom:2px;
+      transition:all 0.15s;
+    }
+    .sidebar nav a:hover,.sidebar nav a.active{
+      background:rgba(96,165,250,0.1);color:var(--accent);}
+    .content{flex:1;padding:3rem 4rem;max-width:900px;}
+
+    /* PAGE HEADER */
+    .page-header{
+      display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;
+    }
+    .page-badge{
+      background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);
+      color:var(--accent);font-size:0.75rem;font-weight:700;
+      padding:4px 12px;border-radius:20px;letter-spacing:0.5px;
+    }
+    h1{font-size:2.2rem;font-weight:800;margin:0.5rem 0 1rem;}
+    .lead{font-size:1.1rem;color:var(--text-secondary);margin-bottom:3rem;
+      padding-bottom:2rem;border-bottom:1px solid var(--border);}
+
+    /* SECTIONS */
+    .doc-section{margin-bottom:3.5rem;}
+    .doc-section h2{
+      font-size:1.4rem;font-weight:700;margin-bottom:1rem;
+      padding-bottom:0.5rem;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:10px;
+    }
+    .doc-section h2 .icon{font-size:1.2rem;}
+    .doc-section h3{font-size:1.05rem;font-weight:600;margin:1.5rem 0 0.5rem;color:var(--accent);}
+    .doc-section p{color:var(--text-secondary);margin-bottom:1rem;}
+    .doc-section ul,.doc-section ol{
+      color:var(--text-secondary);padding-left:1.5rem;margin-bottom:1rem;}
+    .doc-section li{margin-bottom:0.4rem;}
+
+    /* CALLOUT */
+    .callout{
+      border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0;
+      display:flex;gap:12px;align-items:flex-start;font-size:0.9rem;
+    }
+    .callout.info{background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:#93c5fd;}
+    .callout.tip{background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);color:#86efac;}
+    .callout.warn{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);color:#fcd34d;}
+    .callout-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px;}
+
+    /* TABLE */
+    .data-table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:0.875rem;}
+    .data-table th{
+      background:var(--bg-card);color:var(--text-secondary);
+      font-weight:600;padding:10px 14px;text-align:left;
+      border-bottom:1px solid var(--border);font-size:0.8rem;
+      text-transform:uppercase;letter-spacing:0.5px;
+    }
+    .data-table td{padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);color:var(--text-secondary);}
+    .data-table tr:hover td{background:rgba(96,165,250,0.04);}
+    .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;}
+    .badge-admin{background:rgba(239,68,68,0.15);color:#fca5a5;}
+    .badge-analyst{background:rgba(96,165,250,0.15);color:#93c5fd;}
+    .badge-viewer{background:rgba(107,114,128,0.2);color:#d1d5db;}
+
+    /* STEP CARD */
+    .steps{display:flex;flex-direction:column;gap:1rem;margin:1rem 0 1.5rem;}
+    .step{
+      display:flex;gap:1rem;background:var(--bg-card);
+      border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;
+    }
+    .step-num{
+      width:28px;height:28px;border-radius:50%;background:var(--accent-dim);
+      color:white;font-weight:700;font-size:0.85rem;display:flex;
+      align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;
+    }
+    .step-content h4{font-size:0.95rem;font-weight:600;margin-bottom:0.25rem;}
+    .step-content p{color:var(--text-secondary);font-size:0.875rem;margin:0;}
+
+    /* PAGE NAV FOOTER */
+    .page-nav{
+      display:flex;justify-content:space-between;margin-top:4rem;
+      padding-top:2rem;border-top:1px solid var(--border);
+    }
+    .page-nav a{
+      background:var(--bg-card);border:1px solid var(--border);
+      padding:10px 20px;border-radius:8px;font-size:0.875rem;
+      text-decoration:none;color:var(--text-secondary);transition:all 0.15s;
+    }
+    .page-nav a:hover{border-color:var(--accent);color:var(--accent);}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><a href="index.html"><img src="assets/logo-lockup.svg" alt="pktFlow"/></a></div>
+    <div class="sidebar-section">Getting Started</div>
+    <nav>
+      <a href="#overview">Platform Overview</a>
+      <a href="#login">Logging In</a>
+      <a href="#navigation">Navigation</a>
+    </nav>
+    <div class="sidebar-section">Dashboard Pages</div>
+    <nav>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#flow-explorer">Flow Explorer</a>
+      <a href="#device-view">Device View</a>
+      <a href="#topology">Topology Map</a>
+      <a href="#alerts">Alerts</a>
+    </nav>
+    <div class="sidebar-section">Working with Data</div>
+    <nav>
+      <a href="#filtering">Filtering &amp; Search</a>
+      <a href="#export">Exporting Data</a>
+      <a href="#time-ranges">Time Ranges</a>
+    </nav>
+    <div class="sidebar-section">Account</div>
+    <nav>
+      <a href="#roles">Roles &amp; Permissions</a>
+      <a href="#password">Password &amp; Profile</a>
+    </nav>
+    <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);">
+      <a href="admin-guide.html" style="font-size:0.8rem;color:var(--text-muted);text-decoration:none;">&#x2192; Admin Guide</a><br/>
+      <a href="index.html" style="font-size:0.8rem;color:var(--text-muted);text-decoration:none;margin-top:6px;display:block;">&#x2190; Back to Overview</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="page-header">
+      <span class="page-badge">END USER GUIDE</span>
+    </div>
+    <h1>pktFlow User Guide</h1>
+    <p class="lead">This guide covers everything you need to use the pktFlow dashboard — from logging in to exploring flows, reading alerts, and exporting data for analysis.</p>
+
+    <!-- OVERVIEW -->
+    <div class="doc-section" id="overview">
+      <h2><span class="icon">&#x1F4CA;</span> Platform Overview</h2>
+      <p>pktFlow is a real-time network flow analytics platform. It collects NetFlow data from network routers and switches, stores it in a high-performance time-series database, and presents it through an interactive web dashboard.</p>
+      <p>As an end user, you interact with pktFlow entirely through your web browser. No software installation is required. You can access it from any device on the network.</p>
+      <div class="callout info">
+        <span class="callout-icon">&#x2139;&#xFE0F;</span>
+        <span>pktFlow receives live traffic data from all monitored network segments. The data you see reflects actual traffic flowing through your organization's network infrastructure.</span>
+      </div>
+      <h3>What You Can Do</h3>
+      <ul>
+        <li>View live traffic charts and top talkers across all monitored sites</li>
+        <li>Search and filter individual flow records by IP address, port, protocol, or time</li>
+        <li>Explore network topology — which devices are communicating with which</li>
+        <li>Monitor active alerts and review alert history</li>
+        <li>Export flow data to CSV or JSON for reporting</li>
+        <li>Manage your account password</li>
+      </ul>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="doc-section" id="login">
+      <h2><span class="icon">&#x1F510;</span> Logging In</h2>
+      <p>Open your browser and navigate to the pktFlow URL provided by your administrator. You will be presented with the login screen.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Enter Credentials</h4><p>Type your username and password. These are provided by your pktFlow administrator.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Click Sign In</h4><p>Press the Sign In button or hit Enter. If successful, you are taken directly to the Dashboard.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Troubleshoot</h4><p>If login fails, confirm your username is spelled correctly. Passwords are case-sensitive. Contact your admin if you're locked out.</p></div></div>
+      </div>
+      <div class="callout tip">
+        <span class="callout-icon">&#x1F4A1;</span>
+        <span>Your session remains active for several hours. You won't be logged out mid-session unless you explicitly sign out or your admin resets your account.</span>
+      </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="doc-section" id="navigation">
+      <h2><span class="icon">&#x1F5FA;&#xFE0F;</span> Navigation</h2>
+      <p>The left-side navigation bar contains all main pages. Your role determines which items are visible.</p>
+      <table class="data-table">
+        <thead><tr><th>Page</th><th>Description</th><th>Access</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard</td><td>Live traffic overview, top talkers, throughput charts</td><td>All roles</td></tr>
+          <tr><td>Flow Explorer</td><td>Searchable table of all flow records with filters</td><td>All roles</td></tr>
+          <tr><td>Device View</td><td>Per-device traffic breakdown and activity history</td><td>All roles</td></tr>
+          <tr><td>Topology</td><td>D3 network graph of device relationships</td><td>All roles</td></tr>
+          <tr><td>Alerts</td><td>Active and historical alert events</td><td>All roles</td></tr>
+          <tr><td>Settings</td><td>System configuration, alert rules, notifications</td><td>Admin only</td></tr>
+          <tr><td>Users</td><td>User account management</td><td>Admin only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="doc-section" id="dashboard">
+      <h2><span class="icon">&#x1F4CA;</span> Dashboard</h2>
+      <p>The Dashboard is the home page of pktFlow. It provides a real-time snapshot of network activity across all monitored sites.</p>
+      <h3>Key Panels</h3>
+      <ul>
+        <li><strong>Traffic Over Time</strong> — Line chart showing bytes and flows per minute. Use this to spot spikes or drops in traffic volume.</li>
+        <li><strong>Top Talkers</strong> — The source IPs generating the most traffic. Useful for spotting unusual sources.</li>
+        <li><strong>Top Destinations</strong> — The most contacted destination IPs or subnets.</li>
+        <li><strong>Protocol Mix</strong> — Breakdown of traffic by protocol (TCP, UDP, ICMP, etc.).</li>
+        <li><strong>Site Breakdown</strong> — If multiple collector sites are configured, this panel compares traffic volume per site.</li>
+        <li><strong>Ingest Health</strong> — Shows whether pktFlow is actively receiving flows and how recently data was ingested.</li>
+      </ul>
+      <div class="callout info">
+        <span class="callout-icon">&#x2139;&#xFE0F;</span>
+        <span>All dashboard panels respect the currently selected time range. Change the range using the time picker in the top-right corner of the page.</span>
+      </div>
+    </div>
+
+    <!-- FLOW EXPLORER -->
+    <div class="doc-section" id="flow-explorer">
+      <h2><span class="icon">&#x1F50D;</span> Flow Explorer</h2>
+      <p>The Flow Explorer gives you direct access to the raw flow records stored in pktFlow. You can search, filter, sort, and export any subset of the data.</p>
+      <h3>Searching Flows</h3>
+      <p>Use the filter bar at the top of the page to narrow results. You can filter by:</p>
+      <ul>
+        <li><strong>Source IP</strong> — exact IP or CIDR (e.g. <code>10.1.2.0/24</code>)</li>
+        <li><strong>Destination IP</strong> — exact IP or CIDR</li>
+        <li><strong>Source Port / Destination Port</strong> — numeric port (e.g. <code>443</code>)</li>
+        <li><strong>Protocol</strong> — TCP, UDP, ICMP, or numeric</li>
+        <li><strong>Site</strong> — filter to a specific collector site</li>
+        <li><strong>Time Range</strong> — last 15m / 1h / 6h / 24h / 7d / custom</li>
+      </ul>
+      <h3>Reading the Flow Table</h3>
+      <table class="data-table">
+        <thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>Time</td><td>When the flow was received by the collector</td></tr>
+          <tr><td>Src IP</td><td>Source IP address of the traffic</td></tr>
+          <tr><td>Dst IP</td><td>Destination IP address</td></tr>
+          <tr><td>Src Port</td><td>Source TCP/UDP port</td></tr>
+          <tr><td>Dst Port</td><td>Destination port (e.g. 443 = HTTPS)</td></tr>
+          <tr><td>Proto</td><td>Layer 4 protocol</td></tr>
+          <tr><td>Bytes</td><td>Total bytes transferred in this flow</td></tr>
+          <tr><td>Packets</td><td>Total packets in this flow</td></tr>
+          <tr><td>Site</td><td>Which collector site reported this flow</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="callout-icon">&#x1F4A1;</span>
+        <span>Click any column header to sort by that field. Click again to reverse the sort direction.</span>
+      </div>
+    </div>
+
+    <!-- DEVICE VIEW -->
+    <div class="doc-section" id="device-view">
+      <h2><span class="icon">&#x1F5A5;&#xFE0F;</span> Device View</h2>
+      <p>Device View focuses on a single IP address, showing all traffic associated with that device — both inbound and outbound. Use this to investigate a specific host.</p>
+      <p>To open Device View for an IP, click any IP address link in the Flow Explorer or Topology pages. You can also navigate directly and type an IP address in the search box.</p>
+      <h3>What You'll See</h3>
+      <ul>
+        <li>Total bytes sent and received over the selected time range</li>
+        <li>Top peers this device communicates with</li>
+        <li>Traffic over time chart for this device only</li>
+        <li>Full flow table filtered to this IP as source or destination</li>
+      </ul>
+    </div>
+
+    <!-- TOPOLOGY -->
+    <div class="doc-section" id="topology">
+      <h2><span class="icon">&#x1F5FA;&#xFE0F;</span> Topology Map</h2>
+      <p>The Topology page renders a live D3 force-directed graph showing network devices as nodes and traffic flows as edges. The thicker the edge, the higher the traffic volume between two devices.</p>
+      <h3>Interacting with the Graph</h3>
+      <ul>
+        <li><strong>Pan</strong> — Click and drag on the background to move the view.</li>
+        <li><strong>Zoom</strong> — Scroll wheel to zoom in and out.</li>
+        <li><strong>Drag nodes</strong> — Click and drag a device node to reposition it.</li>
+        <li><strong>Hover</strong> — Hover over a node to see the device IP and traffic volume. Hover over an edge to see flow details.</li>
+      </ul>
+      <div class="callout info">
+        <span class="callout-icon">&#x2139;&#xFE0F;</span>
+        <span>The topology is built from actual flow records in the selected time window. Devices with no traffic in that period will not appear on the graph.</span>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="doc-section" id="alerts">
+      <h2><span class="icon">&#x1F6A8;</span> Alerts</h2>
+      <p>The Alerts page shows all events triggered by pktFlow's rule engine. Each alert represents a condition your admin has configured as noteworthy.</p>
+      <h3>Alert Types</h3>
+      <table class="data-table">
+        <thead><tr><th>Type</th><th>Triggers When</th></tr></thead>
+        <tbody>
+          <tr><td>Data Gap</td><td>No flows have been received from a site for longer than the configured threshold</td></tr>
+          <tr><td>New Host</td><td>A previously unseen IP address appears in the flow data</td></tr>
+          <tr><td>Rate Spike</td><td>Traffic volume from a source exceeds the configured threshold</td></tr>
+          <tr><td>Threshold</td><td>A cumulative bytes or packets value crosses a defined limit</td></tr>
+          <tr><td>Port/Protocol</td><td>Unexpected port or protocol activity is detected</td></tr>
+        </tbody>
+      </table>
+      <h3>Alert States</h3>
+      <ul>
+        <li><strong>Active</strong> — The condition is currently ongoing.</li>
+        <li><strong>Resolved</strong> — The condition has cleared.</li>
+        <li><strong>Acknowledged</strong> — A user has reviewed and acknowledged the alert.</li>
+      </ul>
+      <div class="callout warn">
+        <span class="callout-icon">&#x26A0;&#xFE0F;</span>
+        <span>Only Admins can create, edit, or delete alert rules. Analysts and Viewers can read and acknowledge alert events.</span>
+      </div>
+    </div>
+
+    <!-- FILTERING -->
+    <div class="doc-section" id="filtering">
+      <h2><span class="icon">&#x1F9F0;</span> Filtering &amp; Search</h2>
+      <p>Most pages in pktFlow share a common filter bar. Filters apply immediately and are reflected in all panels on that page.</p>
+      <h3>Filter Tips</h3>
+      <ul>
+        <li>CIDR notation works for IP filters — enter <code>192.168.0.0/16</code> to match an entire subnet.</li>
+        <li>Multiple filters are combined with AND logic — all conditions must match.</li>
+        <li>Clear individual filters by clicking the ✕ icon next to each filter chip.</li>
+        <li>The time range selector affects all data on the current page.</li>
+      </ul>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="doc-section" id="export">
+      <h2><span class="icon">&#x1F4E4;</span> Exporting Data</h2>
+      <p>You can export any filtered result set from the Flow Explorer for use in spreadsheets, SIEM tools, or reports.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Apply Your Filters</h4><p>Use the filter bar to narrow the data to exactly what you need — time range, IPs, ports, etc.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Click Export</h4><p>Find the Export button above the flow table. Choose CSV for spreadsheet use, or JSON for programmatic processing.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Save the File</h4><p>Your browser will download the file. The export contains all fields for every record matching your current filters.</p></div></div>
+      </div>
+      <div class="callout info">
+        <span class="callout-icon">&#x2139;&#xFE0F;</span>
+        <span>Exports are limited to the records returned by the current query. For very large time ranges, apply additional filters to keep the file size manageable.</span>
+      </div>
+    </div>
+
+    <!-- ROLES -->
+    <div class="doc-section" id="roles">
+      <h2><span class="icon">&#x1F512;</span> Roles &amp; Permissions</h2>
+      <p>pktFlow uses three access roles. Your role is assigned by an administrator and controls what you can see and do.</p>
+      <table class="data-table">
+        <thead><tr><th>Role</th><th>Can Do</th><th>Cannot Do</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-admin">Admin</span></td>
+            <td>Everything — including user management, settings, alert rules, and service restart</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-analyst">Analyst</span></td>
+            <td>View all data pages, search flows, export data, acknowledge alerts</td>
+            <td>Manage users, change system settings, create alert rules</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-viewer">Viewer</span></td>
+            <td>View dashboard, flow explorer, topology, and alerts</td>
+            <td>Export data, acknowledge alerts, change any settings</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="doc-section" id="password">
+      <h2><span class="icon">&#x1F464;</span> Password &amp; Profile</h2>
+      <p>You can change your own password at any time from the account menu in the top-right corner of the dashboard.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Open Account Menu</h4><p>Click your username or avatar in the top-right of the navigation bar.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Select Change Password</h4><p>Enter your current password, then your new password twice to confirm.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Save</h4><p>Click Save. Your new password takes effect immediately. Your active session is not interrupted.</p></div></div>
+      </div>
+      <div class="callout tip">
+        <span class="callout-icon">&#x1F4A1;</span>
+        <span>If you forget your password, contact your pktFlow administrator. Admins can reset any user's password from the Users page.</span>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="index.html">&#x2190; Platform Overview</a>
+      <a href="admin-guide.html">Admin Guide &#x2192;</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

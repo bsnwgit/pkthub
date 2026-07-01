@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pkt — Network Visibility Tools</title>
+  <style>
+    :root {
+      --bg:   #080d18;
+      --card: #0d1525;
+      --surf: #111e30;
+      --text: #f1f5f9;
+      --sec:  #94a3b8;
+      --muted:#475569;
+      --bdr:  rgba(255,255,255,0.07);
+      --flow: #60a5fa; --flow-bg: rgba(96,165,250,0.06);
+      --snmp: #2dd4bf; --snmp-bg: rgba(45,212,191,0.06);
+      --log:  #4ade80; --log-bg:  rgba(74,222,128,0.06);
+      --pcap: #a78bfa; --pcap-bg: rgba(167,139,250,0.06);
+      --hub:  #e2e8f0; --hub-bg:  rgba(226,232,240,0.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--sec);
+      font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; overflow-x: hidden; }
+    a { text-decoration: none; color: inherit; }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100; height: 60px;
+      background: rgba(8,13,24,0.94); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bdr);
+      padding: 0 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-brand-text { font-family: 'Courier New', monospace; font-size: 1.3rem;
+      font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .nav-apps { display: flex; gap: 6px; }
+    .nav-app { font-size: 12px; font-weight: 700; padding: 4px 10px;
+      border-radius: 6px; border: 1px solid var(--bdr); letter-spacing: 0.5px;
+      transition: border-color .2s, color .2s; }
+    .nav-app.flow { color: var(--flow); }
+    .nav-app.snmp { color: var(--snmp); }
+    .nav-app.log  { color: var(--log);  }
+    .nav-app.pcap { color: var(--pcap); }
+    .nav-app.hub  { color: var(--hub);  }
+    .nav-app.flow:hover { border-color: var(--flow); }
+    .nav-app.snmp:hover { border-color: var(--snmp); }
+    .nav-app.log:hover  { border-color: var(--log);  }
+    .nav-app.pcap:hover { border-color: var(--pcap); }
+    .nav-app.hub:hover  { border-color: var(--hub);  }
+
+    /* HERO */
+    .hero {
+      padding: 80px 2.5rem 72px; text-align: center;
+      border-bottom: 1px solid var(--bdr);
+    }
+    .hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+    .hero-title { font-family: 'Courier New', monospace; font-size: clamp(4rem, 9vw, 8rem);
+      font-weight: 700; color: var(--text); letter-spacing: -3px; line-height: 1;
+      margin-bottom: 20px; }
+    .hero-sub { font-size: 1.05rem; color: var(--sec); max-width: 560px;
+      margin: 0 auto; line-height: 1.75; }
+
+    /* OVERVIEW STRIP */
+    .overview { padding: 56px 2.5rem; border-bottom: 1px solid var(--bdr); }
+    .overview-inner { max-width: 1100px; margin: 0 auto; }
+    .overview-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .ov-card { background: var(--card); border: 1px solid var(--bdr); border-radius: 14px;
+      padding: 22px 18px; transition: border-color .2s, transform .2s; cursor: default; }
+    .ov-card:hover { transform: translateY(-3px); }
+    .ov-card.flow:hover { border-color: var(--flow); }
+    .ov-card.snmp:hover { border-color: var(--snmp); }
+    .ov-card.log:hover  { border-color: var(--log);  }
+    .ov-card.pcap:hover { border-color: var(--pcap); }
+    .ov-card.hub:hover  { border-color: rgba(226,232,240,0.3); }
+    .ov-name { font-family: 'Courier New', monospace; font-size: 1.15rem;
+      font-weight: 700; margin-bottom: 8px; }
+    .ov-cat { font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; margin-bottom: 10px; opacity: 0.7; }
+    .ov-blurb { font-size: 0.78rem; color: var(--muted); line-height: 1.65; }
+    .ov-link { display: inline-block; margin-top: 14px; font-size: 0.75rem;
+      font-weight: 600; opacity: 0.5; transition: opacity .2s; }
+    .ov-card:hover .ov-link { opacity: 1; }
+    @media (max-width: 900px) {
+      .overview-grid { grid-template-columns: repeat(2, 1fr); }
+      .ov-card.hub { grid-column: span 2; }
+    }
+    @media (max-width: 500px) {
+      .overview-grid { grid-template-columns: 1fr; }
+      .ov-card.hub { grid-column: span 1; }
+    }
+
+    /* PRODUCT SECTIONS */
+    .product { padding: 80px 2.5rem; border-bottom: 1px solid var(--bdr); }
+    .product-inner { max-width: 1100px; margin: 0 auto; }
+    .product-header { display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 40px; margin-bottom: 48px;
+      flex-wrap: wrap; }
+    .product-id { flex: 1; min-width: 280px; }
+    .product-tag { display: inline-block; font-size: 10px; font-weight: 800;
+      letter-spacing: 2px; text-transform: uppercase; padding: 4px 10px;
+      border-radius: 4px; margin-bottom: 16px; }
+    .product-name { font-family: 'Courier New', monospace; font-size: 2.8rem;
+      font-weight: 700; line-height: 1; margin-bottom: 12px; }
+    .product-tagline { font-size: 1rem; color: var(--sec); line-height: 1.7;
+      max-width: 480px; }
+    .product-stats { display: flex; gap: 32px; flex-wrap: wrap; padding-top: 8px; }
+    .stat { text-align: center; }
+    .stat-val { font-family: 'Courier New', monospace; font-size: 1.8rem;
+      font-weight: 700; display: block; }
+    .stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 1px; }
+    .product-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px; margin-bottom: 32px; }
+    .tile { background: var(--card); border: 1px solid var(--bdr); border-radius: 12px;
+      padding: 20px; transition: border-color .2s; }
+    .tile:hover { border-color: var(--accent, #fff); }
+    .tile-icon { font-size: 1.4rem; margin-bottom: 10px; }
+    .tile-title { font-size: 0.85rem; font-weight: 600; color: var(--text);
+      margin-bottom: 6px; }
+    .tile-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+    .product-cta a {
+      display: inline-block; padding: 10px 22px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; border: 1px solid;
+      transition: background .2s, color .2s; }
+
+    /* PER-PRODUCT TINTS */
+    .p-flow  { background: linear-gradient(160deg, #080d18 0%, rgba(96,165,250,0.04) 100%); }
+    .p-snmp  { background: linear-gradient(160deg, #080d18 0%, rgba(45,212,191,0.04) 100%); }
+    .p-log   { background: linear-gradient(160deg, #080d18 0%, rgba(74,222,128,0.04) 100%); }
+    .p-pcap  { background: linear-gradient(160deg, #080d18 0%, rgba(167,139,250,0.04) 100%); }
+    .p-hub   { background: linear-gradient(160deg, #080d18 0%, rgba(226,232,240,0.03) 100%); }
+
+    /* FOOTER */
+    footer { padding: 40px 2.5rem; border-top: 1px solid var(--bdr);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 20px; }
+    .footer-brand { font-family: 'Courier New', monospace; font-size: 1.1rem;
+      font-weight: 700; color: var(--text); }
+    .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+    .footer-links a { font-size: 0.82rem; color: var(--muted);
+      transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+
+    @media (max-width: 700px) {
+      .product-header { flex-direction: column; }
+      .product-stats { gap: 20px; }
+      nav { padding: 0 1.2rem; }
+      .nav-apps { display: none; }
+      .hero { padding: 52px 1.2rem; }
+      .hero-title { letter-spacing: -1px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <img src="pktSolution-logo.png" alt="pktSolution" style="height:36px;width:auto;">
+  </div>
+  <div class="nav-apps">
+    <a class="nav-app flow" href="pktFlow/index.html">pktFlow</a>
+    <a class="nav-app snmp" href="pktSNMP/index.html">pktSNMP</a>
+    <a class="nav-app log"  href="pktLog/index.html">pktLog</a>
+    <a class="nav-app pcap" href="pktPCAP/index.html">pktPCAP</a>
+    <a class="nav-app hub"  href="pktHub/index.html">pktHub</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <img src="pktSolution-logo.png" alt="pktSolution"
+       style="max-width:420px;width:80%;height:auto;margin:0 auto 8px;display:block;">
+  <p class="hero-sub">Five independent tools built for network engineers who need deep, real-time visibility into what's actually moving across their infrastructure.</p>
+</section>
+
+<!-- OVERVIEW STRIP -->
+<section class="overview">
+  <div class="overview-inner">
+    <div class="overview-grid">
+
+      <a class="ov-card flow" href="pktFlow/index.html">
+        <div class="ov-name" style="color:var(--flow);">pktFlow</div>
+        <div class="ov-cat" style="color:var(--flow);">NetFlow · sFlow · IPFIX</div>
+        <div class="ov-blurb">High-performance flow collection and analysis. See who's talking to whom and where bandwidth is going.</div>
+        <span class="ov-link" style="color:var(--flow);">View tool →</span>
+      </a>
+
+      <a class="ov-card snmp" href="pktSNMP/index.html">
+        <div class="ov-name" style="color:var(--snmp);">pktSNMP</div>
+        <div class="ov-cat" style="color:var(--snmp);">SNMP Polling · Traps</div>
+        <div class="ov-blurb">Poll any OID, receive traps, browse MIBs. Device health visibility without a full NMS.</div>
+        <span class="ov-link" style="color:var(--snmp);">View tool →</span>
+      </a>
+
+      <a class="ov-card log" href="pktLog/index.html">
+        <div class="ov-name" style="color:var(--log);">pktLog</div>
+        <div class="ov-cat" style="color:var(--log);">Syslog · Event Collection</div>
+        <div class="ov-blurb">Receive, parse, search, and forward syslog streams from every device on your network.</div>
+        <span class="ov-link" style="color:var(--log);">View tool →</span>
+      </a>
+
+      <a class="ov-card pcap" href="pktPCAP/index.html">
+        <div class="ov-name" style="color:var(--pcap);">pktPCAP</div>
+        <div class="ov-cat" style="color:var(--pcap);">Packet Capture · Analysis</div>
+        <div class="ov-blurb">On-demand packet capture with BPF filtering and in-browser decode. No Wireshark required.</div>
+        <span class="ov-link" style="color:var(--pcap);">View tool →</span>
+      </a>
+
+      <a class="ov-card hub" href="pktHub/index.html">
+        <div class="ov-name" style="color:var(--hub);">pktHub</div>
+        <div class="ov-cat" style="color:var(--hub);">Unified Dashboard</div>
+        <div class="ov-blurb">Single-pane view across all tools. Live feeds, topology, and cross-tool correlation in one place.</div>
+        <span class="ov-link" style="color:var(--hub);">View tool →</span>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- pktFlow -->
+<section class="product p-flow">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--flow-bg);color:var(--flow);">NetFlow / sFlow / IPFIX</span>
+        <div class="product-name" style="color:var(--flow);">pktFlow</div>
+        <p class="product-tagline">A high-performance flow collector and analyzer built to ingest NetFlow, sFlow, and IPFIX at scale. Understand who's talking to whom, what protocols dominate, and where your bandwidth is really going.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--flow);">1M+</span><span class="stat-lbl">Flows/sec</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--flow);">v5/v9</span><span class="stat-lbl">NetFlow</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--flow);">IPFIX</span><span class="stat-lbl">RFC 7011</span></div>
+      </div>
+    </div>
+    <div class="product-tiles" style="--accent:var(--flow);">
+      <div class="tile"><div class="tile-icon">📡</div><div class="tile-title">Multi-Protocol Ingest</div><div class="tile-desc">Accepts NetFlow v5, v9, sFlow v5, and IPFIX from any vendor — Cisco, Juniper, Palo Alto, and more.</div></div>
+      <div class="tile"><div class="tile-icon">🔍</div><div class="tile-title">Top-N Analysis</div><div class="tile-desc">Instantly surface top talkers, top destinations, top applications, and top ports in real time.</div></div>
+      <div class="tile"><div class="tile-icon">📊</div><div class="tile-title">Bandwidth Trending</div><div class="tile-desc">Track interface utilization and bandwidth consumption over time with exportable time-series data.</div></div>
+      <div class="tile"><div class="tile-icon">⚡</div><div class="tile-title">Low-Latency Pipeline</div><div class="tile-desc">Sub-second flow processing with a non-blocking ingest pipeline designed for high-density environments.</div></div>
+      <div class="tile"><div class="tile-icon">🗺️</div><div class="tile-title">Geo & ASN Mapping</div><div class="tile-desc">Enrich flow records with geographic and autonomous system data for external traffic attribution.</div></div>
+      <div class="tile"><div class="tile-icon">🔔</div><div class="tile-title">Threshold Alerting</div><div class="tile-desc">Define per-interface or per-host thresholds and get alerted the moment utilization spikes.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktFlow/index.html" style="color:var(--flow);border-color:var(--flow-bg);" onmouseover="this.style.background='var(--flow-bg)'" onmouseout="this.style.background='transparent'">Explore pktFlow →</a></div>
+  </div>
+</section>
+
+<!-- pktSNMP -->
+<section class="product p-snmp">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--snmp-bg);color:var(--snmp);">SNMP Polling &amp; Traps</span>
+        <div class="product-name" style="color:var(--snmp);">pktSNMP</div>
+        <p class="product-tagline">A purpose-built SNMP manager that polls your network devices on your schedule and captures trap events the moment they fire. Device health at a glance, without the overhead of a full NMS.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--snmp);">v1/2c/3</span><span class="stat-lbl">SNMP</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--snmp);">MIB</span><span class="stat-lbl">Browser</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--snmp);">UDP 162</span><span class="stat-lbl">Trap Port</span></div>
+      </div>
+    </div>
+    <div class="product-tiles" style="--accent:var(--snmp);">
+      <div class="tile"><div class="tile-icon">🔄</div><div class="tile-title">Scheduled Polling</div><div class="tile-desc">Poll any OID on any device at configurable intervals — from seconds to hours — with automatic retry logic.</div></div>
+      <div class="tile"><div class="tile-icon">🪤</div><div class="tile-title">Trap Receiver</div><div class="tile-desc">Listen for SNMP traps from your entire device estate and decode them against loaded MIB definitions.</div></div>
+      <div class="tile"><div class="tile-icon">📚</div><div class="tile-title">MIB Management</div><div class="tile-desc">Load, browse, and search standard and vendor-specific MIBs with a built-in OID tree navigator.</div></div>
+      <div class="tile"><div class="tile-icon">📈</div><div class="tile-title">Counter Graphing</div><div class="tile-desc">Plot gauge and counter OIDs as time-series graphs. Visualize CPU, memory, and interface stats side-by-side.</div></div>
+      <div class="tile"><div class="tile-icon">🏷️</div><div class="tile-title">Device Inventory</div><div class="tile-desc">Auto-discover sysDescr, sysName, and sysLocation on first contact. Build a live inventory automatically.</div></div>
+      <div class="tile"><div class="tile-icon">🔐</div><div class="tile-title">SNMPv3 Auth &amp; Priv</div><div class="tile-desc">Full SNMPv3 support with MD5/SHA authentication and DES/AES privacy for secure device polling.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktSNMP/index.html" style="color:var(--snmp);border-color:var(--snmp-bg);" onmouseover="this.style.background='var(--snmp-bg)'" onmouseout="this.style.background='transparent'">Explore pktSNMP →</a></div>
+  </div>
+</section>
+
+<!-- pktLog -->
+<section class="product p-log">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--log-bg);color:var(--log);">Syslog &amp; Event Collection</span>
+        <div class="product-name" style="color:var(--log);">pktLog</div>
+        <p class="product-tagline">A syslog collector and log aggregator that gives you a single place to receive, parse, search, and act on log streams from any device on your network. Built for volume, without complexity.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--log);">UDP/TCP</span><span class="stat-lbl">514</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--log);">RFC</span><span class="stat-lbl">3164 / 5424</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--log);">TLS</span><span class="stat-lbl">Syslog</span></div>
+      </div>
+    </div>
+    <div class="product-tiles" style="--accent:var(--log);">
+      <div class="tile"><div class="tile-icon">📥</div><div class="tile-title">Multi-Transport Ingest</div><div class="tile-desc">Receive syslog over UDP, TCP, and TLS — supporting legacy BSD format and RFC 5424 structured data.</div></div>
+      <div class="tile"><div class="tile-icon">🔎</div><div class="tile-title">Full-Text Search</div><div class="tile-desc">Search across all log messages with fast substring and pattern matching. No indexing lag, no query language to learn.</div></div>
+      <div class="tile"><div class="tile-icon">🧩</div><div class="tile-title">Grok Parsing</div><div class="tile-desc">Extract fields from raw log lines using Grok patterns. Turn unstructured syslog into queryable structured data.</div></div>
+      <div class="tile"><div class="tile-icon">🚦</div><div class="tile-title">Severity Filtering</div><div class="tile-desc">Filter by facility and severity level. Isolate Emergency, Alert, and Critical messages from the noise instantly.</div></div>
+      <div class="tile"><div class="tile-icon">📤</div><div class="tile-title">Log Forwarding</div><div class="tile-desc">Forward filtered or all log streams to SIEM, object storage, or a secondary syslog destination.</div></div>
+      <div class="tile"><div class="tile-icon">📋</div><div class="tile-title">Retention Policies</div><div class="tile-desc">Set per-source or global retention windows. Automatically purge or archive logs beyond the retention period.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktLog/index.html" style="color:var(--log);border-color:var(--log-bg);" onmouseover="this.style.background='var(--log-bg)'" onmouseout="this.style.background='transparent'">Explore pktLog →</a></div>
+  </div>
+</section>
+
+<!-- pktPCAP -->
+<section class="product p-pcap">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--pcap-bg);color:var(--pcap);">Packet Capture &amp; Analysis</span>
+        <div class="product-name" style="color:var(--pcap);">pktPCAP</div>
+        <p class="product-tagline">A packet capture tool built for network engineers who need to go deeper than flow data. Trigger captures on demand, filter with BPF, and decode packets right in the browser — no Wireshark install required.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--pcap);">BPF</span><span class="stat-lbl">Filters</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--pcap);">.pcap</span><span class="stat-lbl">Export</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--pcap);">L2–L7</span><span class="stat-lbl">Decode</span></div>
+      </div>
+    </div>
+    <div class="product-tiles" style="--accent:var(--pcap);">
+      <div class="tile"><div class="tile-icon">🎯</div><div class="tile-title">On-Demand Capture</div><div class="tile-desc">Trigger a packet capture on any monitored interface from the browser — no CLI required.</div></div>
+      <div class="tile"><div class="tile-icon">🔬</div><div class="tile-title">In-Browser Decode</div><div class="tile-desc">Decode Ethernet, IP, TCP, UDP, DNS, HTTP, and dozens more protocols directly in the UI.</div></div>
+      <div class="tile"><div class="tile-icon">🧲</div><div class="tile-title">BPF Filtering</div><div class="tile-desc">Apply Berkeley Packet Filter expressions at capture time. Capture only the traffic you care about.</div></div>
+      <div class="tile"><div class="tile-icon">💾</div><div class="tile-title">PCAP Export</div><div class="tile-desc">Download any capture as a standard .pcap file. Open in Wireshark or any other analysis tool.</div></div>
+      <div class="tile"><div class="tile-icon">🔄</div><div class="tile-title">Stream Reassembly</div><div class="tile-desc">Reassemble TCP streams and follow conversations to reconstruct application-layer payloads.</div></div>
+      <div class="tile"><div class="tile-icon">📂</div><div class="tile-title">Capture Library</div><div class="tile-desc">Store named captures for later review. Tag, annotate, and compare captures across sessions.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktPCAP/index.html" style="color:var(--pcap);border-color:var(--pcap-bg);" onmouseover="this.style.background='var(--pcap-bg)'" onmouseout="this.style.background='transparent'">Explore pktPCAP →</a></div>
+  </div>
+</section>
+
+<!-- pktHub -->
+<section class="product p-hub">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:rgba(226,232,240,0.06);color:var(--hub);">Unified Dashboard</span>
+        <div class="product-name" style="color:var(--hub);">pktHub</div>
+        <p class="product-tagline">A single-pane-of-glass dashboard that aggregates signals from across your network visibility stack. Not a replacement for the individual tools — a place to watch everything move at once.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--hub);">Live</span><span class="stat-lbl">Feeds</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--hub);">WS</span><span class="stat-lbl">Real-Time</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--hub);">REST</span><span class="stat-lbl">API</span></div>
+      </div>
+    </div>
+    <div class="product-tiles" style="--accent:var(--hub);">
+      <div class="tile"><div class="tile-icon">🖥️</div><div class="tile-title">Live Feeds</div><div class="tile-desc">Watch flow records, trap events, syslog messages, and device state updates arrive in real time.</div></div>
+      <div class="tile"><div class="tile-icon">🌐</div><div class="tile-title">Network Topology</div><div class="tile-desc">Visualize discovered device relationships and active traffic paths across your infrastructure.</div></div>
+      <div class="tile"><div class="tile-icon">🔗</div><div class="tile-title">Cross-Tool Correlation</div><div class="tile-desc">Pivot from a flow anomaly to related syslog events or SNMP traps in a single click.</div></div>
+      <div class="tile"><div class="tile-icon">📊</div><div class="tile-title">Composable Dashboards</div><div class="tile-desc">Build custom dashboard panels from any data source. Arrange widgets to match your NOC workflow.</div></div>
+      <div class="tile"><div class="tile-icon">🔑</div><div class="tile-title">Unified Auth</div><div class="tile-desc">Single sign-on and role-based access control across all connected data sources and views.</div></div>
+      <div class="tile"><div class="tile-icon">📡</div><div class="tile-title">REST &amp; WebSocket API</div><div class="tile-desc">Stream live events or query historical data via documented REST endpoints and WebSocket subscriptions.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktHub/index.html" style="color:var(--hub);border-color:rgba(226,232,240,0.1);" onmouseover="this.style.background='rgba(226,232,240,0.04)'" onmouseout="this.style.background='transparent'">Explore pktHub →</a></div>
+  </div>
+</section>
+
+<footer>
+  <img src="pktSolution-logo.png" alt="pktSolution" style="height:28px;width:auto;opacity:0.75;">
+  <div class="footer-links">
+    <a href="pktFlow/index.html">pktFlow</a>
+    <a href="pktSNMP/index.html">pktSNMP</a>
+    <a href="pktLog/index.html">pktLog</a>
+    <a href="pktPCAP/index.html">pktPCAP</a>
+    <a href="pktHub/index.html">pktHub</a>
+  </div>
+</footer>
+
+</body>
+</html>

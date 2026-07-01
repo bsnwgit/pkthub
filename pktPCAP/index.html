@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pktPCAP — Packet Capture Analysis Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-deep:    #030712;
+      --bg-dark:    #0d1117;
+      --bg-card:    #111827;
+      --bg-border:  #1f2937;
+      --purple:     #8b6ce8;
+      --purple-dim: #6247c9;
+      --purple-glow:#a78bfa;
+      --blue:       #3b82f6;
+      --blue-dim:   #2563eb;
+      --text-pri:   #f9fafb;
+      --text-sec:   #9ca3af;
+      --text-dim:   #4b5563;
+      --green:      #10b981;
+      --amber:      #f59e0b;
+      --red:        #ef4444;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: Inter, -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-pri);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(3,7,18,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bg-border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 64px;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-logo svg { width: 36px; height: 36px; border-radius: 8px; }
+    .nav-logo-name { font-size: 18px; font-weight: 700; color: var(--text-pri); letter-spacing: -0.3px; }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--text-sec); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text-pri); }
+    .nav-cta { background: var(--purple); color: #fff; padding: 8px 20px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; text-decoration: none; transition: background 0.15s; }
+    .nav-cta:hover { background: var(--purple-glow); }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 120px 40px 80px;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(139,108,232,0.18) 0%, transparent 70%);
+      text-align: center; position: relative;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(139,108,232,0.12); border: 1px solid rgba(139,108,232,0.3);
+      color: var(--purple-glow); padding: 6px 16px; border-radius: 100px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+    .hero-badge::before { content: '●'; font-size: 8px; color: var(--green); }
+    .hero h1 {
+      font-size: clamp(40px, 7vw, 76px); font-weight: 800; line-height: 1.08;
+      letter-spacing: -2px; margin-bottom: 24px;
+      background: linear-gradient(135deg, #f9fafb 30%, var(--purple-glow) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px); color: var(--text-sec);
+      max-width: 620px; margin: 0 auto 48px; font-weight: 400; line-height: 1.7;
+    }
+    .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--purple); color: #fff; padding: 14px 32px;
+      border-radius: 10px; font-size: 16px; font-weight: 600; text-decoration: none;
+      transition: all 0.2s; box-shadow: 0 0 30px rgba(139,108,232,0.35);
+    }
+    .btn-primary:hover { background: var(--purple-glow); transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent; color: var(--text-pri); padding: 14px 32px;
+      border-radius: 10px; font-size: 16px; font-weight: 600; text-decoration: none;
+      border: 1px solid var(--bg-border); transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--purple); color: var(--purple-glow); }
+
+    /* STATS BAR */
+    .stats-bar {
+      display: flex; justify-content: center; gap: 0; flex-wrap: wrap;
+      margin-top: 72px; border: 1px solid var(--bg-border); border-radius: 16px;
+      overflow: hidden; width: 100%; max-width: 720px;
+    }
+    .stat { flex: 1; min-width: 160px; padding: 24px 20px; text-align: center;
+      border-right: 1px solid var(--bg-border); background: var(--bg-card); }
+    .stat:last-child { border-right: none; }
+    .stat-val { font-size: 28px; font-weight: 800; color: var(--purple-glow); letter-spacing: -1px; }
+    .stat-lbl { font-size: 12px; color: var(--text-sec); margin-top: 4px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* SECTIONS */
+    section { padding: 100px 40px; max-width: 1200px; margin: 0 auto; }
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--purple); margin-bottom: 16px;
+    }
+    .section-title { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -1px;
+      line-height: 1.15; margin-bottom: 20px; }
+    .section-sub { font-size: 17px; color: var(--text-sec); max-width: 560px; line-height: 1.7; }
+
+    /* OVERVIEW */
+    .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+      align-items: center; margin-top: 60px; }
+    .overview-text p { color: var(--text-sec); line-height: 1.8; font-size: 15px; margin-bottom: 16px; }
+    .pill-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    .pill { background: rgba(139,108,232,0.1); border: 1px solid rgba(139,108,232,0.25);
+      color: var(--purple-glow); padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 500; }
+
+    /* DATA FLOW DIAGRAM */
+    .diagram-wrap {
+      background: var(--bg-card); border: 1px solid var(--bg-border);
+      border-radius: 20px; padding: 40px; overflow: hidden;
+    }
+    .flow-section { background: #0d1117; border-radius: 16px; padding: 32px 20px; }
+
+    /* FEATURES */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 60px; }
+    .feat-card {
+      background: var(--bg-card); border: 1px solid var(--bg-border);
+      border-radius: 16px; padding: 28px; transition: border-color 0.2s, transform 0.2s;
+    }
+    .feat-card:hover { border-color: rgba(139,108,232,0.4); transform: translateY(-3px); }
+    .feat-icon {
+      width: 44px; height: 44px; background: rgba(139,108,232,0.15);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 18px;
+    }
+    .feat-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+    .feat-desc { font-size: 14px; color: var(--text-sec); line-height: 1.7; }
+
+    /* USER LEVELS */
+    .roles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 60px; }
+    .role-card {
+      border-radius: 20px; padding: 36px 28px; position: relative; overflow: hidden;
+      border: 1px solid var(--bg-border);
+    }
+    .role-card.admin { background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.02) 100%); border-color: rgba(59,130,246,0.2); }
+    .role-card.analyst { background: linear-gradient(135deg, rgba(139,108,232,0.10) 0%, rgba(139,108,232,0.02) 100%); border-color: rgba(139,108,232,0.25); }
+    .role-card.viewer { background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.02) 100%); border-color: rgba(16,185,129,0.2); }
+    .role-badge { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 11px;
+      font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 20px; }
+    .admin .role-badge { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .analyst .role-badge { background: rgba(139,108,232,0.15); color: var(--purple-glow); }
+    .viewer .role-badge { background: rgba(16,185,129,0.15); color: #34d399; }
+    .role-title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .role-desc { font-size: 14px; color: var(--text-sec); line-height: 1.7; margin-bottom: 20px; }
+    .role-perms { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .role-perms li { font-size: 13px; color: var(--text-sec); display: flex; align-items: flex-start; gap: 8px; }
+    .role-perms li::before { content: '✓'; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .admin .role-perms li::before { color: #60a5fa; }
+    .analyst .role-perms li::before { color: var(--purple-glow); }
+    .viewer .role-perms li::before { color: #34d399; }
+
+    /* AUTH STRIP */
+    .auth-strip {
+      background: var(--bg-card); border: 1px solid var(--bg-border);
+      border-radius: 16px; padding: 32px 40px; margin-top: 48px;
+      display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
+    }
+    .auth-strip-icon { font-size: 36px; flex-shrink: 0; }
+    .auth-strip-text h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .auth-strip-text p { font-size: 14px; color: var(--text-sec); line-height: 1.6; }
+    .auth-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+    .auth-badge { background: rgba(139,108,232,0.1); border: 1px solid rgba(139,108,232,0.2);
+      color: var(--purple-glow); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+
+    /* ARCH */
+    .arch-section { background: var(--bg-dark); }
+    .arch-full { max-width: 100%; }
+    .arch-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 60px; align-items: start; margin-top: 60px; }
+    .arch-list { display: flex; flex-direction: column; gap: 16px; }
+    .arch-item { background: var(--bg-card); border: 1px solid var(--bg-border); border-radius: 12px; padding: 20px; }
+    .arch-item h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--purple-glow); }
+    .arch-item p { font-size: 13px; color: var(--text-sec); line-height: 1.6; }
+    .arch-stack { display: flex; flex-direction: column; gap: 12px; }
+    .stack-row { display: flex; gap: 12px; }
+    .stack-block { flex: 1; background: var(--bg-card); border: 1px solid var(--bg-border);
+      border-radius: 12px; padding: 18px; text-align: center; }
+    .stack-block.accent { border-color: rgba(139,108,232,0.35); background: rgba(139,108,232,0.06); }
+    .stack-block.blue { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.05); }
+    .stack-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-dim); margin-bottom: 6px; }
+    .stack-name { font-size: 14px; font-weight: 700; }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--bg-border); padding: 48px 40px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: gap;
+      max-width: 1200px; margin: 0 auto; }
+    .foot-logo { display: flex; align-items: center; gap: 10px; }
+    .foot-logo svg { width: 28px; height: 28px; border-radius: 6px; }
+    .foot-name { font-size: 15px; font-weight: 700; }
+    .foot-links { display: flex; gap: 24px; }
+    .foot-links a { color: var(--text-sec); font-size: 14px; text-decoration: none; transition: color 0.15s; }
+    .foot-links a:hover { color: var(--text-pri); }
+    .foot-copy { font-size: 13px; color: var(--text-dim); }
+
+    @media (max-width: 900px) {
+      .features-grid, .roles-grid { grid-template-columns: 1fr; }
+      .overview-grid, .arch-grid { grid-template-columns: 1fr; }
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <a href="../index.html" style="color:var(--text-sec);font-size:0.75rem;font-weight:500;border:1px solid var(--bg-border);border-radius:6px;padding:4px 10px;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='var(--purple-glow)';this.style.borderColor='var(--purple)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='var(--bg-border)'">&#8592; pktSolution</a>
+    <a class="nav-logo" href="#">
+      <img src="lockup.png" alt="pktPCAP" style="height:40px;width:auto;" />
+    </a>
+  </div>
+  <div class="nav-links">
+    <a href="#overview">Overview</a>
+    <a href="#dataflow">Data Flow</a>
+    <a href="#features">Features</a>
+    <a href="#roles">User Roles</a>
+    <a href="#architecture">Architecture</a>
+  </div>
+  <a class="nav-cta" href="analyst-guide.html">View Guides →</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Network Intelligence Platform</div>
+  <h1>Deep Packet<br/>Analysis, Simplified.</h1>
+  <p class="hero-sub">
+    pktPCAP is a browser-based packet capture analysis platform that combines
+    real-time network feed capture, PCAP file parsing, and AI-assisted investigation
+    into a single, unified interface.
+  </p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="analyst-guide.html">Analyst Guide</a>
+    <a class="btn-outline" href="admin-guide.html">Administrator Guide</a>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-val">PCAP</div><div class="stat-lbl">Native File Support</div></div>
+    <div class="stat"><div class="stat-val">Live</div><div class="stat-lbl">Real-time Feed Capture</div></div>
+    <div class="stat"><div class="stat-val">AI</div><div class="stat-lbl">Assisted Analysis</div></div>
+    <div class="stat"><div class="stat-val">SSO</div><div class="stat-lbl">SAML / Okta Auth</div></div>
+  </div>
+</div>
+
+<!-- OVERVIEW SECTION -->
+<section id="overview">
+  <div class="section-label">What is pktPCAP?</div>
+  <div class="section-title">Every packet.<br/>Every conversation.</div>
+  <div class="overview-grid">
+    <div class="overview-text">
+      <p>
+        pktPCAP is a self-hosted web application that transforms raw packet captures into
+        actionable intelligence. Security and network teams can upload <code style="color:var(--purple-glow);font-family:'Fira Code',monospace;font-size:13px">.pcap</code>,
+        <code style="color:var(--purple-glow);font-family:'Fira Code',monospace;font-size:13px">.pcapng</code>, or
+        <code style="color:var(--purple-glow);font-family:'Fira Code',monospace;font-size:13px">.cap</code> files — or connect live
+        capture sessions from remote hosts — and immediately begin analyzing traffic through
+        an interactive, multi-tab dashboard.
+      </p>
+      <p>
+        Powered by an embedded AI engine (OpenAI or Anthropic), the platform lets analysts
+        describe what they're looking for in plain language and receive protocol-aware insights
+        without leaving the browser.
+      </p>
+      <p>
+        Designed for security operations centers, network engineering teams, and incident
+        responders, pktPCAP runs as a hardened, SSL-secured service with role-based access
+        control and enterprise SSO integration.
+      </p>
+      <div class="pill-list">
+        <span class="pill">Self-Hosted</span>
+        <span class="pill">SSL/TLS Secured</span>
+        <span class="pill">Role-Based Access</span>
+        <span class="pill">AI-Assisted</span>
+        <span class="pill">Live Capture</span>
+        <span class="pill">Multi-File Merge</span>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div style="text-align:center;margin-bottom:20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="96" height="96">
+          <rect width="512" height="512" rx="96" fill="#180e2d"/>
+          <circle cx="208" cy="208" r="152" fill="none" stroke="#8b6ce8" stroke-width="34"/>
+          <rect x="138" y="172" width="140" height="72" rx="14" fill="none" stroke="#8b6ce8" stroke-width="22"/>
+          <line x1="155" y1="197" x2="262" y2="197" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+          <line x1="155" y1="220" x2="262" y2="220" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+          <line x1="318" y1="318" x2="422" y2="422" stroke="#8b6ce8" stroke-width="38" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div style="font-size:24px;font-weight:800;text-align:center;margin-bottom:6px;letter-spacing:-0.5px;">pktPCAP</div>
+      <div style="font-size:13px;color:var(--text-sec);text-align:center;line-height:1.6;">
+        Packet Capture Analysis Platform<br/>
+        Browser-based · AI-assisted · Self-hosted
+      </div>
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:#0d1117;border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:20px;">📁</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--text-pri);">PCAP File Upload</div><div style="font-size:12px;color:var(--text-sec);">.pcap · .pcapng · .cap — merge multiple</div></div>
+        </div>
+        <div style="background:#0d1117;border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:20px;">📡</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--text-pri);">Live Feed Capture</div><div style="font-size:12px;color:var(--text-sec);">tshark or Wireshark from remote hosts</div></div>
+        </div>
+        <div style="background:#0d1117;border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:20px;">🤖</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--text-pri);">AI Analysis Engine</div><div style="font-size:12px;color:var(--text-sec);">OpenAI · Anthropic Claude</div></div>
+        </div>
+        <div style="background:#0d1117;border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:20px;">🔐</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--text-pri);">Secure Access</div><div style="font-size:12px;color:var(--text-sec);">RBAC · SSL/TLS · SAML SSO</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DATA FLOW SECTION -->
+<section id="dataflow" style="background:var(--bg-dark);max-width:100%;padding:100px 40px;">
+<div style="max-width:1200px;margin:0 auto;">
+  <div class="section-label">Data Flow</div>
+  <div class="section-title">How pktPCAP Works</div>
+  <p class="section-sub">From raw bytes on the wire to AI-driven conclusions — here's the full picture.</p>
+
+  <div style="margin-top:60px;">
+    <svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:1000px;display:block;margin:0 auto;font-family:Inter,sans-serif;">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#8b6ce8"/>
+        </marker>
+        <marker id="arr-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/>
+        </marker>
+        <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+        </marker>
+      </defs>
+
+      <!-- COLUMN 1: INPUTS -->
+      <!-- Network Host -->
+      <rect x="20" y="60" width="180" height="70" rx="12" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+      <text x="110" y="88" text-anchor="middle" fill="#9ca3af" font-size="10" font-weight="700" letter-spacing="1">REMOTE HOST</text>
+      <text x="110" y="110" text-anchor="middle" fill="#f9fafb" font-size="13" font-weight="600">Network Device</text>
+
+      <!-- PCAP File -->
+      <rect x="20" y="220" width="180" height="70" rx="12" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+      <text x="110" y="248" text-anchor="middle" fill="#9ca3af" font-size="10" font-weight="700" letter-spacing="1">FILE UPLOAD</text>
+      <text x="110" y="270" text-anchor="middle" fill="#f9fafb" font-size="13" font-weight="600">.pcap / .pcapng</text>
+
+      <!-- Browser -->
+      <rect x="20" y="380" width="180" height="70" rx="12" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+      <text x="110" y="408" text-anchor="middle" fill="#9ca3af" font-size="10" font-weight="700" letter-spacing="1">ANALYST</text>
+      <text x="110" y="430" text-anchor="middle" fill="#f9fafb" font-size="13" font-weight="600">Web Browser</text>
+
+      <!-- Arrows col1 → col2 -->
+      <line x1="200" y1="95" x2="275" y2="175" stroke="#8b6ce8" stroke-width="1.8" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+      <text x="224" y="128" fill="#8b6ce8" font-size="10" font-weight="600">tshark / tcpdump</text>
+
+      <line x1="200" y1="255" x2="275" y2="230" stroke="#8b6ce8" stroke-width="1.8" marker-end="url(#arr)"/>
+      <text x="214" y="248" fill="#8b6ce8" font-size="10" font-weight="600">HTTPS upload</text>
+
+      <line x1="200" y1="415" x2="275" y2="300" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-b)"/>
+      <text x="212" y="360" fill="#3b82f6" font-size="10" font-weight="600">HTTPS / WSS</text>
+
+      <!-- COLUMN 2: pktPCAP SERVER -->
+      <rect x="280" y="140" width="200" height="200" rx="16" fill="#180e2d" stroke="#8b6ce8" stroke-width="2"/>
+      <text x="380" y="172" text-anchor="middle" fill="#8b6ce8" font-size="10" font-weight="700" letter-spacing="1.2">PKTPCAP SERVER</text>
+
+      <!-- Logo inside server box -->
+      <circle cx="380" cy="220" r="32" fill="none" stroke="#8b6ce8" stroke-width="3"/>
+      <rect x="364" y="211" width="32" height="18" rx="3" fill="none" stroke="#8b6ce8" stroke-width="3"/>
+      <line x1="368" y1="217" x2="393" y2="217" stroke="#8b6ce8" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="368" y1="222" x2="393" y2="222" stroke="#8b6ce8" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="406" y1="246" x2="418" y2="258" stroke="#8b6ce8" stroke-width="6" stroke-linecap="round"/>
+
+      <text x="380" y="272" text-anchor="middle" fill="#9ca3af" font-size="11">Flask · Python</text>
+      <text x="380" y="288" text-anchor="middle" fill="#9ca3af" font-size="11">SSL/TLS · RBAC</text>
+      <text x="380" y="308" text-anchor="middle" fill="#9ca3af" font-size="11">SAML SSO · REST API</text>
+
+      <!-- Server → Outputs -->
+      <line x1="480" y1="200" x2="570" y2="155" stroke="#8b6ce8" stroke-width="1.8" marker-end="url(#arr)"/>
+      <line x1="480" y1="240" x2="570" y2="290" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-b)"/>
+      <line x1="480" y1="300" x2="570" y2="395" stroke="#10b981" stroke-width="1.8" marker-end="url(#arr-g)"/>
+
+      <!-- COLUMN 3: PROCESSING -->
+      <!-- Packet Parser -->
+      <rect x="575" y="110" width="185" height="80" rx="12" fill="#111827" stroke="#8b6ce8" stroke-width="1.5"/>
+      <text x="667" y="140" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700" letter-spacing="1">PACKET PARSER</text>
+      <text x="667" y="162" text-anchor="middle" fill="#f9fafb" font-size="12">Scapy · dpkt</text>
+      <text x="667" y="178" text-anchor="middle" fill="#9ca3af" font-size="11">Protocol decode</text>
+
+      <!-- AI Engine -->
+      <rect x="575" y="250" width="185" height="80" rx="12" fill="#111827" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="667" y="280" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700" letter-spacing="1">AI ENGINE</text>
+      <text x="667" y="300" text-anchor="middle" fill="#f9fafb" font-size="12">OpenAI · Claude</text>
+      <text x="667" y="316" text-anchor="middle" fill="#9ca3af" font-size="11">Natural language analysis</text>
+
+      <!-- Database -->
+      <rect x="575" y="360" width="185" height="80" rx="12" fill="#111827" stroke="#10b981" stroke-width="1.5"/>
+      <text x="667" y="390" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700" letter-spacing="1">DATA STORE</text>
+      <text x="667" y="410" text-anchor="middle" fill="#f9fafb" font-size="12">SQLite</text>
+      <text x="667" y="426" text-anchor="middle" fill="#9ca3af" font-size="11">Users · Config · Sessions</text>
+
+      <!-- Processing → Dashboard -->
+      <line x1="760" y1="150" x2="820" y2="220" stroke="#8b6ce8" stroke-width="1.8" marker-end="url(#arr)"/>
+      <line x1="760" y1="290" x2="820" y2="260" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#arr-b)"/>
+
+      <!-- COLUMN 4: DASHBOARD -->
+      <rect x="825" y="160" width="155" height="160" rx="14" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+      <text x="902" y="188" text-anchor="middle" fill="#9ca3af" font-size="10" font-weight="700" letter-spacing="1">DASHBOARD</text>
+      <text x="902" y="215" text-anchor="middle" fill="#60a5fa" font-size="11">Summary</text>
+      <text x="902" y="234" text-anchor="middle" fill="#a78bfa" font-size="11">Protocol Breakdown</text>
+      <text x="902" y="253" text-anchor="middle" fill="#60a5fa" font-size="11">TCP/UDP Streams</text>
+      <text x="902" y="272" text-anchor="middle" fill="#a78bfa" font-size="11">Endpoint Map</text>
+      <text x="902" y="291" text-anchor="middle" fill="#60a5fa" font-size="11">AI Chat</text>
+      <text x="902" y="310" text-anchor="middle" fill="#a78bfa" font-size="11">Export / Report</text>
+
+      <!-- Labels -->
+      <text x="110" y="490" text-anchor="middle" fill="#4b5563" font-size="11">Data Sources</text>
+      <text x="380" y="490" text-anchor="middle" fill="#4b5563" font-size="11">Application Core</text>
+      <text x="667" y="490" text-anchor="middle" fill="#4b5563" font-size="11">Processing Layer</text>
+      <text x="902" y="490" text-anchor="middle" fill="#4b5563" font-size="11">Analyst View</text>
+    </svg>
+  </div>
+</div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label">Core Capabilities</div>
+  <div class="section-title">Everything your team needs<br/>to investigate network traffic.</div>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon">📁</div>
+      <div class="feat-title">PCAP File Analysis</div>
+      <div class="feat-desc">Upload one or multiple <code style="color:var(--purple-glow);font-size:12px">.pcap</code>, <code style="color:var(--purple-glow);font-size:12px">.pcapng</code>, or <code style="color:var(--purple-glow);font-size:12px">.cap</code> files. Multiple captures are automatically merged and correlated into a unified session for holistic analysis.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📡</div>
+      <div class="feat-title">Live Feed Capture</div>
+      <div class="feat-desc">Connect remote hosts via tshark (CLI) or Wireshark (GUI) for real-time feed streaming. The platform simultaneously records and presents live packet data as it flows — no file save required.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🤖</div>
+      <div class="feat-title">AI-Assisted Investigation</div>
+      <div class="feat-desc">Ask plain-language questions about your capture — "Show me all failed authentication attempts" or "What is the largest data transfer?" — and receive protocol-aware, context-rich answers from OpenAI or Anthropic Claude.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔬</div>
+      <div class="feat-title">Protocol Breakdown</div>
+      <div class="feat-desc">Automatic multi-layer protocol decoding across HTTP, DNS, TLS, TCP, UDP, ICMP, and dozens more. Hierarchical views show distribution at a glance with drill-down into individual frames.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔁</div>
+      <div class="feat-title">Stream Reconstruction</div>
+      <div class="feat-desc">TCP and UDP streams are reconstructed and presented for full conversation-level review. Follow payloads across multiple packets to understand complete request/response cycles.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🌐</div>
+      <div class="feat-title">Endpoint Intelligence</div>
+      <div class="feat-desc">Visualize all communicating endpoints, their traffic volumes, geographic and DNS context. Identify unusual communication patterns, top talkers, and unexpected external connections.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">Summary Dashboard</div>
+      <div class="feat-desc">At-a-glance packet counts, byte totals, capture duration, top protocols, and anomaly highlights. An executive-ready snapshot is generated automatically from every upload or feed session.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">💾</div>
+      <div class="feat-title">Export & Reporting</div>
+      <div class="feat-desc">Export analysis results, AI findings, and protocol summaries for reporting and ticket documentation. Screenshot capture of the full dashboard is supported for visual record-keeping.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔐</div>
+      <div class="feat-title">Hardened Access Control</div>
+      <div class="feat-desc">Three role tiers (Admin, Analyst, Viewer) enforced server-side. TLS encryption end-to-end. Local username/password authentication plus enterprise SAML SSO integration for seamless corporate identity.</div>
+    </div>
+  </div>
+</section>
+
+<!-- USER ROLES -->
+<section id="roles" style="background:var(--bg-dark);max-width:100%;padding:100px 40px;">
+<div style="max-width:1200px;margin:0 auto;">
+  <div class="section-label">Role-Based Access</div>
+  <div class="section-title">Built for every level<br/>of your team.</div>
+  <p class="section-sub">Access is governed by three distinct roles — each scoped to the functions relevant to that user's responsibilities.</p>
+
+  <div class="roles-grid">
+    <div class="role-card admin">
+      <div class="role-badge">Administrator</div>
+      <div class="role-title">Full Platform Control</div>
+      <div class="role-desc">Administrators have unrestricted access to all platform functions including the settings panel, user management, and service controls.</div>
+      <ul class="role-perms">
+        <li>All analysis and capture features</li>
+        <li>User creation, editing, and deactivation</li>
+        <li>Role assignment and password reset</li>
+        <li>AI provider configuration</li>
+        <li>SSL certificate and SAML SSO settings</li>
+        <li>Log review and log-level control</li>
+        <li>Application restart / service management</li>
+      </ul>
+    </div>
+    <div class="role-card analyst">
+      <div class="role-badge">Analyst</div>
+      <div class="role-title">Investigation & Analysis</div>
+      <div class="role-desc">Analysts are the primary users — empowered with every capture, analysis, and export capability needed for day-to-day network investigation.</div>
+      <ul class="role-perms">
+        <li>PCAP file upload and multi-file merge</li>
+        <li>Live feed connection and monitoring</li>
+        <li>Full AI-assisted chat and analysis</li>
+        <li>Protocol breakdown and stream reconstruction</li>
+        <li>Endpoint intelligence and conversation views</li>
+        <li>Export results and capture screenshots</li>
+        <li>Read-only access to settings (no changes)</li>
+      </ul>
+    </div>
+    <div class="role-card viewer">
+      <div class="role-badge">Viewer</div>
+      <div class="role-title">Read-Only Oversight</div>
+      <div class="role-desc">Viewers can review analysis results and dashboards without the ability to upload captures or modify any platform configuration.</div>
+      <ul class="role-perms">
+        <li>View existing analysis sessions</li>
+        <li>Browse protocol and endpoint data</li>
+        <li>Read AI analysis results</li>
+        <li>View summary dashboards</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="auth-strip">
+    <div class="auth-strip-icon">🔑</div>
+    <div class="auth-strip-text">
+      <h3>Enterprise Authentication</h3>
+      <p>pktPCAP supports both local username/password authentication and enterprise SAML 2.0 Single Sign-On. SSO users are automatically provisioned on first login, with role attributes synced from your identity provider on every session.</p>
+    </div>
+    <div class="auth-badges">
+      <span class="auth-badge">Local Auth</span>
+      <span class="auth-badge">SAML 2.0</span>
+      <span class="auth-badge">Okta SSO</span>
+      <span class="auth-badge">Auto-Provision</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-label">Architecture</div>
+  <div class="section-title">Lightweight. Deployable.<br/>Production-ready.</div>
+  <p class="section-sub">pktPCAP runs as a single systemd-managed service, requiring no container orchestration or external message queues.</p>
+
+  <div class="arch-grid">
+    <div class="arch-list">
+      <div class="arch-item">
+        <h4>Application Server</h4>
+        <p>Python Flask serves the full single-page application over HTTPS. All API routes, authentication, and file handling run within the same process under a systemd service unit.</p>
+      </div>
+      <div class="arch-item">
+        <h4>Packet Processing</h4>
+        <p>Uploaded captures are parsed server-side using Scapy and dpkt, extracting all layers, conversations, DNS resolution, and flow statistics without leaving your environment.</p>
+      </div>
+      <div class="arch-item">
+        <h4>AI Integration</h4>
+        <p>The AI layer sends summarized packet context to your configured provider (OpenAI or Anthropic). Raw packet payloads are never forwarded — only structured metadata and analyst queries.</p>
+      </div>
+      <div class="arch-item">
+        <h4>Data Storage</h4>
+        <p>SQLite stores user accounts, role assignments, application settings, and session configuration. No external database engine required — zero-dependency persistence.</p>
+      </div>
+      <div class="arch-item">
+        <h4>TLS / SSL</h4>
+        <p>Auto-detected wildcard or host certificates provide end-to-end encryption. File presence at startup is authoritative — no configuration toggle required.</p>
+      </div>
+    </div>
+
+    <div class="arch-stack">
+      <div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">Technology Stack</div>
+      <div class="stack-row">
+        <div class="stack-block accent"><div class="stack-label">Frontend</div><div class="stack-name" style="color:var(--purple-glow);">Vanilla JS SPA</div></div>
+        <div class="stack-block accent"><div class="stack-label">Backend</div><div class="stack-name" style="color:var(--purple-glow);">Python / Flask</div></div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-block blue"><div class="stack-label">Packet Engine</div><div class="stack-name" style="color:#60a5fa;">Scapy · dpkt</div></div>
+        <div class="stack-block blue"><div class="stack-label">Database</div><div class="stack-name" style="color:#60a5fa;">SQLite</div></div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-block accent"><div class="stack-label">AI Providers</div><div class="stack-name" style="color:var(--purple-glow);">OpenAI · Anthropic</div></div>
+        <div class="stack-block accent"><div class="stack-label">Auth</div><div class="stack-name" style="color:var(--purple-glow);">python3-saml · bcrypt</div></div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-block blue"><div class="stack-label">Transport</div><div class="stack-name" style="color:#60a5fa;">TLS 1.2 / 1.3</div></div>
+        <div class="stack-block blue"><div class="stack-label">Service</div><div class="stack-name" style="color:#60a5fa;">systemd</div></div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-block accent"><div class="stack-label">Live Capture</div><div class="stack-name" style="color:var(--purple-glow);">tshark · Wireshark</div></div>
+        <div class="stack-block accent"><div class="stack-label">OS</div><div class="stack-name" style="color:var(--purple-glow);">Linux (Amazon Linux 2)</div></div>
+      </div>
+
+      <div style="background:var(--bg-card);border:1px solid var(--bg-border);border-radius:14px;padding:24px;margin-top:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px;">Key Design Principles</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span style="color:var(--purple-glow);font-weight:700;flex-shrink:0;">→</span>
+            <div><span style="font-size:13px;font-weight:600;">Self-contained</span> <span style="font-size:13px;color:var(--text-sec);">— runs on a single server with no external service dependencies beyond AI APIs.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span style="color:var(--purple-glow);font-weight:700;flex-shrink:0;">→</span>
+            <div><span style="font-size:13px;font-weight:600;">Packet data stays on-prem</span> <span style="font-size:13px;color:var(--text-sec);">— raw captures are never transmitted to AI providers; only structured summaries are sent.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span style="color:var(--purple-glow);font-weight:700;flex-shrink:0;">→</span>
+            <div><span style="font-size:13px;font-weight:600;">Encrypted in transit</span> <span style="font-size:13px;color:var(--text-sec);">— all browser ↔ server communication is secured with TLS/HTTPS.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span style="color:var(--purple-glow);font-weight:700;flex-shrink:0;">→</span>
+            <div><span style="font-size:13px;font-weight:600;">Role-enforced server-side</span> <span style="font-size:13px;color:var(--text-sec);">— all access control checks happen on the backend, not in the browser UI alone.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div style="border-top:1px solid var(--bg-border);margin-top:60px;">
+  <footer>
+    <div class="foot-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="96" fill="#180e2d"/>
+        <circle cx="208" cy="208" r="152" fill="none" stroke="#8b6ce8" stroke-width="34"/>
+        <rect x="138" y="172" width="140" height="72" rx="14" fill="none" stroke="#8b6ce8" stroke-width="22"/>
+        <line x1="155" y1="197" x2="262" y2="197" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+        <line x1="155" y1="220" x2="262" y2="220" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+        <line x1="318" y1="318" x2="422" y2="422" stroke="#8b6ce8" stroke-width="38" stroke-linecap="round"/>
+      </svg>
+      <span class="foot-name">pktPCAP</span>
+    </div>
+    <div class="foot-links">
+      <a href="index.html">Overview</a>
+      <a href="analyst-guide.html">Analyst Guide</a>
+      <a href="admin-guide.html">Admin Guide</a>
+    </div>
+    <div class="foot-copy">Packet Capture Analysis Platform &mdash; Internal Documentation</div>
+  </footer>
+</div>
+
+</body>
+</html>

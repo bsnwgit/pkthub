@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktSNMP — Network Intelligence Platform</title>
+  <style>
+    :root {
+      --bg-primary:    #080d18;
+      --bg-card:       #0c1825;
+      --bg-surface:    #102030;
+      --bg-deep:       #050a12;
+      --accent:        #2dd4bf;
+      --accent-dim:    #0f9489;
+      --text-primary:  #ffffff;
+      --text-secondary:#9ca3af;
+      --text-muted:    #6b7280;
+      --border:        #1a3048;
+      --border-accent: rgba(from var(--accent) r g b / 0.25);
+      --success:       #22c55e;
+      --warning:       #f59e0b;
+      --danger:        #ef4444;
+      --radius-sm:     6px;
+      --radius-md:     10px;
+      --radius-lg:     14px;
+      --radius-xl:     20px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg-primary); color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.6; overflow-x: hidden; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav { position: sticky; top: 0; z-index: 100; height: 64px;
+      background: rgba(from var(--bg-primary) r g b / 0.92);
+      backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;
+      transition: color .15s; }
+    .nav-links a:hover { color: var(--text-primary); text-decoration: none; }
+    .nav-cta { background: var(--accent-dim); color: var(--text-primary);
+      padding: 8px 20px; border-radius: var(--radius-md); font-size: 0.875rem;
+      font-weight: 600; transition: background .2s; }
+    .nav-cta:hover { background: var(--accent); color: var(--bg-primary); text-decoration: none; }
+    .hero { min-height: 92vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 6rem 2rem 4rem; position: relative; overflow: hidden;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%,
+        rgba(from var(--accent) r g b / 0.10) 0%, transparent 70%); }
+    .hero::before { content: ''; position: absolute; inset: 0; opacity: 0.5;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M0 60L60 0' stroke='%231a3048' stroke-width='0.5' opacity='0.4'/%3E%3C/svg%3E"); }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(from var(--accent) r g b / 0.10);
+      border: 1px solid var(--border-accent);
+      padding: 6px 16px; border-radius: 20px; font-size: 0.8rem;
+      color: var(--accent); font-weight: 600; letter-spacing: 0.5px;
+      margin-bottom: 2rem; position: relative; }
+    .hero-badge::before { content: '●'; font-size: 8px; color: var(--success); }
+    .hero h1 { font-size: clamp(2.4rem, 5vw, 4rem); font-weight: 800;
+      line-height: 1.15; letter-spacing: -0.02em; max-width: 820px;
+      margin-bottom: 1.5rem; position: relative; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.15rem; color: var(--text-secondary); max-width: 600px;
+      margin-bottom: 3rem; position: relative; }
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap;
+      justify-content: center; position: relative; }
+    .btn-primary { background: var(--accent-dim); color: var(--text-primary);
+      padding: 14px 32px; border-radius: var(--radius-md); font-weight: 700;
+      font-size: 1rem; transition: all 0.2s; }
+    .btn-primary:hover { background: var(--accent); color: var(--bg-primary);
+      transform: translateY(-1px); text-decoration: none; }
+    .btn-secondary { background: transparent; color: var(--text-primary);
+      padding: 14px 32px; border-radius: var(--radius-md); font-weight: 600;
+      font-size: 1rem; border: 1px solid var(--border); transition: all 0.2s; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent);
+      text-decoration: none; }
+    .hero-stats { display: flex; gap: 3rem; margin-top: 4rem; position: relative;
+      padding-top: 2rem; border-top: 1px solid var(--border); flex-wrap: wrap;
+      justify-content: center; }
+    .stat { text-align: center; }
+    .stat-num { font-size: 2rem; font-weight: 800; color: var(--accent); }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 1px; }
+    section { padding: 5rem 2rem; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 1rem;
+      text-align: center; }
+    .section-title { text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800; margin-bottom: 1rem; }
+    .section-sub { text-align: center; color: var(--text-secondary);
+      font-size: 1.05rem; max-width: 600px; margin: 0 auto 3.5rem; }
+    .features-grid { display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+    .card { background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 2rem;
+      transition: border-color 0.2s, transform 0.2s; }
+    .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .feature-icon { width: 48px; height: 48px; border-radius: var(--radius-md);
+      background: rgba(from var(--accent) r g b / 0.10);
+      border: 1px solid var(--border-accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 1rem; }
+    .card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; }
+    .pipeline-grid { display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1rem; margin-top: 2rem; }
+    .pipe-step { text-align: center; padding: 1.5rem 1rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); }
+    .pipe-num { width: 30px; height: 30px; border-radius: 50%;
+      background: rgba(from var(--accent) r g b / 0.15);
+      border: 1px solid var(--border-accent); color: var(--accent);
+      font-size: 0.78rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 0.75rem; }
+    .pipe-step h3 { font-size: 0.88rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 0.5rem; }
+    .pipe-step p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; }
+    .arch-grid { display: grid; grid-template-columns: 1fr 1fr;
+      gap: 2rem; align-items: start; }
+    .arch-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+    .arch-list li { background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 16px;
+      font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; }
+    .arch-list li strong { color: var(--text-primary); }
+    .arch-list li code { color: var(--accent); font-family: 'Courier New', monospace;
+      font-size: 0.85em; }
+    .arch-diagram { background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-xl); padding: 1rem; overflow: hidden;
+      }
+    .audience-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    .audience-card { background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 2rem; text-align: center;
+      display: flex; flex-direction: column; gap: 1rem; }
+    .audience-card h3 { font-size: 1.1rem; font-weight: 700; }
+    .audience-card p { color: var(--text-secondary); font-size: 0.875rem; flex: 1; }
+    .btn-dl { display: inline-block; margin-top: auto;
+      background: rgba(from var(--accent) r g b / 0.10);
+      border: 1px solid var(--border-accent); color: var(--accent);
+      padding: 10px 20px; border-radius: var(--radius-md);
+      font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+    .btn-dl:hover { background: var(--accent-dim); color: var(--text-primary);
+      border-color: var(--accent-dim); text-decoration: none; }
+    .stack-strip { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .stack-chip { background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 24px;
+      font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); }
+    footer { background: var(--bg-card); border-top: 1px solid var(--border);
+      padding: 3rem 2rem; text-align: center; }
+    .foot-logo { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+    .foot-links { display: flex; gap: 2rem; justify-content: center; margin: 1rem 0; }
+    .foot-links a { color: var(--text-secondary); font-size: 0.875rem; }
+    .foot-links a:hover { color: var(--text-primary); }
+    .foot-tag { color: var(--text-muted); font-size: 0.875rem; }
+    .alt-bg { background: var(--bg-card); }
+    @media (max-width: 768px) {
+      .arch-grid { grid-template-columns: 1fr; }
+      .audience-grid { grid-template-columns: 1fr; }
+      .pipeline-grid { grid-template-columns: 1fr 1fr; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <a href="../index.html" style="color:var(--text-muted);font-size:0.75rem;font-weight:500;border:1px solid var(--border);border-radius:6px;padding:4px 10px;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">&#8592; pktSolution</a>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 64" height="38">
+    <defs><clipPath id="snmp-nav-clip"><rect width="172" height="64" rx="12"/></clipPath></defs>
+    <rect width="172" height="64" rx="12" fill="var(--bg-card)"/>
+    <rect width="64" height="64" fill="var(--bg-deep)" clip-path="url(#snmp-nav-clip)"/>
+    <g transform="translate(8,8) scale(2)">
+      <rect x="2" y="10" width="4" height="4" rx="1" fill="var(--accent)"/>
+      <path d="M8 8.5 a6 6 0 0 1 0 7" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      <path d="M11.5 6 a9.5 9.5 0 0 1 0 12" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      <path d="M15 3.5 a13 13 0 0 1 0 17" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    </g>
+    <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="var(--text-muted)" letter-spacing="2">pkt</text>
+    <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="var(--text-primary)" letter-spacing="-1">SNMP</text>
+  </svg>
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#documentation">Documentation</a>
+  </div>
+  <a href="admin-guide.html#install" class="nav-cta">Get Started</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Network Intelligence Platform</div>
+  <h1>Complete Visibility Into<br/><span>Every Device on Your Network</span></h1>
+  <p>pktSNMP collects, normalizes, and stores SNMP telemetry from routers, switches, firewalls, and cloud devices — delivering real-time dashboards, intelligent alerting, and an AI-powered assistant in a single self-hosted platform.</p>
+  <div class="hero-actions">
+    <a href="user-guide.html" class="btn-primary">Operator Guide</a>
+    <a href="admin-guide.html" class="btn-secondary">Admin Guide</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">v1/v2c/v3</div><div class="stat-label">SNMP Protocols</div></div>
+    <div class="stat"><div class="stat-num">12</div><div class="stat-label">Alert Rule Types</div></div>
+    <div class="stat"><div class="stat-num">60s</div><div class="stat-label">Eval Loop</div></div>
+    <div class="stat"><div class="stat-num">3</div><div class="stat-label">Access Roles</div></div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <div class="eyebrow">Platform Capabilities</div>
+    <h2 class="section-title">Everything You Need to Monitor Your Network</h2>
+    <p class="section-sub">From raw SNMP polls to actionable insight — all in one self-hosted platform with no SaaS dependencies.</p>
+    <div class="features-grid">
+      <div class="card">
+        <div class="feature-icon">&#x1F4F6;</div>
+        <h3>Real-Time Device Status</h3>
+        <p>Live up/down status for every managed device, organized in a four-level hierarchy. Status dots roll up — one down device surfaces instantly at every level above it.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F4E1;</div>
+        <h3>Multi-Site Collection</h3>
+        <p>Combine a built-in local pysnmp poll engine with remote OpenTelemetry Collector instances at distributed sites — no additional server infrastructure required per site.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x26A0;&#xFE0F;</div>
+        <h3>SNMP Trap Receiver</h3>
+        <p>Listens on UDP 162 for unsolicited trap events from any SNMP-capable device. Traps are decoded, normalized, stored, and overlaid on metric charts as event markers.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F4CA;</div>
+        <h3>Metrics &amp; Time-Series Charts</h3>
+        <p>Per-interface traffic (bps and packets/s), error and discard rates, link speed, and operational status — charted with configurable time ranges and one-click CSV export.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F916;</div>
+        <h3>AI-Powered Assistant</h3>
+        <p>Ask natural-language questions about your network — "Which devices had errors in the last hour?" — and get instant answers sourced directly from your live telemetry data.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F6A8;</div>
+        <h3>Intelligent Alert Engine</h3>
+        <p>12 built-in rule types evaluate every 60 seconds — interface down, flapping, bandwidth saturation, error spikes, collector gaps, and more. Rules auto-resolve when conditions clear.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F5C2;&#xFE0F;</div>
+        <h3>OID Catalog</h3>
+        <p>Browsable reference of all OIDs collected across your devices. Search by name or numeric OID, see current values, and understand what each metric represents.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F5FA;&#xFE0F;</div>
+        <h3>Flexible Storage Backends</h3>
+        <p>SQLite for most deployments, or ClickHouse for very high-volume environments. Switch backends in the UI — no code changes or restarts required.</p>
+      </div>
+      <div class="card">
+        <div class="feature-icon">&#x1F512;</div>
+        <h3>Enterprise Auth &amp; RBAC</h3>
+        <p>Admin, Analyst, and Viewer roles with JWT authentication. Supports SAML 2.0 SSO — roles assigned at the identity provider level with no per-user config in pktSNMP.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works" class="alt-bg">
+  <div class="section-inner">
+    <div class="eyebrow">Collection Pipeline</div>
+    <h2 class="section-title">From Device to Dashboard in Seconds</h2>
+    <p class="section-sub">pktSNMP unifies local SNMP polling, remote OpenTelemetry collection, and UDP trap reception into a single normalized telemetry stream.</p>
+    <div class="pipeline-grid">
+      <div class="pipe-step">
+        <div class="pipe-num">1</div>
+        <h3>Discover &amp; Configure</h3>
+        <p>Register routers, switches, firewalls, and any SNMP-capable device. Assign to your Org → Group → Site → Device hierarchy. Set community strings or SNMPv3 credentials per device.</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">2</div>
+        <h3>Collect &amp; Receive</h3>
+        <p>The built-in pysnmp engine polls registered devices on schedule. Remote otelcol-contrib instances push OTLP metrics over HTTP. UDP 162 captures unsolicited trap events.</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">3</div>
+        <h3>Normalize &amp; Store</h3>
+        <p>All telemetry is normalized into a unified metric schema. Rows land in the time-series database with device, interface, OID, value, and timestamp indexed for fast query.</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">4</div>
+        <h3>Evaluate Alerts</h3>
+        <p>The alert engine runs every 60 seconds across all 12 rule types. Alerts fire when thresholds breach and auto-resolve when conditions clear — no manual acknowledgement required.</p>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">5</div>
+        <h3>Visualize &amp; Act</h3>
+        <p>The React SPA delivers live status dashboards, per-interface charts, alert management, OID catalog browsing, and the AI assistant — all in the browser, no plugins required.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-inner">
+    <div class="eyebrow">Platform Design</div>
+    <h2 class="section-title">Built for Enterprise Network Environments</h2>
+    <p class="section-sub">Self-hosted, single-server, zero cloud dependency — designed to run inside your network perimeter alongside the devices it monitors.</p>
+    <div class="arch-grid">
+      <div>
+        <ul class="arch-list">
+          <li><strong>FastAPI Backend</strong> — Python 3.11 REST API serving auth, device management, SNMP ingest, alert evaluation, and AI query endpoints on port 8767.</li>
+          <li><strong>React 18 SPA</strong> — TypeScript + Tailwind CSS frontend compiled to static assets and served directly by FastAPI — no separate web server or CDN required.</li>
+          <li><strong>Dual Storage</strong> — <code>pktsnmp.db</code> manages control-plane config; <code>snmp_timeseries.db</code> stores all time-series metrics and trap events.</li>
+          <li><strong>pysnmp Poll Engine</strong> — Local SNMP v1/v2c/v3 poller with configurable interval, community, and OID set per device.</li>
+          <li><strong>otelcol-contrib Bridge</strong> — Remote OpenTelemetry Collector instances at distributed sites push OTLP HTTP metrics — no SNMP access across WAN required.</li>
+          <li><strong>Alert Engine</strong> — Background evaluator on a 60-second loop, checking 12 rule types and writing alert events to the database.</li>
+          <li><strong>JWT + SAML 2.0 Auth</strong> — Session tokens issued per login; optional SAML 2.0 SSO with role mapping at the IdP level.</li>
+        </ul>
+      </div>
+      <div class="arch-diagram">
+        <!-- INLINE SVG — unique IDs prefixed snmp-diag- -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" style="width:100%;display:block;border-radius:10px;">
+          <defs>
+            <linearGradient id="snmp-diag-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%"   stop-color="var(--bg-card)"/>
+              <stop offset="100%" stop-color="var(--bg-primary)"/>
+            </linearGradient>
+            <linearGradient id="snmp-diag-acc" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="var(--accent-dim)"/>
+              <stop offset="100%" stop-color="var(--accent)"/>
+            </linearGradient>
+            <marker id="snmp-arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="var(--accent)"/>
+            </marker>
+          </defs>
+          <rect width="900" height="540" rx="12" fill="url(#snmp-diag-bg)"/>
+          <!-- Title -->
+          <text x="450" y="30" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700" fill="var(--text-primary)">pktSNMP Data Flow Architecture</text>
+          <!-- Zone labels -->
+          <text x="90" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)" letter-spacing="1">NETWORK</text>
+          <text x="248" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)" letter-spacing="1">COLLECTION</text>
+          <text x="448" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)" letter-spacing="1">pktSNMP CORE</text>
+          <text x="660" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)" letter-spacing="1">STORAGE</text>
+          <text x="820" y="58" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)" letter-spacing="1">REACT SPA</text>
+          <!-- Zone backgrounds -->
+          <rect x="10"  y="64" width="160" height="440" rx="8" fill="var(--bg-deep)" opacity="0.6"/>
+          <rect x="178" y="64" width="148" height="440" rx="8" fill="var(--bg-deep)" opacity="0.6"/>
+          <rect x="334" y="64" width="230" height="440" rx="8" fill="var(--bg-surface)" opacity="0.4" stroke="var(--accent)" stroke-width="1" stroke-dasharray="0"/>
+          <rect x="572" y="64" width="174" height="440" rx="8" fill="var(--bg-deep)" opacity="0.6"/>
+          <rect x="754" y="64" width="136" height="440" rx="8" fill="var(--bg-deep)" opacity="0.6"/>
+          <!-- Network devices -->
+          <rect x="20" y="78" width="140" height="34" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="90" y="91" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Router / Firewall</text>
+          <text x="90" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">SNMP v1/v2c/v3</text>
+          <rect x="20" y="122" width="140" height="34" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="90" y="135" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Core Switch</text>
+          <text x="90" y="148" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">ifXTable · Interface OIDs</text>
+          <rect x="20" y="166" width="140" height="34" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="90" y="179" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Access Switch</text>
+          <text x="90" y="192" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">Traps · UDP 162</text>
+          <rect x="20" y="210" width="140" height="34" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="90" y="223" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Server / Host</text>
+          <text x="90" y="236" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">sysDescr · hrSystem</text>
+          <rect x="20" y="254" width="140" height="34" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="90" y="267" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Remote Site Devices</text>
+          <text x="90" y="280" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">via otelcol-contrib</text>
+          <rect x="20" y="298" width="140" height="34" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="90" y="311" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Cloud / Virtual</text>
+          <text x="90" y="324" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">SDN endpoints</text>
+          <!-- Collection layer -->
+          <rect x="188" y="78" width="128" height="50" rx="6" fill="var(--bg-card)" stroke="var(--accent)" stroke-dasharray="4,2"/>
+          <text x="252" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">pysnmp Poll Engine</text>
+          <text x="252" y="110" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Scheduled SNMP GET</text>
+          <text x="252" y="121" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">v1 / v2c / v3</text>
+          <rect x="188" y="138" width="128" height="50" rx="6" fill="var(--bg-card)" stroke="var(--accent)" stroke-dasharray="4,2"/>
+          <text x="252" y="157" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">Trap Receiver</text>
+          <text x="252" y="170" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">UDP port 162</text>
+          <text x="252" y="181" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">Async decode</text>
+          <rect x="188" y="198" width="128" height="50" rx="6" fill="var(--bg-card)" stroke="var(--accent)" stroke-dasharray="4,2"/>
+          <text x="252" y="217" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">otelcol-contrib</text>
+          <text x="252" y="230" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Remote site collector</text>
+          <text x="252" y="241" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">OTLP HTTP push</text>
+          <rect x="188" y="258" width="128" height="38" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="252" y="274" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Ingest API</text>
+          <text x="252" y="287" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">/api/snmp/ingest/otlp/v1/metrics</text>
+          <!-- Core layer boxes -->
+          <rect x="344" y="78" width="210" height="34" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="91" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Auth Service</text>
+          <text x="449" y="104" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">JWT · SAML 2.0 SSO · RBAC</text>
+          <rect x="344" y="122" width="210" height="34" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="135" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Device Manager</text>
+          <text x="449" y="148" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Org → Group → Site → Device</text>
+          <rect x="344" y="166" width="210" height="34" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="179" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Metric Normalizer</text>
+          <text x="449" y="192" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">OID parse · unit convert · index</text>
+          <rect x="344" y="210" width="210" height="44" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="226" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Alert Engine</text>
+          <text x="449" y="239" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">60-second eval · 12 rule types · auto-resolve</text>
+          <rect x="344" y="264" width="210" height="34" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="277" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">AI Assistant</text>
+          <text x="449" y="290" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Natural language over live telemetry</text>
+          <rect x="344" y="308" width="210" height="34" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="321" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">OID Catalog</text>
+          <text x="449" y="334" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Browsable · search · live values</text>
+          <rect x="344" y="352" width="210" height="34" rx="6" fill="var(--bg-surface)" stroke="var(--border)"/>
+          <text x="449" y="365" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Collector Manager</text>
+          <text x="449" y="378" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Status · ingest rate · gap detect</text>
+          <!-- Storage layer -->
+          <rect x="582" y="78" width="154" height="70" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="659" y="97" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">pktsnmp.db</text>
+          <text x="659" y="110" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Control Plane · SQLite</text>
+          <text x="659" y="122" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">devices · users · alert rules</text>
+          <text x="659" y="140" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">collectors · config</text>
+          <rect x="582" y="158" width="154" height="80" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="659" y="177" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--accent)">snmp_timeseries.db</text>
+          <text x="659" y="190" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Time-Series · SQLite</text>
+          <text x="659" y="202" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">poll_results · traps</text>
+          <text x="659" y="214" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">device + OID + timestamp</text>
+          <text x="659" y="229" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">→ ClickHouse for high-volume</text>
+          <rect x="582" y="248" width="154" height="52" rx="6" fill="var(--bg-card)" stroke="var(--warning)" stroke-dasharray="4,2"/>
+          <text x="659" y="266" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--warning)">ClickHouse</text>
+          <text x="659" y="279" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-secondary)">Optional high-volume backend</text>
+          <text x="659" y="291" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--text-muted)">Switch in UI — no restart</text>
+          <!-- React SPA layer -->
+          <rect x="764" y="78" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="91" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Dashboard</text>
+          <text x="822" y="103" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Status · tree rollup</text>
+          <rect x="764" y="120" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="133" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Metrics &amp; Charts</text>
+          <text x="822" y="145" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Traffic · errors · speed</text>
+          <rect x="764" y="162" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="175" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Alert Management</text>
+          <text x="822" y="187" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Rules · events · history</text>
+          <rect x="764" y="204" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="217" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Collectors View</text>
+          <text x="822" y="229" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Ingest rate · gaps</text>
+          <rect x="764" y="246" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="259" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">OID Browser</text>
+          <text x="822" y="271" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Search · live values</text>
+          <rect x="764" y="288" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="301" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">AI Assistant</text>
+          <text x="822" y="313" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Natural language queries</text>
+          <rect x="764" y="330" width="116" height="32" rx="6" fill="var(--bg-card)" stroke="var(--border)"/>
+          <text x="822" y="343" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="var(--text-primary)">Admin Panel</text>
+          <text x="822" y="355" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="7" fill="var(--text-muted)">Users · devices · SAML</text>
+          <!-- Flow arrows -->
+          <line x1="160" y1="95"  x2="186" y2="103" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <line x1="160" y1="183" x2="186" y2="158" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#snmp-arr)"/>
+          <line x1="160" y1="271" x2="186" y2="223" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <line x1="316" y1="103" x2="342" y2="195" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <line x1="316" y1="158" x2="342" y2="200" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#snmp-arr)"/>
+          <line x1="316" y1="223" x2="342" y2="205" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <line x1="554" y1="195" x2="580" y2="195" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <line x1="554" y1="260" x2="580" y2="260" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <line x1="554" y1="220" x2="762" y2="220" stroke="var(--accent)" stroke-width="2" marker-end="url(#snmp-arr)"/>
+          <text x="658" y="212" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="8" fill="var(--accent)">REST API · JSON</text>
+          <!-- Legend -->
+          <rect x="10" y="490" width="880" height="40" rx="6" fill="var(--bg-deep)" opacity="0.8"/>
+          <line x1="30" y1="510" x2="65" y2="510" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#snmp-arr)"/>
+          <text x="75" y="514" font-family="Segoe UI,sans-serif" font-size="9" fill="var(--text-secondary)">Poll / Data flow</text>
+          <line x1="190" y1="510" x2="225" y2="510" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#snmp-arr)"/>
+          <text x="235" y="514" font-family="Segoe UI,sans-serif" font-size="9" fill="var(--text-secondary)">Trap / Async event</text>
+          <rect x="370" y="504" width="10" height="10" rx="2" fill="var(--bg-card)" stroke="var(--accent)" stroke-dasharray="3,2"/>
+          <text x="388" y="514" font-family="Segoe UI,sans-serif" font-size="9" fill="var(--text-secondary)">Built-in collector</text>
+          <rect x="510" y="504" width="10" height="10" rx="2" fill="var(--bg-card)" stroke="var(--warning)" stroke-dasharray="3,2"/>
+          <text x="528" y="514" font-family="Segoe UI,sans-serif" font-size="9" fill="var(--text-secondary)">Optional / switchable</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOCUMENTATION -->
+<section id="documentation" class="alt-bg">
+  <div class="section-inner">
+    <div class="eyebrow">Documentation</div>
+    <h2 class="section-title">Guides for Every Role</h2>
+    <p class="section-sub">Comprehensive documentation for operators who monitor the network, administrators who deploy the platform, and stakeholders evaluating the solution.</p>
+    <div class="audience-grid">
+      <div class="audience-card">
+        <div class="feature-icon" style="margin:0 auto 0.5rem;">&#x1F4BB;</div>
+        <h3>Operator Guide</h3>
+        <p>For network engineers and NOC analysts. Covers the dashboard, device tree, metrics charts, alert management, OID catalog, and AI assistant.</p>
+        <a href="user-guide.html" class="btn-dl">Read Operator Guide</a>
+      </div>
+      <div class="audience-card">
+        <div class="feature-icon" style="margin:0 auto 0.5rem;">&#x2699;&#xFE0F;</div>
+        <h3>Admin Guide</h3>
+        <p>For infrastructure and IT staff. Covers fresh install, collector setup, storage backends, SAML SSO, backup, and troubleshooting reference tables.</p>
+        <a href="admin-guide.html" class="btn-dl">Read Admin Guide</a>
+      </div>
+      <div class="audience-card">
+        <div class="feature-icon" style="margin:0 auto 0.5rem;">&#x1F4CB;</div>
+        <h3>Platform Overview</h3>
+        <p>A concise overview of capabilities, pipeline architecture, alert rule types, and technology stack — suitable for evaluations and stakeholder reviews.</p>
+        <a href="pktSNMP-overview.pdf" class="btn-dl">Download PDF Overview</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section>
+  <div class="section-inner" style="text-align:center;">
+    <div class="eyebrow">Technology Stack</div>
+    <h2 class="section-title">Built on Proven Open-Source Components</h2>
+    <p class="section-sub" style="max-width:600px;margin:0 auto 2.5rem;">No proprietary lock-in. Every layer is auditable, replaceable, and deployable in air-gapped environments.</p>
+    <div class="stack-strip">
+      <span class="stack-chip">Python 3.11</span>
+      <span class="stack-chip">FastAPI</span>
+      <span class="stack-chip">pysnmp-lextudio</span>
+      <span class="stack-chip">React 18</span>
+      <span class="stack-chip">TypeScript</span>
+      <span class="stack-chip">Tailwind CSS</span>
+      <span class="stack-chip">SQLite</span>
+      <span class="stack-chip">ClickHouse</span>
+      <span class="stack-chip">otelcol-contrib</span>
+      <span class="stack-chip">OTLP HTTP</span>
+      <span class="stack-chip">JWT</span>
+      <span class="stack-chip">SAML 2.0</span>
+      <span class="stack-chip">systemd</span>
+      <span class="stack-chip">UDP 162</span>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 64" height="42">
+      <defs><clipPath id="snmp-foot-clip"><rect width="172" height="64" rx="12"/></clipPath></defs>
+      <rect width="172" height="64" rx="12" fill="var(--bg-card)"/>
+      <rect width="64" height="64" fill="var(--bg-deep)" clip-path="url(#snmp-foot-clip)"/>
+      <g transform="translate(8,8) scale(2)">
+        <rect x="2" y="10" width="4" height="4" rx="1" fill="var(--accent)"/>
+        <path d="M8 8.5 a6 6 0 0 1 0 7" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M11.5 6 a9.5 9.5 0 0 1 0 12" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M15 3.5 a13 13 0 0 1 0 17" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      </g>
+      <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="var(--text-muted)" letter-spacing="2">pkt</text>
+      <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="var(--text-primary)" letter-spacing="-1">SNMP</text>
+    </svg>
+  </div>
+  <div class="foot-links">
+    <a href="user-guide.html">Operator Guide</a>
+    <a href="admin-guide.html">Admin Guide</a>
+    <a href="pktSNMP-overview.pdf">PDF Overview</a>
+    <a href="pktSNMP-admin-guide.pdf">Admin PDF</a>
+  </div>
+  <p class="foot-tag">pktSNMP &mdash; Unified SNMP Telemetry &amp; Network Visibility Platform</p>
+</footer>
+
+
+</body>
+</html>
