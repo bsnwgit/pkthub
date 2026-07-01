@@ -1213,50 +1213,50 @@ function AppRegistrySection({ settings, set, save }: {
   )
 }
 
-// ── Kiosk tab (config + management) ──────────────────────────────────────────
-function KioskSection({ settings, set, save }: {
+// ── NOC tab (config + management) ──────────────────────────────────────────
+function NOCSection({ settings, set, save }: {
   settings: Record<string,string>
   set: (k: string, v: string|boolean|number) => void
   save: { save: () => Promise<void>; saving: boolean; saved: boolean; error: string }
 }) {
   const { isAdmin, isAnalyst } = useAuth()
-  const [kiosks, setKiosks] = useState<any[]>([])
-  const [kiosksLoading, setKiosksLoading] = useState(true)
+  const [noc, setNocList] = useState<any[]>([])
+  const [nocLoading, setNocListLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [copied, setCopied] = useState<number | null>(null)
 
-  const loadKiosks = () => {
-    setKiosksLoading(true)
-    api.listKiosks().then(setKiosks).catch(() => {}).finally(() => setKiosksLoading(false))
+  const loadNocList = () => {
+    setNocListLoading(true)
+    api.listNOC().then(setNocList).catch(() => {}).finally(() => setNocListLoading(false))
   }
-  useEffect(() => { loadKiosks() }, [])
+  useEffect(() => { loadNocList() }, [])
 
   const canCreate = isAdmin || isAnalyst
 
   const create = async () => {
     setCreating(true); setCreateError('')
     try {
-      await api.createKiosk({ ...form, slides: [] })
+      await api.createNOC({ ...form, layout: [] })
       setShowForm(false)
       setForm({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
-      loadKiosks()
+      loadNocList()
     } catch (e: any) { setCreateError(e.message) }
     finally { setCreating(false) }
   }
 
   const del = async (id: number, name: string) => {
-    if (!confirm(`Delete kiosk "${name}"?`)) return
-    await api.deleteKiosk(id).then(loadKiosks).catch((e: any) => alert(e.message))
+    if (!confirm(`Delete NOC display "${name}"?`)) return
+    await api.deleteNOC(id).then(loadNocList).catch((e: any) => alert(e.message))
   }
 
   const publish = async (k: any) => {
     try {
-      if (k.is_published) await api.unpublishKiosk(k.id)
-      else await api.publishKiosk(k.id)
-      loadKiosks()
+      if (k.is_published) await api.unpublishNOC(k.id)
+      else await api.publishNOC(k.id)
+      loadNocList()
     } catch (e: any) { alert(e.message) }
   }
 
@@ -1268,16 +1268,16 @@ function KioskSection({ settings, set, save }: {
 
   return (
     <div className="space-y-4">
-      <Section title="Kiosk" onSave={save.save} saving={save.saving} saved={save.saved} error={save.error}>
-        <Field label="Default dwell time" hint="Default slide dwell for new rotating kiosks">
+      <Section title="NOC" onSave={save.save} saving={save.saving} saved={save.saved} error={save.error}>
+        <Field label="Default dwell time" hint="Default slide dwell for new rotating noc">
           <div className="flex items-center gap-3">
-            <NumberInput value={numOf(settings,'kiosk_default_dwell',30)} onChange={v => set('kiosk_default_dwell', v)} min={5} max={3600} />
+            <NumberInput value={numOf(settings,'noc_default_dwell',30)} onChange={v => set('noc_default_dwell', v)} min={5} max={3600} />
             <span className="text-sm text-white">seconds</span>
           </div>
         </Field>
-        <Field label="Widget refresh interval" hint="How often kiosk widgets poll for fresh data">
+        <Field label="Widget refresh interval" hint="How often noc widgets poll for fresh data">
           <div className="flex items-center gap-3">
-            <NumberInput value={numOf(settings,'kiosk_widget_refresh',60)} onChange={v => set('kiosk_widget_refresh', v)} min={10} max={3600} />
+            <NumberInput value={numOf(settings,'noc_widget_refresh',60)} onChange={v => set('noc_widget_refresh', v)} min={10} max={3600} />
             <span className="text-sm text-white">seconds</span>
           </div>
         </Field>
@@ -1291,19 +1291,19 @@ function KioskSection({ settings, set, save }: {
 
       <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-          <p className="text-sm font-semibold text-white">Kiosk Layouts</p>
+          <p className="text-sm font-semibold text-white">NOC Layouts</p>
           {canCreate && (
             <button onClick={() => setShowForm(v => !v)}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
               style={{ background: 'linear-gradient(90deg,#a78bfa,#60a5fa)' }}>
-              <Plus size={13} /> New Kiosk
+              <Plus size={13} /> New NOC Display
             </button>
           )}
         </div>
 
         {showForm && canCreate && (
           <div className="px-5 py-4 border-b border-gray-800 space-y-3">
-            <p className="text-xs font-semibold text-white">New Kiosk Layout</p>
+            <p className="text-xs font-semibold text-white">New NOC Display Layout</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Name</label>
@@ -1347,12 +1347,12 @@ function KioskSection({ settings, set, save }: {
           </div>
         )}
 
-        {kiosksLoading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
-        {!kiosksLoading && kiosks.length === 0 && (
-          <div className="text-sm text-gray-500 py-10 text-center">No kiosks yet. Click "New Kiosk" to create one.</div>
+        {nocLoading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
+        {!nocLoading && noc.length === 0 && (
+          <div className="text-sm text-gray-500 py-10 text-center">No noc yet. Click "New NOC Display" to create one.</div>
         )}
         <div className="divide-y divide-gray-800">
-          {kiosks.map(k => (
+          {noc.map(k => (
             <div key={k.id} className="flex items-center gap-3 px-5 py-3">
               <Monitor size={14} className="text-purple-400 shrink-0" />
               <div className="flex-1 min-w-0">
@@ -1666,7 +1666,7 @@ function StorageSection({ settings, set, save }: {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type TabId = 'general' | 'storage' | 'backup' | 'auth' | 'notifications' | 'audit' | 'integrations' | 'users' | 'registry' | 'kiosk' | 'maintenance'
+type TabId = 'general' | 'storage' | 'backup' | 'auth' | 'notifications' | 'audit' | 'integrations' | 'users' | 'registry' | 'noc' | 'maintenance'
 
 const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean }> = [
   { id: 'general',       label: 'General' },
@@ -1678,7 +1678,7 @@ const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean }> = [
   { id: 'integrations',  label: 'Integrations' },
   { id: 'users',         label: 'Users', adminOnly: true },
   { id: 'registry',      label: 'App Registry' },
-  { id: 'kiosk',         label: 'Kiosk' },
+  { id: 'noc',         label: 'NOC' },
   { id: 'maintenance',   label: 'Maintenance' },
 ]
 
@@ -1725,7 +1725,7 @@ export default function SettingsPage() {
   const storageSave  = useSave(['audit_retention_days', 'alert_retention_days', 'log_level'], settings, load)
   const backupSave   = useSave(['backup_auto_enabled', 'backup_interval_hours', 'backup_path', 'backup_retain_count'], settings, load)
   const registrySave = useSave(['default_app_mode', 'health_poll_interval', 'health_timeout', 'auto_rotate_days'], settings, load)
-  const kioskSave    = useSave(['kiosk_default_dwell', 'kiosk_widget_refresh', 'display_token_expire_days'], settings, load)
+  const nocSave    = useSave(['noc_default_dwell', 'noc_widget_refresh', 'display_token_expire_days'], settings, load)
   const authSave     = useSave([
     'auth_local_enabled', 'session_timeout_minutes',
     'okta_saml_enabled', 'okta_saml_idp_entity_id', 'okta_saml_idp_sso_url',
@@ -1807,9 +1807,9 @@ export default function SettingsPage() {
         <AppRegistrySection settings={settings} set={set} save={registrySave} />
       )}
 
-      {/* Kiosk */}
-      {tab === 'kiosk' && (
-        <KioskSection settings={settings} set={set} save={kioskSave} />
+      {/* NOC */}
+      {tab === 'noc' && (
+        <NOCSection settings={settings} set={set} save={nocSave} />
       )}
 
       {/* Auth */}

@@ -1129,6 +1129,15 @@ def suite_set_hub_redirect_url():
 
 # ── End public mode / hub redirect ────────────────────────────────────────────
 
+
+# -- Widget routes for pktHub NOC Builder (auto-registered) -------------------
+try:
+    from widgets_routes import register as _register_widgets
+    _register_widgets(app)
+except Exception as _we:
+    import logging as _wlog
+    _wlog.getLogger('pktpcap.server').warning('Widget routes not loaded: %s', _we)
+
 # -- Entry point ---------------------------------------------------------------
 
 def open_browser(port, scheme="http"):

@@ -12,7 +12,7 @@ from app.auth import router as auth_router, ensure_initial_admin
 from app.users import router as users_router
 from app.registry import router as registry_router, poll_health
 from app.proxy import router as proxy_router
-from app.kiosk import router as kiosk_router
+from app.noc import router as noc_router
 from app.audit import router as audit_router
 from app.settings_api import router as settings_router
 from app.dashboard import router as dashboard_router
@@ -36,7 +36,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(registry_router)
 app.include_router(proxy_router)
-app.include_router(kiosk_router)
+app.include_router(noc_router)
 app.include_router(audit_router)
 app.include_router(settings_router)
 app.include_router(dashboard_router)

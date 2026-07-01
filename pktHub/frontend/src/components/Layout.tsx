@@ -8,7 +8,7 @@ import clsx from 'clsx'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/kiosks', label: 'Kiosk Builder', icon: Monitor },
+  { to: '/noc', label: 'NOC Builder', icon: Monitor },
   { to: '/audit', label: 'Audit Log', icon: FileText, analystOk: true },
   { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
 ]

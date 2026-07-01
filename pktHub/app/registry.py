@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+
 import aiosqlite
 import httpx
 import secrets
@@ -91,6 +92,18 @@ async def register_app(
                     supported_versions = data.get("supported_suite_versions", [1])
     except Exception:
         pass  # URL verification is advisory — don't block registration
+
+    # Also try to fetch widget manifest directly
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            mresp = await client.get(
+                f"{body.base_url.rstrip('/')}/api/widgets/manifest",
+                headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
+            )
+            if mresp.status_code == 200:
+                manifest = mresp.json()
+    except Exception:
+        pass
 
     cur = await db.execute(
         """INSERT INTO registered_apps
@@ -222,6 +235,9 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
     settings_obj = __import__("app.config", fromlist=["get_settings"]).get_settings()
     health = "unreachable"
     app_direct_ui_locked = None
+    widget_manifest = None
+
+    # ── Health check ──────────────────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(verify=False, timeout=8) as client:
             resp = await client.get(
@@ -237,6 +253,18 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
                 health = "degraded"
     except Exception:
         health = "unreachable"
+
+    # ── Widget manifest fetch — advisory, never blocks health update ───────────
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            mresp = await client.get(
+                f"{base_url.rstrip('/')}/api/widgets/manifest",
+                headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
+            )
+            if mresp.status_code == 200:
+                widget_manifest = mresp.json()
+    except Exception:
+        pass  # widget manifest is optional — pktApps without it just show no widgets
 
     async with _aio.connect(settings_obj.db_path) as db:
         db.row_factory = _aio.Row
@@ -265,6 +293,14 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
                 "UPDATE registered_apps SET health_status = ?, last_health_check = datetime('now') WHERE id = ?",
                 (health, app_id)
             )
+
+        # Update widget_manifest if we got a fresh copy from this health cycle
+        if widget_manifest is not None:
+            await db.execute(
+                "UPDATE registered_apps SET widget_manifest = ? WHERE id = ?",
+                (_json.dumps(widget_manifest), app_id)
+            )
+
         await db.commit()
 
 

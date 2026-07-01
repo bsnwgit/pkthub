@@ -23,6 +23,7 @@ from app.api import logs as logs_router
 from app.api import syslog as syslog_router
 from app.api import collectors as collectors_router
 from app.api import suite as suite_router
+from app.api import widgets as widgets_router
 
 settings = get_settings()
 log = logging.getLogger("pktlog")
@@ -71,8 +72,6 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         log.warning(f"Startup lock check: {_e}")
     # ─────────────────────────────────────────────────────────────────────────
-
-
 
     # Connect to storage backend
     await init_storage()
@@ -144,7 +143,7 @@ async def _direct_access_lock(request: Request, call_next):
     from fastapi.responses import RedirectResponse
     import aiosqlite as _aio
     path = request.url.path
-    _ALLOW_PFX = ("/api/health", "/api/suite/", "/api/auth/", "/assets/", "/logos/", "/static/")
+    _ALLOW_PFX = ("/api/health", "/api/suite/", "/api/auth/", "/assets/", "/logos/", "/static/", "/widgets/")
     if any(path == p or path.startswith(p) for p in _ALLOW_PFX):
         return await call_next(request)
     _cfg = get_settings()
@@ -185,7 +184,6 @@ async def _direct_access_lock(request: Request, call_next):
     return await call_next(request)
 
 
-
 # ── API Routers ───────────────────────────────────────────────────────────────
 
 app.include_router(auth.router,            prefix="/api/auth",     tags=["auth"])
@@ -197,6 +195,7 @@ app.include_router(logs_router.router,     prefix="/api/logs",     tags=["logs"]
 app.include_router(syslog_router.router,    prefix="/api/syslog",      tags=["syslog"])
 app.include_router(collectors_router.router, prefix="/api/collectors", tags=["collectors"])
 app.include_router(suite_router.router, prefix="/api/suite", tags=["suite"])
+app.include_router(widgets_router.router,  prefix="/api",          tags=["widgets"])
 
 # ── Health check ──────────────────────────────────────────────────────────────
 
@@ -242,15 +241,8 @@ if _frontend_dist.exists():
         index = _frontend_dist / "index.html"
         response = FileResponse(str(index))
 
-        # pktHub suite-token bootstrap:
-        # When this SPA is loaded through pktHub's proxy, pktHub sends X-Suite-Token
-        # on every request.  If the token is valid, generate a pktLog JWT and set
-        # the same sso_access_token + sso_role cookies that the SAML flow uses.
-        # React's AuthProvider reads these on mount and logs the user in
-        # without showing a login screen.
         _cfg = settings
         _suite_tk = request.headers.get("x-suite-token", "")
-        # Read suite_token from DB — bypasses stale lru_cache
         _spa_stored = get_settings().suite_token if _suite_tk else ""
         if _suite_tk and _spa_stored and _suite_tk == _spa_stored:
             from datetime import datetime, timedelta, timezone
@@ -259,11 +251,9 @@ if _frontend_dist.exists():
             _hub_user = request.headers.get("x-suite-user", "hub_user")
             _hub_role = request.headers.get("x-suite-role", "viewer")
             _local_role = _SUITE_ROLE_MAP.get(_hub_role, "analyst")
-            # 8-hour JWT — sub="0" (synthetic; get_current_user handles id=0 via X-Suite-Token)
             _expire = datetime.now(tz=timezone.utc) + timedelta(hours=8)
             _payload = {"sub": "0", "role": _local_role, "exp": _expire, "type": "access"}
             _jwt = _jose_jwt.encode(_payload, _cfg.secret_key, algorithm=_cfg.algorithm)
-            # httponly=False so JS can read via document.cookie (same as SAML flow)
             response.set_cookie("sso_access_token", _jwt,    max_age=60, httponly=False, samesite="lax")
             response.set_cookie("sso_role",         _local_role, max_age=60, httponly=False, samesite="lax")
 

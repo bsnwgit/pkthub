@@ -33,9 +33,9 @@ DEFAULTS = {
     "health_poll_interval": "30",
     "health_timeout": "5",
     "auto_rotate_days": "0",
-    # Kiosk
-    "kiosk_default_dwell": "30",
-    "kiosk_widget_refresh": "60",
+    # NOC
+    "noc_default_dwell": "30",
+    "noc_widget_refresh": "60",
     "display_token_expire_days": "0",
     # Notifications — Slack
     "notify_slack_enabled": "false",
