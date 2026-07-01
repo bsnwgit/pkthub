@@ -5,11 +5,12 @@ import { ReactNode } from 'react'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AppManagerPage from './pages/AppManagerPage'
-import KioskBuilderPage from './pages/KioskBuilderPage'
+import NOCBuilderPage from './pages/NOCBuilderPage'
+import NOCEditorPage from './pages/NOCEditorPage'
 import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProxyShell from './pages/ProxyShell'
-import KioskDisplayPage from './pages/KioskDisplayPage'
+import NOCDisplayPage from './pages/NOCDisplayPage'
 import Layout from './components/Layout'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -32,14 +33,17 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          {/* Public kiosk display — no auth */}
-          <Route path="/display/:token" element={<KioskDisplayPage />} />
+          {/* Public NOC display — no auth */}
+          <Route path="/display/:token" element={<NOCDisplayPage />} />
+
+          {/* Full-screen editor — no nav shell */}
+          <Route path="/noc/:id/edit" element={<RequireAuth><NOCEditorPage /></RequireAuth>} />
 
           {/* Authenticated app shell */}
           <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
             <Route index element={<DashboardPage />} />
             <Route path="apps" element={<AppManagerPage />} />
-            <Route path="kiosks" element={<KioskBuilderPage />} />
+            <Route path="noc" element={<NOCBuilderPage />} />
             <Route path="audit" element={<AuditPage />} />
             {/* Users is now under Settings → Users tab */}
             <Route path="users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />

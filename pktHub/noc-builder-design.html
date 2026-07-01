@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pktHub — NOC Builder Design</title>
+<style>
+:root {
+  --bg-primary:  #080d18;
+  --bg-card:     #0d1525;
+  --bg-surface:  #131e30;
+  --bg-deep:     #050a12;
+  --accent:      #e2e8f0;
+  --accent-dim:  #334155;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
+  --border:        rgba(255,255,255,0.07);
+  --border-accent: rgba(226,232,240,0.12);
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger:  #f87171;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --app-flow:     #60a5fa;
+  --app-flow-dim: #1e3a5f;
+  --app-snmp:     #2dd4bf;
+  --app-snmp-dim: #0d3d38;
+  --app-log:      #4ade80;
+  --app-log-dim:  #14532d;
+  --app-pcap:     #a78bfa;
+  --app-pcap-dim: #3b2d6e;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg-primary); color: var(--text-secondary);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.6;
+}
+nav {
+  position: sticky; top: 0; z-index: 100; height: 64px;
+  background: rgba(8,13,24,0.92);
+  backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+}
+</style>
+.nav-logo { display: flex; align-items: center; }
+.nav-links { display: flex; gap: 24px; justify-content: center; align-items: center; }
+.nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; transition: color .2s; }
+.nav-links a:hover { color: var(--text-primary); }
+.hero {
+  position: relative; display: flex; flex-direction: column;
+  align-items: center; text-align: center; padding: 64px 2rem 56px; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background-image: repeating-linear-gradient(-45deg, transparent, transparent 40px,
+    rgba(255,255,255,0.012) 40px, rgba(255,255,255,0.012) 41px);
+}
+.hero-glow {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 360px; border-radius: 50%; z-index: 0;
+  background: radial-gradient(ellipse, rgba(167,139,250,0.1) 0%, rgba(96,165,250,0.07) 40%, transparent 80%);
+}
+.hero > *:not(.hero-glow) { position: relative; z-index: 1; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(226,232,240,0.05); border: 1px solid var(--border-accent);
+  border-radius: 20px; padding: 6px 16px;
+  font-size: 13px; color: var(--text-muted); margin-bottom: 24px;
+}
+.hero h1 { font-size: clamp(2.2rem,5vw,3.6rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 18px; color: var(--text-primary); }
+.hero p { font-size: 1.05rem; color: var(--text-secondary); max-width: 640px; margin: 0 auto 28px; }
+section { padding: 80px 0; }
+section:nth-child(even) { background: var(--bg-surface); }
+.section-inner { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+.section-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+  padding: 4px 12px; border: 1px solid var(--border-accent); border-radius: 4px;
+}
+.section-header { font-size: clamp(1.6rem,2.5vw,2.2rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px; }
+.section-sub { color: var(--text-secondary); font-size: 1rem; max-width: 640px; margin: 0 auto 48px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 20px; }
+.card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 28px; transition: border-color .2s;
+}
+.card:hover { border-color: var(--border-accent); }
+.card-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 20px; }
+.card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+.card p { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+.pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 0; }
+.pipeline-step {
+  background: var(--bg-card); border: 1px solid var(--border); padding: 24px 20px;
+  position: relative; text-align: center; transition: border-color .2s;
+}
+.pipeline-step:not(:last-child)::after {
+  content: '→'; position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); font-size: 18px; z-index: 2;
+}
+.pipeline-step:hover { border-color: var(--border-accent); }
+.step-num {
+  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; font-weight: 700; margin: 0 auto 12px;
+  background: var(--accent-dim); color: var(--accent); border: 1px solid var(--border-accent);
+}
+.step-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+.step-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.role-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.role-table th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.role-table td { padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+.role-table tr:last-child td { border-bottom: none; }
+.role-table tr:hover td { background: rgba(226,232,240,0.03); }
+.yes { color: var(--success); font-weight: 600; }
+.partial { color: var(--warning); font-weight: 600; }
+.no { color: var(--danger); font-weight: 600; }
+.code-block {
+  background: #050a12; border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 20px 24px; font-family: 'Courier New', monospace; font-size: 12.5px;
+  color: var(--text-secondary); line-height: 1.8; overflow-x: auto; margin-top: 16px;
+}
+.k { color: #60a5fa; } .s { color: #4ade80; } .n { color: #fb923c; } .c { color: #334155; font-style: italic; }
+.bug-banner {
+  background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.25);
+  border-radius: var(--radius-md); padding: 16px 20px;
+}
+.bug-banner strong { color: var(--danger); }
+footer {
+  background: var(--bg-card); border-top: 1px solid var(--border);
+  padding: 48px 0 36px; text-align: center;
+}
+.footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 28px; }
+.footer-links a { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color .2s; }
+.footer-links a:hover { color: var(--text-secondary); }
+.footer-copy { font-size: 12px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <a href="index.html" style="color:var(--text-muted);font-size:0.75rem;font-weight:500;border:1px solid var(--border);border-radius:6px;padding:4px 10px;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">&#8592; pktHub</a>
+    <span style="color:var(--text-muted);font-size:13px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:.05em;">NOC Builder Design</span>
+  </div>
+  <div class="nav-links">
+    <a href="#decisions">Decisions</a>
+    <a href="#discovery">Auto-Discovery</a>
+    <a href="#schema">Data Schema</a>
+    <a href="#editor">Editor UI</a>
+    <a href="#access">Access</a>
+    <a href="#buildorder">Build Order</a>
+  </div>
+  <div></div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <span class="hero-badge">Design Document · July 2026</span>
+  <h1>NOC Builder<br><span style="color:var(--app-pcap)">Design Plan</span></h1>
+  <p>Expanding the NOC builder from a stub list into a full widget-based wall display composer — auto-discovery, free-form drag layout, and credential-free public display.</p>
+</section>
+
+<!-- WHAT'S BUILT -->
+<section id="decisions">
+  <div class="section-inner" style="text-align:center">
+    <span class="section-tag">Foundation</span>
+    <h2 class="section-header">What already exists</h2>
+    <p class="section-sub">More backend infrastructure is in place than the UI suggests. The NOC builder expansion builds on a solid foundation.</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">✓</div>
+        <h3>Backend CRUD</h3>
+        <p>Full noc create / read / update / delete in <code>noc.py</code>. Publish/unpublish with signed display token. <code>layout</code> stored as JSON blob.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">✓</div>
+        <h3>Pydantic Models</h3>
+        <p><code>NOCWidget</code> and <code>NOCSlide</code> are already defined in <code>models.py</code> with <code>id, app_id, widget_type, title, x, y, w, h, config</code>. Layout schema just needs to be used consistently.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">✓</div>
+        <h3>widget_manifest field</h3>
+        <p><code>AppOut</code> already carries <code>widget_manifest: List[Any] = []</code>. Once pktApps expose the manifest endpoint, pktHub stores and surfaces it automatically.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">✓</div>
+        <h3>Public Display Endpoint</h3>
+        <p><code>GET /api/noc/display/:token</code> requires no authentication — token-only access. NOCDisplayPage just needs to avoid adding auth headers.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">✓</div>
+        <h3>NOCBuilderPage</h3>
+        <p>List / create / delete noc, publish/unpublish toggle, copy display link. Missing: the widget editor that lets users actually add widgets to a noc.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(248,113,113,0.15);color:#f87171">🐛</div>
+        <h3>Known Bug</h3>
+        <p>NOCDisplayPage reads <code>noc.slides</code> — but the backend sends <code>noc.layout</code>. Display always shows "No slides configured." One-line fix.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KEY DESIGN DECISIONS -->
+<section style="background:var(--bg-card)">
+  <div class="section-inner" style="text-align:center">
+    <span class="section-tag">Design Decisions</span>
+    <h2 class="section-header">Four principles driving the build</h2>
+    <p class="section-sub">These decisions were made to keep the hub dumb and the apps smart — minimizing future maintenance.</p>
+    <div class="card-grid">
+      <div class="card" style="text-align:left;border-color:var(--app-flow-dim)">
+        <div class="card-icon" style="background:rgba(96,165,250,0.1);color:#60a5fa">⟳</div>
+        <h3 style="color:#60a5fa">Auto-Discovery via pktApp</h3>
+        <p>Each pktApp exposes <code>GET /api/widgets/manifest</code>. pktHub reads it during health checks and stores it in the app registry. When a pktApp developer adds a new widget, pktHub picks it up on the next health cycle — <strong style="color:var(--text-primary)">zero hub changes required.</strong></p>
+      </div>
+      <div class="card" style="text-align:left;border-color:var(--app-pcap-dim)">
+        <div class="card-icon" style="background:rgba(167,139,250,0.1);color:#a78bfa">⊹</div>
+        <h3 style="color:#a78bfa">Free-Form Drag Arrangement</h3>
+        <p>No grid snapping. Widgets are placed at absolute pixel coordinates <code>(x, y, w, h)</code> on an open canvas. Users drag freely and resize from the corner handle. The display page renders at exactly the same coordinates on the target screen.</p>
+      </div>
+      <div class="card" style="text-align:left;border-color:var(--app-snmp-dim)">
+        <div class="card-icon" style="background:rgba(45,212,191,0.1);color:#2dd4bf">⊞</div>
+        <h3 style="color:#2dd4bf">Display Behavior Set in Builder</h3>
+        <p>Display mode (Static live-refresh / Rotating slides / Manual advance), per-slide dwell time, and future display options are all configured <strong style="color:var(--text-primary)">inside the editor</strong> — not at noc creation time. The creation form only sets name and description.</p>
+      </div>
+      <div class="card" style="text-align:left;border-color:var(--app-log-dim)">
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">🔗</div>
+        <h3 style="color:#4ade80">No Credentials for Display</h3>
+        <p>The public display URL <code>/display/:token</code> requires no login. Admin/Analyst builds and publishes; the signed token is all that's needed to display anywhere — wall TVs, digital signage, remote screens. Token revoked instantly on unpublish.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUTO-DISCOVERY -->
+<section id="discovery">
+  <div class="section-inner" style="text-align:center">
+    <span class="section-tag">Auto-Discovery</span>
+    <h2 class="section-header">Hub reads, apps declare</h2>
+    <p class="section-sub">The widget library in the builder is driven entirely by what pktApps report via their manifest endpoint.</p>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <div class="step-title">pktApp adds widget</div>
+        <div class="step-desc">Developer adds a new widget view route and one entry to the manifest response. No hub changes.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <div class="step-title">Health check fires</div>
+        <div class="step-desc">pktHub polls <code>/api/health</code> every 60 seconds. It also fetches <code>/api/widgets/manifest</code> on each cycle.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <div class="step-title">Manifest stored</div>
+        <div class="step-desc">Hub updates <code>widget_manifest</code> on the app registry row. The new widget is now known to pktHub.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <div class="step-title">Builder shows it</div>
+        <div class="step-desc">The widget library panel reads <code>widget_manifest</code> from <code>GET /api/apps</code> and displays the new widget automatically.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">5</div>
+        <div class="step-title">Display renders it</div>
+        <div class="step-desc">NOCDisplayPage loads the widget as an iframe: <code>/proxy/{app_id}{view_path}</code>. The pktApp serves its own widget HTML.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEMA -->
+<section id="schema" style="background:var(--bg-card)">
+  <div class="section-inner">
+    <div style="text-align:center">
+      <span class="section-tag">Data Schema</span>
+      <h2 class="section-header">Manifest + Layout JSON</h2>
+      <p class="section-sub">Two JSON contracts define the entire system. pktApps own the manifest; pktHub owns the layout.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start">
+      <div>
+        <h3 style="color:var(--text-primary);font-size:15px;margin-bottom:4px">pktApp Widget Manifest</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:0">Served by each pktApp at <code>GET /api/widgets/manifest</code></p>
+        <div class="code-block">
+[<br>
+&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"id"</span>: <span class="s">"flow_map"</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// stable ID</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"title"</span>: <span class="s">"Network Flow Map"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"Live packet flow"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"view_path"</span>: <span class="s">"/widgets/flow_map"</span>,&nbsp;&nbsp;&nbsp;<span class="c">// iframe src</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"default_w"</span>: <span class="n">600</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"default_h"</span>: <span class="n">400</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"min_w"</span>: <span class="n">300</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"min_h"</span>: <span class="n">200</span><br>
+&nbsp;&nbsp;}<br>
+]
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Each widget view at <code>view_path</code> is a minimal fullscreen HTML page that auto-refreshes its own data. pktHub proxies it at <code>/proxy/{app_id}{view_path}</code>. The hub has no knowledge of widget internals.</p>
+      </div>
+      <div>
+        <h3 style="color:var(--text-primary);font-size:15px;margin-bottom:4px">NOC Layout JSON</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:0">Stored in <code>noc_layouts.layout</code> (SQLite JSON blob)</p>
+        <div class="code-block">
+[&nbsp;<span class="c">// array of slides</span><br>
+&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"id"</span>: <span class="s">"slide-1"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"title"</span>: <span class="s">"Main View"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"dwell_seconds"</span>: <span class="n">30</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"widgets"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"id"</span>: <span class="s">"w-abc"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"app_id"</span>: <span class="n">18</span>,<span class="c"> // registered app</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"widget_id"</span>: <span class="s">"flow_map"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"view_path"</span>: <span class="s">"/widgets/flow_map"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"title"</span>: <span class="s">"Network Flow"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"x"</span>: <span class="n">20</span>, <span class="k">"y"</span>: <span class="n">20</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"w"</span>: <span class="n">640</span>, <span class="k">"h"</span>: <span class="n">420</span><span class="c"> // px</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+&nbsp;&nbsp;}<br>
+]
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px"><code>view_path</code> is cached from the manifest at placement time so layouts remain valid even if a widget is later removed from the manifest.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EDITOR UI -->
+<section id="editor">
+  <div class="section-inner" style="text-align:center">
+    <span class="section-tag">Editor UI</span>
+    <h2 class="section-header">NOCEditorPage — /noc/:id/edit</h2>
+    <p class="section-sub">A new page linked from each noc card's Edit button. Three-panel layout: widget library, free canvas, widget config.</p>
+    <div class="card-grid" style="text-align:left">
+      <div class="card" style="border-color:rgba(96,165,250,0.2)">
+        <div class="card-icon" style="background:rgba(96,165,250,0.1);color:#60a5fa">≡</div>
+        <h3>Left — Widget Library</h3>
+        <p>Lists all available widgets grouped by pktApp. Each entry shows the widget title and description. Dragging from this panel onto the canvas places the widget. Widgets from offline apps are grayed out. Library updates automatically as new widgets are registered.</p>
+      </div>
+      <div class="card" style="border-color:rgba(167,139,250,0.2)">
+        <div class="card-icon" style="background:rgba(167,139,250,0.1);color:#a78bfa">⊹</div>
+        <h3>Center — Free Canvas</h3>
+        <p>Dot-grid background. Widgets are absolutely positioned and freely draggable. Click to select (highlight border). Resize from bottom-right corner handle. Slide tabs across the top for rotating-mode noc. Drop zone highlights on drag-over. No snapping — pixel-perfect placement.</p>
+      </div>
+      <div class="card" style="border-color:rgba(45,212,191,0.2)">
+        <div class="card-icon" style="background:rgba(45,212,191,0.1);color:#2dd4bf">⚙</div>
+        <h3>Right — Config + Display</h3>
+        <p>Shows config for the selected widget: editable title, read-only source app and widget type, x/y/w/h numeric inputs. Also shows slide-level display mode options: Static, Rotating (with dwell seconds), or Manual advance. Remove widget button at bottom.</p>
+      </div>
+    </div>
+    <div style="margin-top:32px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;text-align:left">
+      <h3 style="color:var(--text-primary);font-size:14px;margin-bottom:12px">Top Bar Controls</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--text-secondary)">
+        <div><strong style="color:var(--text-primary)">← Back to NOC Displays</strong><br>Returns to NOCBuilderPage list. Prompts to save if unsaved changes exist.</div>
+        <div><strong style="color:var(--text-primary)">Slide Tabs</strong><br>For rotating mode: each slide is a separate canvas. Tabs added with + Slide button. Per-slide dwell configured in right panel.</div>
+        <div><strong style="color:var(--text-primary)">Display Mode Selector</strong><br>Pill control in top bar: Static / Rotating / Manual. Changes apply to the whole noc. For rotating, dwell defaults to the noc-level <code>dwell_seconds</code> but can be overridden per slide.</div>
+        <div><strong style="color:var(--text-primary)">Save Layout</strong><br>Calls <code>PATCH /api/noc/:id</code> with the full <code>layout</code> JSON. No auto-save — explicit save required. Publish/unpublish remains on the NOCBuilderPage card.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ACCESS MODEL -->
+<section id="access" style="background:var(--bg-card)">
+  <div class="section-inner" style="text-align:center">
+    <span class="section-tag">Access Control</span>
+    <h2 class="section-header">Who can build, who can display</h2>
+    <p class="section-sub">Builder access follows the pktHub role model. Display is intentionally public.</p>
+    <div style="overflow-x:auto">
+      <table class="role-table">
+        <thead>
+          <tr><th>Role</th><th>Create NOC</th><th>Edit Layout</th><th>Publish / Unpublish</th><th>Copy Display URL</th><th>View Display</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Admin</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓ (no login)</td></tr>
+          <tr><td>Analyst</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓ (no login)</td></tr>
+          <tr><td>Viewer</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓ (no login)</td></tr>
+          <tr><td>Anonymous / TV / Signage</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓ token only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bug-banner" style="margin-top:24px;text-align:left">
+      <strong>Display URL is fully public:</strong> <code style="font-size:12px">/display/:token</code> — no session, no cookie, no auth header. The token is generated on publish and invalidated on unpublish. Safe for wall TVs, digital signage players, or any browser that has the URL. NOCDisplayPage must never attach an Authorization header when fetching the display endpoint.
+    </div>
+  </div>
+</section>
+
+<!-- BUILD ORDER -->
+<section id="buildorder">
+  <div class="section-inner" style="text-align:center">
+    <span class="section-tag">Implementation</span>
+    <h2 class="section-header">Build order</h2>
+    <p class="section-sub">Sequenced so each step is independently testable before the next begins.</p>
+    <div class="pipeline" style="grid-template-columns:repeat(3,1fr);margin-bottom:32px">
+      <div class="pipeline-step" style="border-color:rgba(74,222,128,0.3)">
+        <div class="step-num" style="background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">1</div>
+        <div class="step-title" style="color:#4ade80">Bug Fix</div>
+        <div class="step-desc">Change <code>noc.slides</code> → <code>noc.layout</code> in NOCDisplayPage. Existing noc with layout data will immediately show content.</div>
+      </div>
+      <div class="pipeline-step" style="border-color:rgba(251,191,36,0.3)">
+        <div class="step-num" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.3)">2</div>
+        <div class="step-title" style="color:#fbbf24">Widget Manifest Endpoints</div>
+        <div class="step-desc">Add <code>GET /api/widgets/manifest</code> to each pktApp. Verify pktHub health check fetches and stores it in <code>widget_manifest</code> on the app registry row.</div>
+      </div>
+      <div class="pipeline-step" style="border-color:rgba(251,191,36,0.3)">
+        <div class="step-num" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.3)">3</div>
+        <div class="step-title" style="color:#fbbf24">Widget View Routes</div>
+        <div class="step-desc">Each pktApp adds <code>GET /widgets/{type}</code> — a minimal fullscreen HTML page. Auto-refreshes its own data on a timer. pktHub proxies transparently.</div>
+      </div>
+      <div class="pipeline-step" style="border-color:rgba(167,139,250,0.3)">
+        <div class="step-num" style="background:rgba(167,139,250,0.1);color:#a78bfa;border-color:rgba(167,139,250,0.3)">4</div>
+        <div class="step-title" style="color:#a78bfa">NOCEditorPage</div>
+        <div class="step-desc">New <code>NOCEditorPage.tsx</code> at <code>/noc/:id/edit</code>. Widget library (left) + free-form drag canvas (center) + config/display-mode panel (right). Saves via PATCH.</div>
+      </div>
+      <div class="pipeline-step" style="border-color:rgba(96,165,250,0.3)">
+        <div class="step-num" style="background:rgba(96,165,250,0.1);color:#60a5fa;border-color:rgba(96,165,250,0.3)">5</div>
+        <div class="step-title" style="color:#60a5fa">Display Page Polish</div>
+        <div class="step-desc">NOCDisplayPage reads <code>layout</code>, renders iframes at exact x/y/w/h, adds slide rotation with fade transition and per-slide dwell timer. Full-screen mode.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">F</div>
+        <div class="step-title">Future: Config Schema</div>
+        <div class="step-desc">Widget manifest entries include <code>config_schema</code> (JSON Schema). Editor right panel auto-generates widget-specific config form. No hub changes needed per widget.</div>
+      </div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;text-align:left">
+      <h3 style="color:var(--text-primary);font-size:14px;margin-bottom:16px">Files Touched Per Step</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:var(--text-secondary);font-family:'Courier New',monospace">
+        <div><strong style="color:#4ade80">Step 1</strong><br>pktHub/frontend/src/pages/NOCDisplayPage.tsx</div>
+        <div><strong style="color:#fbbf24">Step 2</strong><br>pkt{Flow,Log,SNMP,PCAP}/app/main.py (add /api/widgets/manifest route)<br>pktHub/app/registry.py (health check fetches manifest)</div>
+        <div><strong style="color:#fbbf24">Step 3</strong><br>pkt{Flow,Log,SNMP,PCAP}/frontend/src — add /widgets/{type} page per app</div>
+        <div><strong style="color:#a78bfa">Step 4</strong><br>pktHub/frontend/src/pages/NOCEditorPage.tsx (new)<br>pktHub/frontend/src/App.tsx (add route)</div>
+        <div><strong style="color:#60a5fa">Step 5</strong><br>pktHub/frontend/src/pages/NOCDisplayPage.tsx (iframe rendering + rotation)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <nav class="footer-links">
+    <a href="#decisions">Foundation</a>
+    <a href="#discovery">Auto-Discovery</a>
+    <a href="#schema">Data Schema</a>
+    <a href="#editor">Editor UI</a>
+    <a href="#access">Access</a>
+    <a href="#buildorder">Build Order</a>
+    <a href="index.html">← pktHub</a>
+  </nav>
+  <p class="footer-copy">pktHub — NOC Builder Design Document · July 2026</p>
+</footer>
+
+</body>
+</html>

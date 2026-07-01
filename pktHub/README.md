@@ -2,7 +2,7 @@
 
 **Unified NOC/SOC Management Platform for pktSolution**
 
-pktHub is the central hub and sole management plane for all pktAPP applications — pktFlow, pktSNMP, pktLog, pktPCAP, and future apps. It runs on port **8760** and provides unified authentication, reverse-proxy access to all registered apps, a drag-and-drop kiosk builder for wall displays, and platform-wide settings, user management, and audit logging.
+pktHub is the central hub and sole management plane for all pktAPP applications — pktFlow, pktSNMP, pktLog, pktPCAP, and future apps. It runs on port **8760** and provides unified authentication, reverse-proxy access to all registered apps, a drag-and-drop NOC builder for wall displays, and platform-wide settings, user management, and audit logging.
 
 ---
 
@@ -19,7 +19,7 @@ pktHub is the central hub and sole management plane for all pktAPP applications 
 9. [Managed Mode & Token Lockout](#managed-mode--token-lockout)
 10. [Authentication & Session Security](#authentication--session-security)
 11. [Proxied App Shell](#proxied-app-shell)
-12. [Kiosk Builder](#kiosk-builder)
+12. [NOC Builder](#noc-builder)
 13. [Settings](#settings)
 14. [API Reference](#api-reference)
 15. [Break-Glass Recovery](#break-glass-recovery)
@@ -36,7 +36,7 @@ pktHub provides three distinct platform areas through a single unified interface
 
 **Managed App Viewer** — Proxied pktAPP UI served inside the pktHub shell. A thin 44px top bar stays persistent across all proxied screens — the app gets the full viewport with its own nav rendering naturally.
 
-**Kiosk Builder** — Drag-and-drop widget composer for NOC/SOC wall displays. Build layouts from any registered app's widgets. Publish with a signed URL token — no login required on the display monitor.
+**NOC Builder** — Drag-and-drop widget composer for NOC/SOC wall displays. Build layouts from any registered app's widgets. Publish with a signed URL token — no login required on the display monitor.
 
 ---
 
@@ -179,8 +179,8 @@ pktHub has three roles. These roles also govern access within proxied pktAPP app
 |---|---|---|---|
 | NOC/SOC Dashboard | Full | Full | View |
 | Proxied App Access | Maps to Admin | Maps to Analyst | Maps to Viewer |
-| Kiosk Builder | Create / Edit / Delete / Publish | Create / Edit / Publish own | — |
-| Kiosk Display | Yes | Yes | Yes |
+| NOC Builder | Create / Edit / Delete / Publish | Create / Edit / Publish own | — |
+| NOC Display | Yes | Yes | Yes |
 | App Registry | Register / Deregister / Tokens | View only | — |
 | User Management | Full | — | — |
 | Platform Settings | Full | — | — |
@@ -212,7 +212,7 @@ Before registering, each pktAPP app must have the following endpoints implemente
 |---|---|
 | `GET /api/suite/token` | Returns the current suite token (generates one if absent) |
 | `POST /api/suite/regenerate` | Generates and stores a new token (invalidates old one) |
-| `GET /api/widgets/manifest` | Returns available kiosk widget definitions |
+| `GET /api/widgets/manifest` | Returns available noc widget definitions |
 | `GET /api/health` | Health check — public endpoint, no auth required (returns 200 when healthy) |
 
 The app must also support the `X-Suite-Token` header middleware and the `X-Suite-Version` API versioning header.
@@ -238,7 +238,7 @@ Register → Observe Mode → Managed Mode → (Deregister / Break-Glass)
 pktHub monitors and proxies the app, but direct access to the pktAPP remains fully functional. Use this phase to:
 - Validate that proxied access works correctly end-to-end
 - Confirm JWT passthrough and role mapping
-- Test kiosk widgets in the builder
+- Test noc widgets in the builder
 
 Switch to managed mode only after the operator is satisfied everything works.
 
@@ -259,7 +259,7 @@ Full clean break:
 - Direct access is restored
 - pktAPP local users are un-dormanted
 - The app is removed from the pktHub registry
-- All kiosk widgets sourced from this app are marked inactive
+- All noc widgets sourced from this app are marked inactive
 
 To deregister: **Settings → App Registry → [App] → Deregister**.
 
@@ -344,15 +344,15 @@ When a user navigates into a registered pktAPP through pktHub, the interface swi
 - **Center**: current app indicator (colored in that app's accent color — blue for pktFlow, teal for pktSNMP, green for pktLog, purple for pktPCAP)
 - **Right**: user menu + home button
 
-The pktAPP gets the full remaining viewport with its own navigation rendering naturally. There is no double-nav. On pktHub-native pages (dashboard, settings, kiosk builder) the full pktHub nav is visible.
+The pktAPP gets the full remaining viewport with its own navigation rendering naturally. There is no double-nav. On pktHub-native pages (dashboard, settings, NOC builder) the full pktHub nav is visible.
 
 ---
 
-## Kiosk Builder
+## NOC Builder
 
 ### Overview
 
-The Kiosk Builder is a drag-and-drop grid canvas for composing wall-display dashboards from widgets exposed by any registered pktAPP.
+The NOC Builder is a drag-and-drop grid canvas for composing wall-display dashboards from widgets exposed by any registered pktAPP.
 
 ### Widget Manifests
 
@@ -366,7 +366,7 @@ Widgets are automatically populated into the builder's library panel, grouped by
 
 ### Building a Layout
 
-1. Navigate to **Kiosk Builder**.
+1. Navigate to **NOC Builder**.
 2. Click **New Layout** and give it a name.
 3. Drag widgets from the library panel onto the grid canvas. Resize by dragging corners.
 4. Configure each widget (title, refresh rate override, optional filter parameters).
@@ -375,13 +375,13 @@ Widgets are automatically populated into the builder's library panel, grouped by
    - **Rotating Slides** — panels cycle with configurable per-slide dwell time
 6. Click **Save**.
 
-### Publishing a Kiosk
+### Publishing a NOC
 
 1. Open a saved layout.
 2. Click **Publish**.
 3. pktHub generates a signed display URL and a revocable token.
 4. Copy the URL and load it on the wall monitor. No login is required — the display token authenticates all data requests transparently.
-5. Tokens are revocable at any time: **Kiosk Builder → [Layout] → Revoke Token**.
+5. Tokens are revocable at any time: **NOC Builder → [Layout] → Revoke Token**.
 
 ### Permissions
 
@@ -392,7 +392,7 @@ Widgets are automatically populated into the builder's library panel, grouped by
 | Edit any layout | Yes | — | — |
 | Delete layouts | Yes | — | — |
 | Publish layouts | Yes | Yes (own only) | — |
-| View kiosk displays | Yes | Yes | Yes |
+| View NOC displays | Yes | Yes | Yes |
 
 ---
 
@@ -405,7 +405,7 @@ Settings follow the same two-column layout as pktFlow: sticky 260px sidebar with
 | General | App name, display preferences, timezone |
 | Network | Bind address, port, TLS certificate paths, trusted CIDRs |
 | App Registry | Registered apps, health status, mode toggle, token rotation |
-| Kiosk | Default dwell time, layout defaults, display token expiry |
+| NOC | Default dwell time, layout defaults, display token expiry |
 | Auth | Local auth settings, Okta SAML 2.0 configuration |
 | Notifications | Slack, Email, PagerDuty, Webhook, TraceCat integration |
 | Audit | Retention policy, log viewer, export |
@@ -445,17 +445,17 @@ All pktHub API endpoints are under `/api/v1/`. Authentication is via `Authorizat
 | `GET` | `/api/suite/token` | Returns the current suite token (generates one if absent) |
 | `POST` | `/api/suite/regenerate` | Generates and stores a new token (invalidates old one) |
 
-### Kiosk
+### NOC
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/kiosk/layouts` | List saved layouts |
-| `POST` | `/api/v1/kiosk/layouts` | Create a new layout |
-| `PUT` | `/api/v1/kiosk/layouts/{id}` | Update a layout |
-| `DELETE` | `/api/v1/kiosk/layouts/{id}` | Delete a layout |
-| `POST` | `/api/v1/kiosk/layouts/{id}/publish` | Publish and generate display token |
-| `DELETE` | `/api/v1/kiosk/layouts/{id}/token` | Revoke display token |
-| `GET` | `/api/v1/kiosk/display/{token}` | Public display endpoint (no auth required) |
+| `GET` | `/api/v1/noc/layouts` | List saved layouts |
+| `POST` | `/api/v1/noc/layouts` | Create a new layout |
+| `PUT` | `/api/v1/noc/layouts/{id}` | Update a layout |
+| `DELETE` | `/api/v1/noc/layouts/{id}` | Delete a layout |
+| `POST` | `/api/v1/noc/layouts/{id}/publish` | Publish and generate display token |
+| `DELETE` | `/api/v1/noc/layouts/{id}/token` | Revoke display token |
+| `GET` | `/api/v1/noc/display/{token}` | Public display endpoint (no auth required) |
 
 ### Users
 

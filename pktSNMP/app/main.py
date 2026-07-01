@@ -26,6 +26,7 @@ from app.api import (
 )
 from app.api import suite as suite_router
 from app.api import logs as logs_router
+from app.api import widgets as widgets_router
 
 settings = get_settings()
 log = logging.getLogger("pktsnmp")
@@ -74,8 +75,6 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         log.warning(f"Startup lock check: {_e}")
     # ─────────────────────────────────────────────────────────────────────────
-
-
 
     # Connect to storage backend
     await init_storage()
@@ -156,7 +155,7 @@ async def _direct_access_lock(request: Request, call_next):
     from fastapi.responses import RedirectResponse
     import aiosqlite as _aio
     path = request.url.path
-    _ALLOW_PFX = ("/api/health", "/api/suite/", "/api/auth/", "/assets/", "/logos/", "/static/")
+    _ALLOW_PFX = ("/api/health", "/api/suite/", "/api/auth/", "/assets/", "/logos/", "/static/", "/widgets/")
     if any(path == p or path.startswith(p) for p in _ALLOW_PFX):
         return await call_next(request)
     _cfg = get_settings()
@@ -197,7 +196,6 @@ async def _direct_access_lock(request: Request, call_next):
     return await call_next(request)
 
 
-
 # ── API Routers ───────────────────────────────────────────────────────────────
 
 from app.api import alerts as alerts_router
@@ -210,6 +208,7 @@ app.include_router(system_router.router,   prefix="/api/system",   tags=["system
 app.include_router(alerts_router.router,   prefix="/api/alerts",   tags=["alerts"])
 app.include_router(logs_router.router,     prefix="/api/logs",     tags=["logs"])
 app.include_router(suite_router.router, prefix="/api/suite", tags=["suite"])
+app.include_router(widgets_router.router,  prefix="/api",          tags=["widgets"])
 
 # ── Health check ──────────────────────────────────────────────────────────────
 
@@ -250,10 +249,8 @@ if _frontend_dist.exists():
             return FileResponse(str(static_file))
         index = _frontend_dist / "index.html"
         response = FileResponse(str(index))
-        # pktHub suite-token bootstrap — set sso cookies so React logs in automatically
         _cfg = settings
         _suite_tk = request.headers.get("x-suite-token", "")
-        # Read suite_token from DB — bypasses stale lru_cache
         _spa_stored = get_settings().suite_token if _suite_tk else ""
         if _suite_tk and _spa_stored and _suite_tk == _spa_stored:
             from datetime import datetime, timedelta, timezone

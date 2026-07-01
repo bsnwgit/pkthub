@@ -126,8 +126,8 @@ class AppStatusUpdate(BaseModel):
 class DirectAccessRequest(BaseModel):
     locked: bool
 
-# --- Kiosk ---
-class KioskWidget(BaseModel):
+# --- NOC ---
+class NOCWidget(BaseModel):
     id: str
     app_id: int
     widget_type: str
@@ -138,26 +138,26 @@ class KioskWidget(BaseModel):
     h: int
     config: dict = {}
 
-class KioskSlide(BaseModel):
+class NOCSlide(BaseModel):
     id: str
-    widgets: List[KioskWidget] = []
+    widgets: List[NOCWidget] = []
     dwell_seconds: int = 30
 
-class KioskCreate(BaseModel):
+class NOCCreate(BaseModel):
     name: str
     description: str = ""
     layout: List[Any] = []
     display_mode: DisplayMode = DisplayMode.static
     dwell_seconds: int = 30
 
-class KioskUpdate(BaseModel):
+class NOCUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     layout: Optional[List[Any]] = None
     display_mode: Optional[DisplayMode] = None
     dwell_seconds: Optional[int] = None
 
-class KioskOut(BaseModel):
+class NOCOut(BaseModel):
     id: int
     name: str
     description: str

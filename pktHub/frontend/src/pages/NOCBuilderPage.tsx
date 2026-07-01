@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-import { Monitor, Plus, Trash2, Globe, EyeOff, Copy, ExternalLink } from 'lucide-react'
+import { Monitor, Plus, Trash2, Globe, EyeOff, Copy, ExternalLink, Pencil } from 'lucide-react'
 
-export default function KioskBuilderPage() {
+export default function NOCBuilderPage() {
   const { isAdmin, isAnalyst } = useAuth()
-  const [kiosks, setKiosks] = useState<any[]>([])
+  const navigate = useNavigate()
+  const [noc, setNOC Displays] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
@@ -13,16 +15,17 @@ export default function KioskBuilderPage() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState<number | null>(null)
 
-  const load = () => api.listKiosks().then(setKiosks).catch(() => {}).finally(() => setLoading(false))
+  const load = () => api.listNOC().then(setNOC Displays).catch(() => {}).finally(() => setLoading(false))
   useEffect(() => { load() }, [])
 
   const create = async () => {
     setCreating(true)
     try {
-      await api.createKiosk({ ...form, slides: [] })
+      const k = await api.createNOC({ ...form, layout: [] })
       setShowForm(false)
       setForm({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
-      load()
+      // Go straight to editor after creation
+      navigate(`/noc/${k.id}/edit`)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -31,16 +34,16 @@ export default function KioskBuilderPage() {
   }
 
   const del = async (id: number, name: string) => {
-    if (!confirm(`Delete kiosk "${name}"?`)) return
-    await api.deleteKiosk(id).then(load).catch(e => alert(e.message))
+    if (!confirm(`Delete noc "${name}"?`)) return
+    await api.deleteNOC(id).then(load).catch(e => alert(e.message))
   }
 
   const publish = async (k: any) => {
     try {
       if (k.is_published) {
-        await api.unpublishKiosk(k.id)
+        await api.unpublishNOC(k.id)
       } else {
-        await api.publishKiosk(k.id)
+        await api.publishNOC(k.id)
       }
       load()
     } catch (e: any) {
@@ -61,7 +64,7 @@ export default function KioskBuilderPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Kiosk Builder</h1>
+          <h1 className="text-xl font-bold text-white">NOC Builder</h1>
           <p className="text-sm text-gray-400 mt-0.5">Create and publish wall display layouts</p>
         </div>
         {canCreate && (
@@ -70,14 +73,14 @@ export default function KioskBuilderPage() {
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
             style={{ background: 'linear-gradient(90deg,#a78bfa,#60a5fa)' }}
           >
-            <Plus size={13} /> New Kiosk
+            <Plus size={13} /> New NOC Display
           </button>
         )}
       </div>
 
       {showForm && canCreate && (
         <div className="rounded-xl border border-purple-500/20 p-5 space-y-4" style={{ background: '#111827' }}>
-          <h2 className="text-sm font-semibold text-white">New Kiosk Layout</h2>
+          <h2 className="text-sm font-semibold text-white">New NOC Display Layout</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-400 mb-1">Name</label>
@@ -113,7 +116,7 @@ export default function KioskBuilderPage() {
             <button onClick={create} disabled={creating || !form.name}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
               style={{ background: '#a78bfa' }}>
-              {creating ? 'Creating…' : 'Create Kiosk'}
+              {creating ? 'Creating…' : 'Create & Edit Layout'}
             </button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">
               Cancel
@@ -123,14 +126,14 @@ export default function KioskBuilderPage() {
       )}
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
-      {!loading && kiosks.length === 0 && (
+      {!loading && noc.length === 0 && (
         <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#111827' }}>
-          No kiosks yet. Create one to get started.
+          No noc yet. Create one to get started.
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {kiosks.map(k => (
+        {noc.map(k => (
           <div key={k.id} className="rounded-xl border border-purple-500/15 p-4 space-y-3" style={{ background: '#111827' }}>
             <div className="flex items-start justify-between">
               <div>
@@ -141,6 +144,9 @@ export default function KioskBuilderPage() {
                   {k.display_mode === 'rotating' && (
                     <span className="text-xs text-gray-500">{k.dwell_seconds}s</span>
                   )}
+                  <span className="text-xs text-gray-600">
+                    {Array.isArray(k.layout) ? `${k.layout.length} slide${k.layout.length !== 1 ? 's' : ''}` : '0 slides'}
+                  </span>
                 </div>
               </div>
               {canCreate && (
@@ -149,6 +155,19 @@ export default function KioskBuilderPage() {
                 </button>
               )}
             </div>
+
+            {/* Edit Layout button */}
+            {canCreate && (
+              <button
+                onClick={() => navigate(`/noc/${k.id}/edit`)}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors border"
+                style={{ background: '#1e293b', borderColor: '#334155', color: '#94a3b8' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#6366f1'; (e.currentTarget as HTMLElement).style.color = '#a5b4fc' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#334155'; (e.currentTarget as HTMLElement).style.color = '#94a3b8' }}
+              >
+                <Pencil size={11} /> Edit Layout
+              </button>
+            )}
 
             <div className="flex items-center justify-between pt-2 border-t border-gray-800">
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${k.is_published ? 'bg-green-900/25 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
@@ -185,8 +204,8 @@ export default function KioskBuilderPage() {
         <p className="text-blue-300 font-medium mb-1">Widget Library</p>
         <p className="text-gray-400 text-xs">
           When a pktAPP app is registered, pktHub reads its <code className="text-blue-300">/api/widgets/manifest</code> endpoint
-          to discover available widgets. Registered widget types will appear in the builder library for drag-and-drop placement.
-          Ensure pktApps implement the manifest endpoint (Track 2).
+          to discover available widgets. Registered widget types appear in the editor's library for drag-and-drop placement.
+          Widgets auto-update when pktApps add new ones — no hub changes needed.
         </p>
       </div>
     </div>

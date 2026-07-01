@@ -64,8 +64,20 @@ async def init_db():
         if "lock_verified_at" not in cols:
             await db.execute("ALTER TABLE registered_apps ADD COLUMN lock_verified_at TEXT DEFAULT NULL")
 
+        # Migration: rename kiosk_layouts → noc_layouts (July 2026 NOC rename)
+        async with db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='kiosk_layouts'"
+        ) as cur:
+            _old_noc = await cur.fetchone()
+        async with db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='noc_layouts'"
+        ) as cur:
+            _new_noc = await cur.fetchone()
+        if _old_noc and not _new_noc:
+            await db.execute("ALTER TABLE kiosk_layouts RENAME TO noc_layouts")
+
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS kiosk_layouts (
+            CREATE TABLE IF NOT EXISTS noc_layouts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 description TEXT DEFAULT '',

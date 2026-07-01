@@ -19,8 +19,8 @@ export default function AuditPage() {
   const ACTION_COLOR: Record<string, string> = {
     login: '#60a5fa', logout: '#6b7280', register_app: '#4ade80',
     deregister_app: '#f87171', rotate_token: '#f59e0b', create_user: '#4ade80',
-    delete_user: '#f87171', update_user: '#60a5fa', create_kiosk: '#a78bfa',
-    delete_kiosk: '#f87171', publish_kiosk: '#4ade80', mode_change: '#f59e0b',
+    delete_user: '#f87171', update_user: '#60a5fa', create_noc: '#a78bfa',
+    delete_noc: '#f87171', publish_noc: '#4ade80', mode_change: '#f59e0b',
   }
 
   return (

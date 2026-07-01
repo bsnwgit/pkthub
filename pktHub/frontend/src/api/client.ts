@@ -92,15 +92,16 @@ export const api = {
   resetUserPassword: (id: number, password: string) =>
     request(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ password }) }),
 
-  // Kiosks
-  listKiosks: () => request<any[]>('/kiosks'),
-  createKiosk: (body: any) => request<any>('/kiosks', { method: 'POST', body: JSON.stringify(body) }),
-  updateKiosk: (id: number, body: any) =>
-    request<any>(`/kiosks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteKiosk: (id: number) => request(`/kiosks/${id}`, { method: 'DELETE' }),
-  publishKiosk: (id: number) => request<any>(`/kiosks/${id}/publish`, { method: 'POST' }),
-  unpublishKiosk: (id: number) => request<any>(`/kiosks/${id}/unpublish`, { method: 'POST' }),
-  getKioskDisplay: (token: string) => request<any>(`/kiosks/display/${token}`),
+  // NOC Displays
+  listNOC: () => request<any[]>('/noc'),
+  getNOC: (id: number) => request<any>(`/noc/${id}`),
+  createNOC: (body: any) => request<any>('/noc', { method: 'POST', body: JSON.stringify(body) }),
+  updateNOC: (id: number, body: any) =>
+    request<any>(`/noc/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteNOC: (id: number) => request(`/noc/${id}`, { method: 'DELETE' }),
+  publishNOC: (id: number) => request<any>(`/noc/${id}/publish`, { method: 'POST' }),
+  unpublishNOC: (id: number) => request<any>(`/noc/${id}/unpublish`, { method: 'POST' }),
+  getNOCDisplay: (token: string) => request<any>(`/noc/display/${token}`),
 
   // Audit
   auditLog: (params?: { limit?: number; offset?: number; action?: string; username?: string }) => {
