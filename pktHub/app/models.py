@@ -92,6 +92,8 @@ class AppOut(BaseModel):
     supported_versions: List[int] = [1]
     registered_at: str
     return_url: Optional[str] = None
+    access_mode: str = "direct"
+    lock_verified_at: Optional[str] = None
 
 # --- Alert Rules ---
 class AlertRuleCreate(BaseModel):
@@ -120,6 +122,9 @@ class AlertRuleOut(BaseModel):
 
 class AppStatusUpdate(BaseModel):
     status: AppStatus
+
+class DirectAccessRequest(BaseModel):
+    locked: bool
 
 # --- Kiosk ---
 class KioskWidget(BaseModel):
