@@ -1,0 +1,267 @@
+"""
+ClickHouse storage backend for pktLog syslog data.
+Uses clickhouse-driver (sync) wrapped in asyncio.to_thread for non-blocking operation.
+A threading.Lock serializes all ClickHouse calls so concurrent asyncio.to_thread()
+invocations never share the connection simultaneously.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import threading
+from datetime import datetime, timezone
+from typing import Any, Optional
+
+from clickhouse_driver import Client
+
+from app.config import get_settings
+from app.storage.base import StorageBackend
+
+log = logging.getLogger("pktlog.storage.clickhouse")
+settings = get_settings()
+
+# Column order must match SyslogRecord.to_clickhouse_row()
+_INSERT_COLS = """
+    timestamp, received_at,
+    source_ip, source_name,
+    facility, facility_name,
+    severity, severity_name,
+    program, pid,
+    message, raw,
+    collector_ip, collector_name,
+    org, log_group, site
+"""
+
+
+class ClickHouseBackend(StorageBackend):
+
+    def __init__(self):
+        self._client: Optional[Client] = None
+        self._lock = threading.Lock()
+
+    # ── Connection ────────────────────────────────────────────────────────────
+
+    def _get_client(self) -> Client:
+        if self._client is None:
+            self._client = Client(
+                host=settings.clickhouse_host,
+                port=settings.clickhouse_port,
+                database=settings.clickhouse_database,
+                user=settings.clickhouse_user,
+                password=settings.clickhouse_password,
+                connect_timeout=10,
+                settings={"use_numpy": False},
+            )
+        return self._client
+
+    def _execute(self, query: str, params=None, data=None) -> Any:
+        with self._lock:
+            client = self._get_client()
+            try:
+                if data is not None:
+                    return client.execute(query, data, types_check=False)
+                return client.execute(query, params or {})
+            except Exception:
+                self._client = None
+                raise
+
+    async def connect(self) -> None:
+        """Verify connection on startup."""
+        await asyncio.to_thread(self._execute, "SELECT 1")
+        log.info("ClickHouse connected: %s:%s/%s",
+                 settings.clickhouse_host, settings.clickhouse_port,
+                 settings.clickhouse_database)
+
+    async def close(self) -> None:
+        if self._client:
+            self._client.disconnect()
+            self._client = None
+
+    # ── Write ─────────────────────────────────────────────────────────────────
+
+    async def insert_batch(self, records: list) -> int:
+        """Insert a batch of SyslogRecord objects. Returns count inserted."""
+        if not records:
+            return 0
+        rows = [r.to_clickhouse_row() for r in records]
+        query = f"INSERT INTO syslog_events ({_INSERT_COLS}) VALUES"
+        await asyncio.to_thread(self._execute, query, data=rows)
+        return len(rows)
+
+    # ── Search ────────────────────────────────────────────────────────────────
+
+    async def search(
+        self,
+        *,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        source_ip: Optional[str] = None,
+        collector_name: Optional[str] = None,
+        org: Optional[str] = None,
+        log_group: Optional[str] = None,
+        site: Optional[str] = None,
+        severity_max: Optional[int] = None,
+        facility: Optional[int] = None,
+        program: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> dict:
+        conditions: list[str] = []
+        params: dict = {}
+
+        if start:
+            conditions.append("timestamp >= %(start)s")
+            params["start"] = start
+        if end:
+            conditions.append("timestamp <= %(end)s")
+            params["end"] = end
+        if source_ip:
+            conditions.append("source_ip = %(source_ip)s")
+            params["source_ip"] = source_ip
+        if collector_name:
+            conditions.append("collector_name = %(collector_name)s")
+            params["collector_name"] = collector_name
+        if org:
+            conditions.append("org = %(org)s")
+            params["org"] = org
+        if log_group:
+            conditions.append("log_group = %(log_group)s")
+            params["log_group"] = log_group
+        if site:
+            conditions.append("site = %(site)s")
+            params["site"] = site
+        if severity_max is not None:
+            conditions.append("severity <= %(severity_max)s")
+            params["severity_max"] = severity_max
+        if facility is not None:
+            conditions.append("facility = %(facility)s")
+            params["facility"] = facility
+        if program:
+            conditions.append("program = %(program)s")
+            params["program"] = program
+        if search:
+            conditions.append("positionCaseInsensitive(message, %(search)s) > 0")
+            params["search"] = search
+
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+        count_q = f"SELECT count() FROM syslog_events {where}"
+        total = (await asyncio.to_thread(self._execute, count_q, params))[0][0]
+
+        rows_q = f"""
+            SELECT timestamp, received_at, source_ip, source_name,
+                   facility, facility_name, severity, severity_name,
+                   program, pid, message, raw,
+                   collector_ip, collector_name, org, log_group, site
+            FROM syslog_events
+            {where}
+            ORDER BY timestamp DESC
+            LIMIT %(limit)s OFFSET %(offset)s
+        """
+        params["limit"] = limit
+        params["offset"] = offset
+        rows = await asyncio.to_thread(self._execute, rows_q, params)
+
+        return {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "records": [_row_to_dict(r) for r in rows],
+        }
+
+    # ── Aggregations ──────────────────────────────────────────────────────────
+
+    async def count_by_severity(self, hours: int = 24) -> list[dict]:
+        q = """
+            SELECT severity, severity_name, count() AS cnt
+            FROM syslog_events
+            WHERE timestamp >= now() - INTERVAL %(hours)s HOUR
+            GROUP BY severity, severity_name
+            ORDER BY severity ASC
+        """
+        rows = await asyncio.to_thread(self._execute, q, {"hours": hours})
+        return [{"severity": r[0], "severity_name": r[1], "count": r[2]} for r in rows]
+
+    async def count_by_host(self, hours: int = 24, limit: int = 20) -> list[dict]:
+        q = """
+            SELECT source_ip, source_name, log_group, count() AS cnt
+            FROM syslog_events
+            WHERE timestamp >= now() - INTERVAL %(hours)s HOUR
+            GROUP BY source_ip, source_name, log_group
+            ORDER BY cnt DESC
+            LIMIT %(limit)s
+        """
+        rows = await asyncio.to_thread(self._execute, q, {"hours": hours, "limit": limit})
+        return [{"source_ip": r[0], "source_name": r[1], "log_group": r[2], "count": r[3]} for r in rows]
+
+    async def top_programs(self, hours: int = 24, limit: int = 20) -> list[dict]:
+        q = """
+            SELECT program, count() AS cnt
+            FROM syslog_events
+            WHERE timestamp >= now() - INTERVAL %(hours)s HOUR
+              AND program != ''
+            GROUP BY program
+            ORDER BY cnt DESC
+            LIMIT %(limit)s
+        """
+        rows = await asyncio.to_thread(self._execute, q, {"hours": hours, "limit": limit})
+        return [{"program": r[0], "count": r[1]} for r in rows]
+
+    async def timeseries(
+        self,
+        hours: int = 24,
+        bucket_minutes: int = 5,
+        log_group: Optional[str] = None,
+    ) -> list[dict]:
+        extra = "AND log_group = %(log_group)s" if log_group else ""
+        q = f"""
+            SELECT
+                toStartOfInterval(timestamp, INTERVAL %(bucket)s MINUTE) AS bucket,
+                count() AS cnt
+            FROM syslog_events
+            WHERE timestamp >= now() - INTERVAL %(hours)s HOUR
+            {extra}
+            GROUP BY bucket
+            ORDER BY bucket ASC
+        """
+        params: dict = {"hours": hours, "bucket": bucket_minutes}
+        if log_group:
+            params["log_group"] = log_group
+        rows = await asyncio.to_thread(self._execute, q, params)
+        return [{"bucket": r[0].isoformat(), "count": r[1]} for r in rows]
+
+    async def collector_last_seen(self) -> list[dict]:
+        """Last timestamp per collector — used for data-gap alerts."""
+        q = """
+            SELECT collector_ip, collector_name, max(timestamp) AS last_seen
+            FROM syslog_events
+            GROUP BY collector_ip, collector_name
+            ORDER BY last_seen DESC
+        """
+        rows = await asyncio.to_thread(self._execute, q)
+        return [{"collector_ip": r[0], "collector_name": r[1], "last_seen": r[2].isoformat()} for r in rows]
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _row_to_dict(r: tuple) -> dict:
+    return {
+        "timestamp":      r[0].isoformat() if r[0] else None,
+        "received_at":    r[1].isoformat() if r[1] else None,
+        "source_ip":      r[2],
+        "source_name":    r[3],
+        "facility":       r[4],
+        "facility_name":  r[5],
+        "severity":       r[6],
+        "severity_name":  r[7],
+        "program":        r[8],
+        "pid":            r[9],
+        "message":        r[10],
+        "raw":            r[11],
+        "collector_ip":   r[12],
+        "collector_name": r[13],
+        "org":            r[14],
+        "log_group":      r[15],
+        "site":           r[16],
+    }

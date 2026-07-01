@@ -75,6 +75,7 @@ const NAV = [
   { to: '/',          label: 'Analytics',     icon: '◑', adminOnly: false },
   { to: '/devices',   label: 'Collectors',    icon: '◈', adminOnly: false },
   { to: '/explorer',  label: 'Flow Explorer', icon: '⊕', adminOnly: false },
+  { to: '/geo',       label: 'Geo Map',       icon: '◎', adminOnly: false },
   { to: '/topology',  label: 'Topology',      icon: '⟳', adminOnly: false },
   { to: '/alerts',    label: 'Alerts',        icon: '△', adminOnly: false },
   { to: '/logs',      label: 'Logs',          icon: '≡', adminOnly: false },
@@ -128,7 +129,6 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [fps, setFps] = useState<number>(0)
   const [unacked, setUnacked] = useState<number>(0)
   const [showChangePw, setShowChangePw] = useState(false)
-  const [managedMode, setManagedMode] = useState(false)
 
   useEffect(() => {
     const tick = async () => {
@@ -150,13 +150,6 @@ export default function Layout({ children }: { children: ReactNode }) {
     await logout()
     navigate('/login')
   }
-
-  useEffect(() => {
-    fetch('/api/suite/mode', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => setManagedMode(Boolean(d.direct_ui_locked)))
-      .catch(() => {})
-  }, [])
 
   return (
     <AutoRefreshProvider>
@@ -229,14 +222,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 overflow-auto p-5">
-          {managedMode && (
-        <div className="flex-shrink-0 bg-orange-950/30 border-b border-orange-800/30 px-5 py-1.5 flex items-center gap-2">
-          <span style={{fontSize:'13px'}}>&#128274;</span>
-          <span className="text-xs text-orange-300 font-semibold">Managed Mode</span>
-          <span className="text-xs text-orange-400/70">&#8212; Direct URL access is restricted. Traffic routes through pktHub.</span>
-        </div>
-      )}
-      {children}
+          {children}
         </main>
       </div>
 
