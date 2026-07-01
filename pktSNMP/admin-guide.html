@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktSNMP — Admin Guide</title>
+  <style>
+    :root{--bg:#090e1a;--surface:#0f1625;--surface2:#162032;--border:#1e2e48;
+      --accent:#00c9a7;--accent2:#3b82f6;--accent3:#f59e0b;--accent4:#a855f7;
+      --text:#e2e8f0;--muted:#7c8ea8;--red:#ef4444;--green:#22c55e;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+    a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+    .sidebar{width:252px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+      position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0;}
+    .sb-logo{padding:0 18px 18px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+    .sb-logo svg{width:130px;}
+    .sb-sec{padding:8px 18px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+    .sb-link{display:block;padding:7px 18px;font-size:.86rem;color:var(--muted);border-left:3px solid transparent;transition:all .15s;}
+    .sb-link:hover{color:var(--text);background:var(--surface2);text-decoration:none;}
+    .sb-link.act{color:var(--accent);border-left-color:var(--accent);background:rgba(0,201,167,.05);}
+    .sb-div{height:1px;background:var(--border);margin:10px 18px;}
+    .sb-other a{font-size:.78rem;color:var(--muted);display:block;padding:4px 18px;}
+    .main{flex:1;padding:48px 52px;max-width:900px;}
+    .pg-hdr{margin-bottom:44px;}
+    .pg-tag{display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;background:rgba(59,130,246,.1);color:var(--accent2);
+      border:1px solid rgba(59,130,246,.28);margin-bottom:14px;}
+    h1{font-size:2rem;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;}
+    .pg-sub{font-size:1rem;color:var(--muted);}
+    .doc-sec{margin-bottom:56px;scroll-margin-top:20px;}
+    h2{font-size:1.3rem;font-weight:700;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    h3{font-size:.98rem;font-weight:700;margin:22px 0 9px;color:var(--accent2);}
+    p{color:var(--muted);line-height:1.7;margin-bottom:12px;font-size:.9rem;}
+    pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+      padding:16px 18px;overflow-x:auto;font-family:'Cascadia Code','Courier New',monospace;
+      font-size:.8rem;color:#a5f3d4;margin:12px 0;line-height:1.6;}
+    code{font-family:'Cascadia Code','Courier New',monospace;font-size:.82rem;
+      background:var(--surface2);padding:2px 6px;border-radius:3px;color:#a5f3d4;}
+    table{width:100%;border-collapse:collapse;margin:14px 0;}
+    th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:.82rem;}
+    th{background:var(--surface2);color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;}
+    td{color:var(--muted);}td:first-child{color:var(--text);font-weight:600;}
+    .steps{display:flex;flex-direction:column;gap:14px;margin:14px 0;}
+    .step{display:flex;gap:14px;align-items:flex-start;}
+    .sn{width:26px;height:26px;border-radius:50%;background:var(--accent2);color:#fff;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .sb2 strong{font-size:.9rem;display:block;margin-bottom:3px;}.sb2 p{font-size:.8rem;color:var(--muted);margin:2px 0 0;}
+    .callout{display:flex;gap:11px;padding:13px 14px;border-radius:7px;margin:14px 0;background:rgba(0,201,167,.06);border:1px solid rgba(0,201,167,.22);}
+    .callout-i{font-size:1.1rem;flex-shrink:0;}.callout p{margin:0;font-size:.82rem;color:var(--muted);}
+    .callout strong{color:var(--text);}.callout.w{background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.22);}
+    .callout.r{background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.22);}
+    .ck{color:var(--green);}.xx{color:#374151;}
+  </style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sb-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 64">
+      <defs><clipPath id="c3"><rect width="172" height="64" rx="12"/></clipPath></defs>
+      <rect width="172" height="64" rx="12" fill="#111827"/>
+      <rect width="64" height="64" fill="#061d1d" clip-path="url(#c3)"/>
+      <g transform="translate(8,8) scale(2)">
+        <rect x="2" y="10" width="4" height="4" rx="1" fill="#2dd4bf"/>
+        <path d="M8 8.5 a6 6 0 0 1 0 7" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M11.5 6 a9.5 9.5 0 0 1 0 12" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M15 3.5 a13 13 0 0 1 0 17" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      </g>
+      <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+      <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">SNMP</text>
+    </svg>
+  </div>
+  <div class="sb-sec">Admin Guide</div>
+  <a href="#arch" class="sb-link act">Architecture</a>
+  <a href="#prereqs" class="sb-link">Prerequisites</a>
+  <a href="#install" class="sb-link">Fresh Install</a>
+  <a href="#frontend" class="sb-link">Frontend Build</a>
+  <a href="#collectors" class="sb-link">Collector Setup</a>
+  <a href="#config" class="sb-link">Configuration Reference</a>
+  <a href="#service" class="sb-link">Service Management</a>
+  <a href="#auth" class="sb-link">Auth &amp; SAML</a>
+  <a href="#alerts" class="sb-link">Alert Engine</a>
+  <a href="#storage" class="sb-link">Storage Backends</a>
+  <a href="#backup" class="sb-link">Backup &amp; Restore</a>
+  <a href="#upgrade" class="sb-link">Upgrading</a>
+  <a href="#trouble" class="sb-link">Troubleshooting</a>
+  <div class="sb-div"></div>
+  <div class="sb-other">
+    <a href="index.html">← Overview</a>
+    <a href="user-guide.html">Operator Guide</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="pg-hdr">
+    <span class="pg-tag">Admin Guide</span>
+    <h1>pktSNMP Administration</h1>
+    <p class="pg-sub">Deployment, configuration, and maintenance reference for system administrators.</p>
+  </div>
+
+  <section class="doc-sec" id="arch">
+    <h2>Architecture Overview</h2>
+    <p>pktSNMP is a single systemd service combining a FastAPI backend, background workers, and a React SPA — all running on one server with no required external dependencies beyond Python.</p>
+    <pre>
+┌─────────────────────────────────────────────────────┐
+│              pktSNMP Server (port 8767)              │
+│                                                      │
+│  pktsnmp.service  (uvicorn / FastAPI)                │
+│  ├── REST API          (app/api/)                    │
+│  ├── SNMP trap receiver  (UDP 162, asyncio)          │
+│  ├── Local poll engine   (pysnmp, asyncio)           │
+│  ├── Alert engine        (60s loop)                  │
+│  └── AI assistant        (Anthropic API)             │
+│                                                      │
+│  SQLite  pktsnmp.db         ← control-plane data     │
+│  SQLite  snmp_timeseries.db ← time-series data       │
+│  (or ClickHouse — switchable in Settings → Storage)  │
+│                                                      │
+│  React SPA  frontend/dist/  (served by uvicorn)      │
+└─────────────────────────────────────────────────────┘
+         ▲                         ▲
+   OTLP HTTP                SNMP trap (UDP 162)
+         │                         │
+  Remote otelcol           Network devices
+  collector hosts          (any SNMP device)
+</pre>
+    <table>
+      <tr><th>Layer</th><th>Technology</th></tr>
+      <tr><td>Backend</td><td>FastAPI + aiosqlite (Python 3.11+)</td></tr>
+      <tr><td>Control-plane DB</td><td>SQLite pktsnmp.db — users, devices, collectors, alert rules</td></tr>
+      <tr><td>Time-series store</td><td>SQLite snmp_timeseries.db (default) or ClickHouse</td></tr>
+      <tr><td>Frontend</td><td>React 18 + TypeScript + Tailwind CSS + Vite</td></tr>
+      <tr><td>Auth</td><td>JWT (15 min access) + httpOnly refresh (7 days) + SAML 2.0</td></tr>
+      <tr><td>SNMP</td><td>pysnmp-lextudio (v1/v2c/v3 traps and polling)</td></tr>
+      <tr><td>Service</td><td>systemd pktsnmp.service</td></tr>
+    </table>
+  </section>
+
+  <section class="doc-sec" id="prereqs">
+    <h2>Prerequisites</h2>
+    <p><strong>On the server:</strong> Python 3.11+, Node.js 20+ via NVM (for frontend builds), Git.</p>
+    <p><strong>Optional:</strong> ClickHouse server (only if switching the storage backend from SQLite).</p>
+    <div class="callout w"><div class="callout-i">⚠️</div><p><strong>Build on the server, not Windows.</strong> The frontend <code>node_modules</code> directory contains Linux-native binaries. Always build on the target server — never on a Windows workstation.</p></div>
+  </section>
+
+  <section class="doc-sec" id="install">
+    <h2>Fresh Install</h2>
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb2"><strong>Clone the repository on the server</strong>
+<pre>ssh -i your-key.pem user@YOUR-SERVER-IP
+cd /mnt/software
+git clone git@github.com:your-org/pktsnmp.git pktsnmp
+cd pktsnmp</pre></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb2"><strong>Create a Python virtual environment</strong>
+<pre>python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt</pre></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb2"><strong>Create config.yaml</strong>
+<pre>cp config.example.yaml config.yaml</pre>
+<p>Edit at minimum: set <code>secret_key</code> (generate with <code>openssl rand -hex 32</code>), <code>db_path</code>, and <code>log_file</code>.</p></div></div>
+      <div class="step"><div class="sn">4</div><div class="sb2"><strong>Run database migrations</strong><p>Migrations run automatically at startup. To apply manually:</p>
+<pre>source venv/bin/activate
+python -c "from app.database import run_migrations; import asyncio; asyncio.run(run_migrations())"</pre></div></div>
+      <div class="step"><div class="sn">5</div><div class="sb2"><strong>Install and start the systemd service</strong>
+<pre>sudo cp pktsnmp.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable pktsnmp
+sudo systemctl start pktsnmp</pre></div></div>
+      <div class="step"><div class="sn">6</div><div class="sb2"><strong>Build and deploy the frontend</strong><p>See the Frontend Build section below.</p></div></div>
+      <div class="step"><div class="sn">7</div><div class="sb2"><strong>First login</strong><p>Browse to <code>http://YOUR-SERVER-IP:8767</code>. Log in with the default admin credentials and change the password immediately.</p></div></div>
+    </div>
+  </section>
+
+  <section class="doc-sec" id="frontend">
+    <h2>Frontend Build &amp; Deploy</h2>
+    <p>The frontend must be built <strong>on the server</strong> — the <code>node_modules</code> tree contains OS-specific binaries.</p>
+    <h3>Automated (recommended)</h3>
+    <p>From your workstation, run the deploy script from <code>scripts/</code>. It uploads changed files and triggers a build + service restart on the server via SSH/Paramiko.</p>
+    <h3>Manual (on the server)</h3>
+    <pre>cd /mnt/software/pktsnmp/frontend
+source ~/.nvm/nvm.sh
+nvm use 20
+npm ci
+npm run build
+sudo systemctl restart pktsnmp</pre>
+    <p>The built output lands in <code>frontend/dist/</code> and is served by FastAPI's StaticFiles mount.</p>
+  </section>
+
+  <section class="doc-sec" id="collectors">
+    <h2>Collector Setup</h2>
+    <p>pktSNMP receives SNMP data two ways: via its built-in local poll engine, and via remote OpenTelemetry Collector (otelcol) instances that push OTLP HTTP data.</p>
+    <h3>Local Collector</h3>
+    <p>Runs in-process. Enable via <strong>Settings → SNMP</strong> in the UI. Polls all devices assigned <code>collector_id=1</code> and listens on UDP 162 for traps. Requires <code>AmbientCapabilities=CAP_NET_BIND_SERVICE</code> (already set in the service file).</p>
+    <h3>Remote otelcol Collector</h3>
+    <p>Deploy an otelcol-contrib instance at each remote site. Add the following exporter block to your otelcol config:</p>
+    <pre>exporters:
+  otlphttp/pktsnmp:
+    endpoint: "http://YOUR-SERVER-IP:8767/api/snmp/ingest/otlp"
+    headers:
+      Authorization: "Bearer YOUR_COLLECTOR_TOKEN"
+    tls:
+      insecure: true
+    timeout: 30s</pre>
+    <div class="callout"><div class="callout-i">ℹ️</div><p><strong>Path note:</strong> otelcol appends <code>/v1/metrics</code> to the endpoint automatically. The actual POST hits <code>/api/snmp/ingest/otlp/v1/metrics</code>. Both paths are registered.</p></div>
+    <h3>Metric Naming Convention</h3>
+    <p>The SNMP parser expects metric names prefixed with <code>SNMP/</code>:</p>
+    <pre>SNMP/&lt;SITE&gt;/&lt;DEVICE&gt;/&lt;OID_LABEL&gt;
+# e.g. SNMP/SITE-A/CORE-SW1/ifInOctets</pre>
+    <p>Metrics not prefixed with <code>SNMP/</code> are ignored. Configure your otelcol SNMP receiver <code>metrics:</code> block to use this naming scheme.</p>
+    <h3>Device Registration</h3>
+    <p>For proper device resolution, set the <code>otelcol_label</code> field on each device record in the UI to match the path segment in the metric name (e.g., <code>SITE-A/CORE-SW1</code>). When matched, the device's <code>last_seen</code> and status are updated automatically on each ingest batch.</p>
+    <h3>Collector Token</h3>
+    <p>Generate a bearer token in <strong>Collectors → [collector name] → Rotate Token</strong>. Update the otelcol config on the remote host and restart otelcol after rotating.</p>
+  </section>
+
+  <section class="doc-sec" id="config">
+    <h2>Configuration Reference</h2>
+    <p>All startup/infrastructure settings live in <code>config.yaml</code>. Runtime settings (storage backend, SNMP credentials, retention, notifications) are managed in the UI and stored in SQLite.</p>
+    <table>
+      <tr><th>Key</th><th>Default</th><th>Description</th></tr>
+      <tr><td>host</td><td>0.0.0.0</td><td>Bind address</td></tr>
+      <tr><td>port</td><td>8767</td><td>HTTP port</td></tr>
+      <tr><td>workers</td><td>2</td><td>uvicorn worker count</td></tr>
+      <tr><td>secret_key</td><td>—</td><td>JWT signing secret — must change before first use</td></tr>
+      <tr><td>db_path</td><td>/mnt/software/pktsnmp/pktsnmp.db</td><td>Control-plane SQLite database path</td></tr>
+      <tr><td>clickhouse_host</td><td>localhost</td><td>ClickHouse host (if using ClickHouse backend)</td></tr>
+      <tr><td>clickhouse_database</td><td>pktsnmp</td><td>ClickHouse database name</td></tr>
+      <tr><td>log_level</td><td>info</td><td>debug / info / warning / error</td></tr>
+      <tr><td>log_file</td><td>/mnt/software/logs/pktsnmp.log</td><td>Log output path</td></tr>
+      <tr><td>cors_origins</td><td>["http://SERVER-IP:8767"]</td><td>Allowed CORS origins</td></tr>
+    </table>
+  </section>
+
+  <section class="doc-sec" id="service">
+    <h2>Service Management</h2>
+    <pre># Status
+sudo systemctl status pktsnmp
+
+# Live logs
+sudo journalctl -u pktsnmp -f
+tail -f /mnt/software/logs/pktsnmp.log
+
+# Restart / stop / start
+sudo systemctl restart pktsnmp
+sudo systemctl stop pktsnmp
+sudo systemctl start pktsnmp</pre>
+  </section>
+
+  <section class="doc-sec" id="auth">
+    <h2>Auth &amp; SAML</h2>
+    <h3>Local Auth</h3>
+    <p>Default admin credentials are set during installation. Change via Settings → Users or the key icon in the sidebar. JWT access tokens expire in 15 minutes; httpOnly refresh cookies last 7 days.</p>
+    <h3>SAML 2.0 (Okta or compatible IdP)</h3>
+    <p>Configure in <strong>Settings → Auth</strong>:</p>
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb2"><strong>Set IdP metadata in pktSNMP</strong><p>Enter the Entity ID, SSO URL, and paste the IdP certificate in Settings → Auth.</p></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb2"><strong>Create a SAML app in your IdP</strong>
+        <p>ACS URL: <code>https://YOUR-FQDN:8767/api/auth/saml/callback</code><br/>
+        Audience URI: <code>https://YOUR-FQDN:8767/api/auth/saml/metadata</code><br/>
+        Name ID format: EmailAddress</p></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb2"><strong>Add a role attribute statement</strong><p>Name: <code>role</code>, Value: user's app-level role (<code>admin</code> / <code>analyst</code> / <code>viewer</code>).</p></div></div>
+    </div>
+    <div class="callout r"><div class="callout-i">🔒</div><p><strong>HTTPS required for SAML.</strong> The ACS URL must use the same hostname as your TLS certificate. HTTP is not supported for SAML callback.</p></div>
+  </section>
+
+  <section class="doc-sec" id="alerts">
+    <h2>Alert Engine</h2>
+    <p>The alert engine runs as a background task, evaluating all enabled rules every 60 seconds (with a 15-second startup delay). It auto-fires and auto-resolves based on current device and metric state.</p>
+    <h3>Firing Behavior</h3>
+    <p>When a rule fires: an event is inserted in <code>alert_events</code>, <code>devices.status</code> is set to <code>'down'</code> (for device-level rules), and notifications are dispatched. Cooldown prevents re-firing if an open event already exists within the cooldown window (default 30 min).</p>
+    <h3>Resolving Behavior</h3>
+    <p>When the condition clears: <code>devices.status</code> is set to <code>'up'</code> and <code>resolved_at</code> is set on all open events for that rule + device.</p>
+    <h3>Notification Channels</h3>
+    <p>Configure channels in <strong>Settings → Alerts → Notification Channels</strong>. Supported: <code>inapp</code>, <code>email</code>, <code>slack</code>, <code>pagerduty</code>, <code>webhook</code>.</p>
+  </section>
+
+  <section class="doc-sec" id="storage">
+    <h2>Storage Backends</h2>
+    <p>Switch backends via <strong>Settings → Storage</strong> in the UI. Restart the service after switching — the backend is read from SQLite at startup.</p>
+    <table>
+      <tr><th>Backend</th><th>Best for</th><th>Config</th></tr>
+      <tr><td>SQLite (default)</td><td>Most deployments — zero external dependency, easy backup</td><td>Automatic — no setup needed</td></tr>
+      <tr><td>ClickHouse</td><td>Very high-volume environments or long-term retention at scale</td><td>Set host/database in config.yaml; requires a running ClickHouse server</td></tr>
+    </table>
+    <div class="callout w"><div class="callout-i">⚠️</div><p>Data is <strong>not migrated</strong> when switching backends. Existing time-series data stays in the old store. Plan backend selection before ingesting production data.</p></div>
+  </section>
+
+  <section class="doc-sec" id="backup">
+    <h2>Backup &amp; Restore</h2>
+    <h3>Automated Backup</h3>
+    <p>Configure schedule and retention in <strong>Settings → Backup</strong>. Trigger immediately via the UI or API:</p>
+    <pre>curl -X POST http://YOUR-SERVER-IP:8767/api/system/backup \
+  -H "Authorization: Bearer YOUR_TOKEN"</pre>
+    <h3>Manual Backup</h3>
+    <pre># Stop service first if snmp_timeseries.db has active writes
+sudo systemctl stop pktsnmp
+cp /mnt/software/pktsnmp/pktsnmp.db \
+   /mnt/software/pktsnmp_backups/pktsnmp_$(date +%Y%m%d_%H%M%S).db
+cp /mnt/software/pktsnmp/snmp_timeseries.db \
+   /mnt/software/pktsnmp_backups/snmp_timeseries_$(date +%Y%m%d_%H%M%S).db
+sudo systemctl start pktsnmp</pre>
+    <h3>Restore</h3>
+    <pre>sudo systemctl stop pktsnmp
+cp /mnt/software/pktsnmp_backups/pktsnmp_&lt;timestamp&gt;.db \
+   /mnt/software/pktsnmp/pktsnmp.db
+cp /mnt/software/pktsnmp_backups/snmp_timeseries_&lt;timestamp&gt;.db \
+   /mnt/software/pktsnmp/snmp_timeseries.db
+sudo systemctl start pktsnmp</pre>
+  </section>
+
+  <section class="doc-sec" id="upgrade">
+    <h2>Upgrading</h2>
+    <p>Run the deploy script from your workstation, or manually on the server:</p>
+    <pre>cd /mnt/software/pktsnmp
+git pull
+source venv/bin/activate
+pip install -r requirements.txt   # if requirements changed
+cd frontend
+source ~/.nvm/nvm.sh && nvm use 20
+npm ci
+npm run build
+sudo systemctl restart pktsnmp</pre>
+    <p>Database migrations run automatically on startup. No manual schema steps are needed unless noted in individual migration file comments.</p>
+  </section>
+
+  <section class="doc-sec" id="trouble">
+    <h2>Troubleshooting</h2>
+    <table>
+      <tr><th>Symptom</th><th>What to check</th></tr>
+      <tr><td>Service won't start</td><td><code>journalctl -u pktsnmp -n 50</code>; verify config.yaml paths and secret_key are set</td></tr>
+      <tr><td>Port 162 bind fails</td><td>Verify <code>AmbientCapabilities=CAP_NET_BIND_SERVICE</code> in the service file; reload and restart</td></tr>
+      <tr><td>No data from remote collector</td><td>Check otelcol logs on the collector host; verify bearer token matches; confirm <code>otelcol_label</code> on device record matches metric path prefix</td></tr>
+      <tr><td>401 on /ingest/otlp</td><td>Token mismatch — rotate token in Collectors and update otelcol config on the remote host</td></tr>
+      <tr><td>Collector status "unknown"</td><td>Collector hasn't pushed data yet; confirm otelcol is running and the endpoint is reachable from the collector host</td></tr>
+      <tr><td>devices.last_seen not updating</td><td>Verify <code>otelcol_label</code> on device matches SNMP metric path prefix; check ingest endpoint returns 202</td></tr>
+      <tr><td>Frontend blank / 404</td><td>Frontend build didn't complete; check <code>frontend/dist/</code> exists on the server; rebuild with deploy script</td></tr>
+      <tr><td>Alert fires but dot stays green</td><td>Alert engine evaluates every 60s — wait one cycle. If persists, check <code>devices.status</code> directly in SQLite</td></tr>
+      <tr><td>Storage backend wrong on startup</td><td>The <code>storage_backend</code> setting in SQLite takes effect on next restart; restart the service after switching</td></tr>
+    </table>
+  </section>
+</main>
+</body>
+</html>

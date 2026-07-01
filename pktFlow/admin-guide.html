@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktFlow — Admin &amp; Operator Guide</title>
+  <style>
+    :root {
+      --bg-primary:#111827;--bg-card:#0d1f3d;--bg-surface:#1a2744;
+      --accent:#60a5fa;--accent-dim:#3b82f6;
+      --text-primary:#ffffff;--text-secondary:#9ca3af;--text-muted:#6b7280;
+      --border:#1e3a5f;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;}
+    a{color:var(--accent);}code,pre{font-family:'Cascadia Code','Courier New',monospace;}
+    .shell{display:flex;min-height:100vh;}
+    .sidebar{width:260px;flex-shrink:0;background:var(--bg-card);border-right:1px solid var(--border);padding:2rem 1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto;}
+    .sidebar-logo{margin-bottom:2rem;}
+    .sidebar-logo img{height:34px;}
+    .sidebar-section{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin:1.5rem 0 0.5rem;}
+    .sidebar nav a{display:block;padding:7px 12px;border-radius:7px;font-size:0.875rem;color:var(--text-secondary);text-decoration:none;margin-bottom:2px;transition:all 0.15s;}
+    .sidebar nav a:hover{background:rgba(96,165,250,0.1);color:var(--accent);}
+    .content{flex:1;padding:3rem 4rem;max-width:900px;}
+    .page-badge{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:#fcd34d;font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.5px;}
+    h1{font-size:2.2rem;font-weight:800;margin:0.5rem 0 1rem;}
+    .lead{font-size:1.1rem;color:var(--text-secondary);margin-bottom:3rem;padding-bottom:2rem;border-bottom:1px solid var(--border);}
+    .doc-section{margin-bottom:3.5rem;}
+    .doc-section h2{font-size:1.4rem;font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+    .doc-section h2 .icon{font-size:1.2rem;}
+    .doc-section h3{font-size:1.05rem;font-weight:600;margin:1.5rem 0 0.5rem;color:var(--accent);}
+    .doc-section p{color:var(--text-secondary);margin-bottom:1rem;}
+    .doc-section ul,.doc-section ol{color:var(--text-secondary);padding-left:1.5rem;margin-bottom:1rem;}
+    .doc-section li{margin-bottom:0.4rem;}
+    .callout{border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0;display:flex;gap:12px;align-items:flex-start;font-size:0.9rem;}
+    .callout.info{background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:#93c5fd;}
+    .callout.tip{background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);color:#86efac;}
+    .callout.warn{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);color:#fcd34d;}
+    .callout.danger{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#fca5a5;}
+    .callout-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px;}
+    pre{background:#0a1628;border:1px solid var(--border);border-radius:8px;padding:1.25rem;font-size:0.825rem;overflow-x:auto;color:#e2e8f0;margin:1rem 0 1.5rem;}
+    code{background:rgba(96,165,250,0.1);padding:2px 6px;border-radius:4px;font-size:0.85em;color:#93c5fd;}
+    .data-table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:0.875rem;}
+    .data-table th{background:var(--bg-card);color:var(--text-secondary);font-weight:600;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;}
+    .data-table td{padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);color:var(--text-secondary);vertical-align:top;}
+    .data-table tr:hover td{background:rgba(96,165,250,0.04);}
+    .steps{display:flex;flex-direction:column;gap:1rem;margin:1rem 0 1.5rem;}
+    .step{display:flex;gap:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;}
+    .step-num{width:28px;height:28px;border-radius:50%;background:var(--warning);color:#111827;font-weight:700;font-size:0.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+    .step-content h4{font-size:0.95rem;font-weight:600;margin-bottom:0.25rem;}
+    .step-content p{color:var(--text-secondary);font-size:0.875rem;margin:0;}
+    .page-nav{display:flex;justify-content:space-between;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);}
+    .page-nav a{background:var(--bg-card);border:1px solid var(--border);padding:10px 20px;border-radius:8px;font-size:0.875rem;text-decoration:none;color:var(--text-secondary);transition:all 0.15s;}
+    .page-nav a:hover{border-color:var(--accent);color:var(--accent);}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><a href="index.html"><img src="assets/logo-lockup.svg" alt="pktFlow"/></a></div>
+    <div class="sidebar-section">Deployment</div>
+    <nav>
+      <a href="#requirements">System Requirements</a>
+      <a href="#installation">Installation</a>
+      <a href="#configuration">Configuration</a>
+    </nav>
+    <div class="sidebar-section">Data Ingest</div>
+    <nav>
+      <a href="#collectors">Collector Setup</a>
+      <a href="#pipeline">Ingest Pipeline</a>
+      <a href="#verification">Verify Ingest</a>
+    </nav>
+    <div class="sidebar-section">Operations</div>
+    <nav>
+      <a href="#service">Service Management</a>
+      <a href="#clickhouse">ClickHouse</a>
+      <a href="#users">User Management</a>
+      <a href="#alerts-admin">Alert Rules</a>
+    </nav>
+    <div class="sidebar-section">Reference</div>
+    <nav>
+      <a href="#api">API Reference</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#backup">Backup &amp; Recovery</a>
+    </nav>
+    <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);">
+      <a href="user-guide.html" style="font-size:0.8rem;color:var(--text-muted);text-decoration:none;">&#x2190; User Guide</a><br/>
+      <a href="index.html" style="font-size:0.8rem;color:var(--text-muted);text-decoration:none;margin-top:6px;display:block;">&#x2190; Back to Overview</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div style="margin-bottom:0.5rem;"><span class="page-badge">IT ADMIN / OPERATOR GUIDE</span></div>
+    <h1>pktFlow Admin Guide</h1>
+    <p class="lead">This guide covers deploying, configuring, and operating pktFlow — including server setup, collector pipeline configuration, ClickHouse management, user administration, and troubleshooting procedures.</p>
+
+    <!-- REQUIREMENTS -->
+    <div class="doc-section" id="requirements">
+      <h2><span class="icon">&#x1F4CB;</span> System Requirements</h2>
+      <h3>Application Server</h3>
+      <table class="data-table">
+        <thead><tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr></thead>
+        <tbody>
+          <tr><td>OS</td><td>Linux (Amazon Linux 2, Ubuntu 22+, RHEL 8+)</td><td>Amazon Linux 2023</td></tr>
+          <tr><td>CPU</td><td>2 vCPU</td><td>4+ vCPU</td></tr>
+          <tr><td>RAM</td><td>4 GB</td><td>16 GB (ClickHouse benefits greatly)</td></tr>
+          <tr><td>Disk</td><td>50 GB</td><td>500 GB+ (flow storage grows over time)</td></tr>
+          <tr><td>Python</td><td>3.11+</td><td>3.12</td></tr>
+          <tr><td>Node.js</td><td>18+ (build only)</td><td>20+ via nvm</td></tr>
+        </tbody>
+      </table>
+      <h3>Collector Node(s)</h3>
+      <table class="data-table">
+        <thead><tr><th>Component</th><th>Requirement</th></tr></thead>
+        <tbody>
+          <tr><td>OS</td><td>Linux (same distro family as app server)</td></tr>
+          <tr><td>Network Access</td><td>UDP port 2055 reachable from monitored routers</td></tr>
+          <tr><td>Software</td><td>goflow2 (NetFlow decoder), Vector (transform &amp; ship)</td></tr>
+          <tr><td>Connectivity</td><td>HTTP/HTTPS to pktFlow server on the API port</td></tr>
+        </tbody>
+      </table>
+      <h3>Network Prerequisites</h3>
+      <ul>
+        <li>Routers/switches must support NetFlow v9 export</li>
+        <li>NetFlow export target: collector node IP, UDP port 2055</li>
+        <li>Collector node must have HTTP reach to the pktFlow server's API port</li>
+        <li>Browser access to the pktFlow server's web port for dashboard users</li>
+      </ul>
+    </div>
+
+    <!-- INSTALLATION -->
+    <div class="doc-section" id="installation">
+      <h2><span class="icon">&#x1F4E6;</span> Installation</h2>
+      <h3>1. Clone the Repository</h3>
+      <pre>git clone &lt;repository-url&gt; /opt/pktflow
+cd /opt/pktflow</pre>
+      <h3>2. Create Python Virtual Environment</h3>
+      <pre>python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt</pre>
+      <h3>3. Install ClickHouse</h3>
+      <pre># Add ClickHouse repo (Amazon Linux / RHEL)
+curl https://packages.clickhouse.com/rpm/clickhouse.repo \
+  -o /etc/yum.repos.d/clickhouse.repo
+yum install -y clickhouse-server clickhouse-client
+
+# Start and enable
+systemctl enable --now clickhouse-server</pre>
+      <h3>4. Configure pktFlow</h3>
+      <p>Copy the example config and edit it for your environment:</p>
+      <pre>cp config.example.yaml config.yaml
+nano config.yaml</pre>
+      <p>Key fields to set:</p>
+      <table class="data-table">
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>server.port</code></td><td>Port the web server listens on</td></tr>
+          <tr><td><code>server.host</code></td><td>Bind address (use <code>0.0.0.0</code> for all interfaces)</td></tr>
+          <tr><td><code>clickhouse.host</code></td><td>ClickHouse host (usually <code>localhost</code>)</td></tr>
+          <tr><td><code>clickhouse.database</code></td><td>ClickHouse database name for pktFlow</td></tr>
+          <tr><td><code>auth.secret_key</code></td><td>JWT signing key — change from the default immediately</td></tr>
+          <tr><td><code>ingest.token</code></td><td>Bearer token required by collectors to authenticate ingest POSTs</td></tr>
+        </tbody>
+      </table>
+      <div class="callout danger">
+        <span class="callout-icon">&#x1F6A8;</span>
+        <span><strong>Security:</strong> Always change <code>auth.secret_key</code> and <code>ingest.token</code> from the defaults before any production use. Use strong random values (32+ characters).</span>
+      </div>
+      <h3>5. Build the Frontend</h3>
+      <pre># On the server, in a Linux shell
+cd /opt/pktflow/frontend
+npm install
+npm run build</pre>
+      <h3>6. Install and Start the Service</h3>
+      <pre>cp pktflow.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now pktflow
+systemctl status pktflow</pre>
+    </div>
+
+    <!-- CONFIGURATION -->
+    <div class="doc-section" id="configuration">
+      <h2><span class="icon">&#x2699;&#xFE0F;</span> Configuration Reference</h2>
+      <p>The <code>config.yaml</code> file controls all pktFlow behavior. Below is the full structure with descriptions.</p>
+      <pre>server:
+  host: "0.0.0.0"        # Bind address
+  port: 8080             # Web + API port
+  workers: 1             # Uvicorn worker processes
+
+clickhouse:
+  host: "localhost"      # ClickHouse server hostname
+  port: 9000             # ClickHouse native protocol port
+  database: "pktflow"    # Database name
+  user: "default"        # ClickHouse user
+  password: ""           # ClickHouse password (blank if none)
+
+auth:
+  secret_key: "CHANGE_ME_STRONG_RANDOM_32CHARS"
+  algorithm: "HS256"
+  token_expire_minutes: 480  # 8 hours
+
+ingest:
+  token: "CHANGE_ME_INGEST_TOKEN"
+  buffer_size: 1000      # Flush to ClickHouse after N records
+  flush_interval: 5      # Or every N seconds, whichever comes first
+
+logging:
+  level: "INFO"          # DEBUG | INFO | WARNING | ERROR
+  access_log: true       # Set false to suppress HTTP access log</pre>
+    </div>
+
+    <!-- COLLECTORS -->
+    <div class="doc-section" id="collectors">
+      <h2><span class="icon">&#x1F4E1;</span> Collector Setup</h2>
+      <p>Each collector node runs two components in a pipeline: <strong>goflow2</strong> (decodes binary NetFlow from the network) and <strong>Vector</strong> (transforms, enriches, and ships the data to pktFlow).</p>
+      <h3>Install goflow2</h3>
+      <pre># Download latest release binary
+mkdir -p /opt/goflow2
+curl -L https://github.com/netsampler/goflow2/releases/latest/download/goflow2-linux-amd64 \
+  -o /opt/goflow2/goflow2
+chmod +x /opt/goflow2/goflow2</pre>
+      <h3>Install Vector</h3>
+      <pre>curl --proto '=https' --tlsv1.2 -sSf \
+  https://sh.vector.dev | bash -s -- -y
+# or via package manager for your distro</pre>
+      <h3>Vector Configuration</h3>
+      <p>Create <code>/etc/vector/vector.toml</code> (or your chosen config path):</p>
+      <pre>[sources.netflow_in]
+type = "stdin"            # goflow2 pipes stdout directly to vector
+
+[transforms.parse_flow]
+type = "remap"
+inputs = ["netflow_in"]
+source = '''
+  . = parse_json!(string!(.message))
+'''
+
+[transforms.enrich]
+type = "remap"
+inputs = ["parse_flow"]
+source = '''
+  .site = if includes(["SAMPLER_IP_1", "SAMPLER_IP_2"], .sampler_address) {
+    "site-a"
+  } else if includes(["SAMPLER_IP_3"], .sampler_address) {
+    "site-b"
+  } else {
+    "unknown"
+  }
+'''
+
+[sinks.pktflow]
+type = "http"
+inputs = ["enrich"]
+uri = "http://&lt;PKTFLOW_SERVER&gt;:&lt;PORT&gt;/api/ingest/flows"
+method = "post"
+encoding.codec = "json"
+framing.method = "newline_delimited"
+batch.max_events = 500
+batch.timeout_secs = 2
+[sinks.pktflow.auth]
+strategy = "bearer"
+token = "&lt;YOUR_INGEST_TOKEN&gt;"</pre>
+      <h3>Systemd Service (Collector)</h3>
+      <pre>[Unit]
+Description=pktFlow NetFlow Collector (goflow2 + Vector)
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "/opt/goflow2/goflow2 \
+  -format json \
+  -listen netflow://0.0.0.0:2055 | \
+  vector --config /etc/vector/vector.toml"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</pre>
+      <div class="callout info">
+        <span class="callout-icon">&#x2139;&#xFE0F;</span>
+        <span>On some systemd configurations, stdin is set to <code>/dev/null</code> for services, which breaks the pipe approach. If goflow2 cannot write to stdout/stdin, use Vector's <code>exec</code> source type instead: set <code>type = "exec"</code> and set <code>command</code> to the goflow2 binary with its arguments.</span>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="doc-section" id="pipeline">
+      <h2><span class="icon">&#x1F504;</span> Ingest Pipeline Details</h2>
+      <p>Understanding how data flows through the pipeline helps you diagnose issues when flows stop appearing in the dashboard.</p>
+      <h3>Field Transformation</h3>
+      <p>Vector normalizes goflow2's output before sending to pktFlow. Key transformations:</p>
+      <table class="data-table">
+        <thead><tr><th>Raw goflow2 Field</th><th>After Vector Transform</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>SrcAddr</code></td><td><code>src_addr</code></td><td>Lowercased snake_case</td></tr>
+          <tr><td><code>Proto</code> (int)</td><td><code>proto</code> (string)</td><td>"TCP", "UDP", "ICMP"</td></tr>
+          <tr><td><code>NextHop: "0.0.0.0"</code></td><td><code>next_hop: ""</code></td><td>Empty string, not 0.0.0.0</td></tr>
+          <tr><td>(none)</td><td><code>site</code></td><td>Added by Vector enrich transform</td></tr>
+          <tr><td>(none)</td><td><code>sampler_address</code></td><td>Source router IP</td></tr>
+        </tbody>
+      </table>
+      <h3>Ingest Buffer Behavior</h3>
+      <p>pktFlow holds incoming records in memory and flushes them to ClickHouse either when the buffer reaches <code>buffer_size</code> records or when <code>flush_interval</code> seconds have elapsed — whichever comes first. This batching dramatically improves ClickHouse write throughput.</p>
+    </div>
+
+    <!-- VERIFICATION -->
+    <div class="doc-section" id="verification">
+      <h2><span class="icon">&#x2705;</span> Verify Ingest is Working</h2>
+      <p>After deploying, confirm end-to-end data flow with these checks:</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Check Collector Service</h4><p>On the collector node: <code>systemctl status &lt;collector-service-name&gt;</code>. It should show <strong>active (running)</strong>.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Check pktFlow Service</h4><p>On the application server: <code>systemctl status pktflow</code>. Should show <strong>active (running)</strong>.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Query the Ingest Stats Endpoint</h4><p>Run: <code>curl http://localhost:&lt;PORT&gt;/api/ingest/stats</code>. The <code>total_received</code> counter should be non-zero and incrementing.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-content"><h4>Check the Dashboard</h4><p>Open the browser dashboard. If the traffic chart shows data, the full pipeline is working.</p></div></div>
+      </div>
+      <div class="callout warn">
+        <span class="callout-icon">&#x26A0;&#xFE0F;</span>
+        <span>If <code>total_received</code> is 0 despite Vector sending data (visible in pktFlow's access log), the normalizer is silently dropping records. Check that Vector is sending snake_case fields, and that <code>proto</code> is a string not an integer.</span>
+      </div>
+    </div>
+
+    <!-- SERVICE MANAGEMENT -->
+    <div class="doc-section" id="service">
+      <h2><span class="icon">&#x1F6E0;&#xFE0F;</span> Service Management</h2>
+      <h3>Common Commands</h3>
+      <pre># Check status
+systemctl status pktflow
+
+# Restart after config or code changes
+systemctl restart pktflow
+
+# View live logs
+journalctl -u pktflow -f
+
+# View last 100 lines of logs
+journalctl -u pktflow -n 100</pre>
+      <div class="callout info">
+        <span class="callout-icon">&#x2139;&#xFE0F;</span>
+        <span>After a pktFlow restart, Vector's exponential backoff may cause a brief delay (up to a few seconds) before flows resume. A pktFlow restart (connection reset) triggers an immediate reconnect from Vector, so in practice the gap is usually negligible.</span>
+      </div>
+      <h3>Updating pktFlow</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Pull latest code</h4><p><code>git pull</code> in the pktFlow directory.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Update Python deps (if requirements changed)</h4><p><code>source venv/bin/activate &amp;&amp; pip install -r requirements.txt</code></p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Rebuild frontend (if frontend changed)</h4><p>Run the frontend deploy process: sync source to server, <code>npm install</code>, <code>npm run build</code>, copy dist.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-content"><h4>Restart the service</h4><p><code>systemctl restart pktflow</code></p></div></div>
+      </div>
+    </div>
+
+    <!-- CLICKHOUSE -->
+    <div class="doc-section" id="clickhouse">
+      <h2><span class="icon">&#x1F5C4;&#xFE0F;</span> ClickHouse Administration</h2>
+      <p>pktFlow uses ClickHouse as its primary data store. Familiarity with basic ClickHouse operations is helpful for administration.</p>
+      <h3>Connect to ClickHouse</h3>
+      <pre>clickhouse-client --host localhost --database pktflow</pre>
+      <h3>Check Table Size</h3>
+      <pre>SELECT
+  table,
+  formatReadableSize(sum(bytes)) AS size,
+  sum(rows) AS rows
+FROM system.parts
+WHERE database = 'pktflow'
+GROUP BY table;</pre>
+      <h3>Check Recent Ingestion</h3>
+      <pre>SELECT count(), max(time_received_ns) FROM flows
+WHERE time_received_ns > now() - INTERVAL 5 MINUTE;</pre>
+      <h3>Data Retention</h3>
+      <p>pktFlow does not have a built-in data retention job. To limit storage growth, configure a TTL on the <code>flows</code> table:</p>
+      <pre>-- Keep data for 90 days
+ALTER TABLE flows MODIFY TTL
+  toDateTime(time_received_ns / 1000000000) + INTERVAL 90 DAY;</pre>
+      <div class="callout tip">
+        <span class="callout-icon">&#x1F4A1;</span>
+        <span>ClickHouse TTL deletion runs asynchronously during merge operations. Data may persist slightly longer than the TTL value. This is expected behavior.</span>
+      </div>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="doc-section" id="users">
+      <h2><span class="icon">&#x1F465;</span> User Management</h2>
+      <p>Users are managed through the <strong>Users</strong> page in the pktFlow dashboard (admin login required) or directly via the SQLite database.</p>
+      <h3>From the Dashboard</h3>
+      <ul>
+        <li>Navigate to <strong>Users</strong> in the sidebar</li>
+        <li>Click <strong>Add User</strong> to create a new account</li>
+        <li>Click a user's name to edit their role or reset their password</li>
+        <li>Deactivate users with the toggle — deactivated users cannot log in</li>
+      </ul>
+      <h3>Roles</h3>
+      <table class="data-table">
+        <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
+        <tbody>
+          <tr><td><code>admin</code></td><td>Full access — all data, settings, user management, service restart</td></tr>
+          <tr><td><code>analyst</code></td><td>Read all data, export flows, acknowledge alerts</td></tr>
+          <tr><td><code>viewer</code></td><td>Read-only access to dashboard pages</td></tr>
+        </tbody>
+      </table>
+      <h3>Emergency Password Reset (CLI)</h3>
+      <p>If admin access is lost, reset a password directly in SQLite:</p>
+      <pre>python3 - &lt;&lt;'EOF'
+import sqlite3, bcrypt
+conn = sqlite3.connect('/opt/pktflow/pktflow.db')
+new_hash = bcrypt.hashpw(b'NewPassword1!', bcrypt.gensalt()).decode()
+conn.execute(
+  "UPDATE users SET hashed_password=?, is_active=1 WHERE username='admin'",
+  (new_hash,)
+)
+conn.commit()
+conn.close()
+print("Password reset complete")
+EOF</pre>
+      <div class="callout warn">
+        <span class="callout-icon">&#x26A0;&#xFE0F;</span>
+        <span>The <code>is_active=0</code> flag silently rejects login with "Invalid credentials." Always check and set <code>is_active=1</code> when doing a CLI password reset.</span>
+      </div>
+    </div>
+
+    <!-- ALERT RULES -->
+    <div class="doc-section" id="alerts-admin">
+      <h2><span class="icon">&#x1F6A8;</span> Alert Rules (Admin)</h2>
+      <p>Alert rules are managed from <strong>Settings → Alerts</strong> in the dashboard. Each rule defines a condition to watch and an optional notification channel.</p>
+      <h3>Rule Types and Status</h3>
+      <table class="data-table">
+        <thead><tr><th>Rule Type</th><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>data_gap</td><td>&#x2705; Functional</td><td>Fires when no flows arrive from a site within N seconds</td></tr>
+          <tr><td>new_host</td><td>&#x2705; Functional</td><td>Fires when a previously unseen IP address appears</td></tr>
+          <tr><td>threshold</td><td>&#x26A0; Placeholder</td><td>Configured but engine not yet implemented</td></tr>
+          <tr><td>rate_spike</td><td>&#x26A0; Placeholder</td><td>Configured but engine not yet implemented</td></tr>
+          <tr><td>port_protocol</td><td>&#x26A0; Placeholder</td><td>Configured but engine not yet implemented</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- API REFERENCE -->
+    <div class="doc-section" id="api">
+      <h2><span class="icon">&#x1F4DD;</span> API Reference</h2>
+      <p>pktFlow exposes a REST API. All endpoints except <code>/api/ingest/*</code> require a JWT Bearer token (obtained via <code>POST /api/auth/login</code>).</p>
+      <table class="data-table">
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>POST</td><td><code>/api/auth/login</code></td><td>Get JWT token. Body: <code>{username, password}</code></td></tr>
+          <tr><td>POST</td><td><code>/api/ingest/flows</code></td><td>Ingest flow batch. Auth: Bearer ingest token. Body: JSON array of flow objects.</td></tr>
+          <tr><td>GET</td><td><code>/api/ingest/stats</code></td><td>Returns ingest counters (total_received, total_flushed, last_flush)</td></tr>
+          <tr><td>GET</td><td><code>/api/flows/query</code></td><td>Query flows with optional filters: src_ip, dst_ip, src_port, dst_port, proto, site, start, end</td></tr>
+          <tr><td>GET</td><td><code>/api/flows/top-talkers</code></td><td>Returns top N source IPs by bytes in time range</td></tr>
+          <tr><td>GET</td><td><code>/api/alerts</code></td><td>List alert events</td></tr>
+          <tr><td>GET</td><td><code>/api/users</code></td><td>List users (admin only)</td></tr>
+          <tr><td>POST</td><td><code>/api/users</code></td><td>Create user (admin only)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TROUBLESHOOTING -->
+    <div class="doc-section" id="troubleshooting">
+      <h2><span class="icon">&#x1F527;</span> Troubleshooting</h2>
+      <table class="data-table">
+        <thead><tr><th>Symptom</th><th>Likely Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard shows no data</td><td>No flows in ClickHouse or ingest pipeline down</td><td>Check <code>/api/ingest/stats</code>. If 0, check collector service and Vector logs.</td></tr>
+          <tr><td><code>total_received</code> stays 0 while access log shows POSTs</td><td>Normalizer dropping records (field format mismatch)</td><td>Confirm Vector sends snake_case fields with <code>proto</code> as a string.</td></tr>
+          <tr><td>Login fails with "Invalid credentials"</td><td>Wrong password or <code>is_active=0</code></td><td>Check the SQLite users table. Set <code>is_active=1</code> if needed.</td></tr>
+          <tr><td>Service starts then crashes</td><td>ClickHouse not running or config error</td><td>Run <code>journalctl -u pktflow -n 50</code>. Verify ClickHouse is reachable.</td></tr>
+          <tr><td>goflow2 "template error" in logs after restart</td><td>Cached NetFlow v9 templates lost on restart</td><td>Normal — templates re-learn within seconds when router sends next template packet.</td></tr>
+          <tr><td>Frontend shows stale content after update</td><td>Browser cache or stale dist/</td><td>Hard-refresh browser. Confirm <code>npm run build</code> was re-run after source changes.</td></tr>
+          <tr><td>ClickHouse <code>PartiallyConsumedQueryError</code></td><td>Concurrent queries without thread locking</td><td>Ensure <code>threading.Lock()</code> serializes all ClickHouse calls in storage layer.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- BACKUP -->
+    <div class="doc-section" id="backup">
+      <h2><span class="icon">&#x1F4BE;</span> Backup &amp; Recovery</h2>
+      <h3>What to Back Up</h3>
+      <ul>
+        <li><code>config.yaml</code> — system configuration including keys</li>
+        <li><code>pktflow.db</code> — SQLite database (users, settings, alert rules)</li>
+        <li><code>pktflow.service</code> — systemd unit file</li>
+        <li>ClickHouse data (for flow history): use <code>clickhouse-backup</code> or filesystem snapshot</li>
+      </ul>
+      <h3>Restore Procedure</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Stop the Service</h4><p><code>systemctl stop pktflow</code></p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Restore Files</h4><p>Copy backed-up <code>config.yaml</code> and <code>pktflow.db</code> back to the application directory.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Restore ClickHouse (if needed)</h4><p>Use <code>clickhouse-backup restore</code> or restore the data directory from a snapshot.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-content"><h4>Restart and Verify</h4><p><code>systemctl start pktflow</code>, then check <code>/api/ingest/stats</code> and the dashboard.</p></div></div>
+      </div>
+    </div>
+
+    <div class="page-nav">
+      <a href="user-guide.html">&#x2190; User Guide</a>
+      <a href="index.html">&#x2190; Platform Overview</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

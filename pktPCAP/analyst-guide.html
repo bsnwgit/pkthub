@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktPCAP — Analyst Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-deep: #030712; --bg-dark: #0d1117; --bg-card: #111827;
+      --bg-border: #1f2937; --purple: #8b6ce8; --purple-glow: #a78bfa;
+      --blue: #3b82f6; --text-pri: #f9fafb; --text-sec: #9ca3af;
+      --text-dim: #4b5563; --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: Inter, -apple-system, sans-serif; background: var(--bg-deep);
+      color: var(--text-pri); line-height: 1.6; display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 260px; flex-shrink: 0; background: var(--bg-dark);
+      border-right: 1px solid var(--bg-border);
+      position: fixed; top: 0; left: 0; bottom: 0;
+      overflow-y: auto; padding: 28px 16px; z-index: 50;
+    }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; padding: 0 8px; }
+    .sidebar-logo svg { width: 32px; height: 32px; border-radius: 7px; }
+    .sidebar-logo-name { font-size: 16px; font-weight: 700; }
+    .sidebar-section { font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text-dim); padding: 0 12px; margin: 20px 0 8px; }
+    .sidebar-link { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text-sec);
+      text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; }
+    .sidebar-link:hover { background: var(--bg-card); color: var(--text-pri); }
+    .sidebar-link.active { background: rgba(139,108,232,0.12); color: var(--purple-glow); }
+    .sidebar-guide-label { display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+      border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--purple-glow);
+      background: rgba(139,108,232,0.08); margin-bottom: 8px; }
+    .sidebar-back { display: flex; align-items: center; gap: 6px; color: var(--text-dim);
+      font-size: 12px; text-decoration: none; padding: 6px 12px; margin-bottom: 16px;
+      border-radius: 6px; transition: color 0.15s; }
+    .sidebar-back:hover { color: var(--text-sec); }
+
+    /* MAIN */
+    .main { margin-left: 260px; flex: 1; max-width: 860px; padding: 60px 56px; }
+
+    /* HERO */
+    .guide-hero { margin-bottom: 60px; padding-bottom: 48px; border-bottom: 1px solid var(--bg-border); }
+    .guide-badge { display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(139,108,232,0.12); border: 1px solid rgba(139,108,232,0.3);
+      color: var(--purple-glow); padding: 5px 14px; border-radius: 100px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 20px; }
+    .guide-hero h1 { font-size: 38px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 16px; }
+    .guide-hero p { font-size: 16px; color: var(--text-sec); max-width: 580px; line-height: 1.75; }
+
+    /* HEADINGS */
+    h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin: 56px 0 16px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--bg-border); }
+    h3 { font-size: 18px; font-weight: 700; margin: 32px 0 12px; }
+    h4 { font-size: 14px; font-weight: 700; color: var(--purple-glow); margin: 24px 0 8px;
+      text-transform: uppercase; letter-spacing: 0.6px; }
+    p { color: var(--text-sec); font-size: 15px; line-height: 1.8; margin-bottom: 16px; }
+    strong { color: var(--text-pri); font-weight: 600; }
+    code { font-family: 'Fira Code', monospace; font-size: 13px; color: var(--purple-glow);
+      background: rgba(139,108,232,0.1); padding: 2px 6px; border-radius: 4px; }
+    pre { background: var(--bg-card); border: 1px solid var(--bg-border); border-radius: 12px;
+      padding: 20px 24px; margin: 20px 0; overflow-x: auto; }
+    pre code { background: none; padding: 0; color: #e5e7eb; font-size: 13px; line-height: 1.7; }
+
+    /* CARDS & CALLOUTS */
+    .callout { border-radius: 12px; padding: 18px 20px; margin: 24px 0;
+      display: flex; gap: 14px; align-items: flex-start; }
+    .callout.info { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); }
+    .callout.tip { background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.2); }
+    .callout.warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout p { margin: 0; font-size: 14px; line-height: 1.65; }
+    .callout.info p { color: #93c5fd; }
+    .callout.tip p { color: #6ee7b7; }
+    .callout.warn p { color: #fcd34d; }
+
+    .step-card { background: var(--bg-card); border: 1px solid var(--bg-border);
+      border-radius: 14px; padding: 24px; margin: 16px 0; }
+    .step-num { font-size: 11px; font-weight: 700; color: var(--purple-glow);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .step-card h3 { margin: 0 0 10px; font-size: 16px; }
+    .step-card p { margin: 0; font-size: 14px; }
+
+    .tab-preview { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
+    .tab-row { background: var(--bg-card); border: 1px solid var(--bg-border); border-radius: 10px;
+      padding: 16px 20px; display: flex; gap: 16px; align-items: flex-start; }
+    .tab-icon { font-size: 22px; flex-shrink: 0; }
+    .tab-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .tab-desc { font-size: 13px; color: var(--text-sec); line-height: 1.6; }
+
+    ul, ol { color: var(--text-sec); font-size: 15px; padding-left: 20px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="96" fill="#180e2d"/>
+      <circle cx="208" cy="208" r="152" fill="none" stroke="#8b6ce8" stroke-width="34"/>
+      <rect x="138" y="172" width="140" height="72" rx="14" fill="none" stroke="#8b6ce8" stroke-width="22"/>
+      <line x1="155" y1="197" x2="262" y2="197" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+      <line x1="155" y1="220" x2="262" y2="220" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+      <line x1="318" y1="318" x2="422" y2="422" stroke="#8b6ce8" stroke-width="38" stroke-linecap="round"/>
+    </svg>
+    <span class="sidebar-logo-name">pktPCAP</span>
+  </div>
+  <a class="sidebar-back" href="index.html">← Platform Overview</a>
+  <div class="sidebar-guide-label">📡 Analyst Guide</div>
+  <div class="sidebar-section">Getting Started</div>
+  <a class="sidebar-link" href="#login">Logging In</a>
+  <a class="sidebar-link" href="#interface">The Interface</a>
+  <div class="sidebar-section">Working with Captures</div>
+  <a class="sidebar-link" href="#upload">Uploading PCAP Files</a>
+  <a class="sidebar-link" href="#livefeeds">Live Feed Capture</a>
+  <a class="sidebar-link" href="#analysis">Running an Analysis</a>
+  <div class="sidebar-section">Analysis Tabs</div>
+  <a class="sidebar-link" href="#tabs">Tab Reference</a>
+  <a class="sidebar-link" href="#ai-chat">AI-Assisted Chat</a>
+  <div class="sidebar-section">Output & Export</div>
+  <a class="sidebar-link" href="#export">Exporting Results</a>
+  <a class="sidebar-link" href="#screenshots">Screenshots</a>
+  <div class="sidebar-section">Other Guides</div>
+  <a class="sidebar-link" href="admin-guide.html">Admin Guide →</a>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+  <div class="guide-hero">
+    <div class="guide-badge">📡 Analyst Guide</div>
+    <h1>Network &amp; Security<br/>Analyst Guide</h1>
+    <p>Learn how to upload packet captures, connect live feed sources, interact with the AI analysis engine, and extract findings from the multi-tab dashboard.</p>
+  </div>
+
+  <!-- LOGGING IN -->
+  <h2 id="login">Logging In</h2>
+  <p>pktPCAP is a secure, browser-based application. Open your organization's pktPCAP URL in any modern browser. You will be presented with the login screen.</p>
+
+  <h3>Local Authentication</h3>
+  <p>Enter your assigned username and password, then click <strong>Sign In</strong>. If you have not yet been issued credentials, contact your platform administrator.</p>
+
+  <h3>Single Sign-On (SSO)</h3>
+  <p>If your organization has configured SAML SSO, click <strong>Sign in with SSO</strong> on the login page. You will be redirected to your organization's identity provider. After completing authentication there, you will be returned to pktPCAP automatically. SSO accounts are provisioned on first login — no pre-registration is required.</p>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <p>Your username appears in the sidebar footer after login. Your assigned role (Admin / Analyst / Viewer) determines which features are available to you.</p>
+  </div>
+
+  <!-- INTERFACE -->
+  <h2 id="interface">The Interface</h2>
+  <p>The pktPCAP interface is divided into four primary areas:</p>
+  <ul>
+    <li><strong>Left Sidebar:</strong> Navigation between sections — Dashboard, Live Feeds, and Settings (Admin only).</li>
+    <li><strong>Upload / Landing Zone:</strong> The central drop area when no capture is loaded. Drag files here or browse for them.</li>
+    <li><strong>Data Panel:</strong> The tabbed analysis pane that appears after a capture is processed. Contains all protocol, stream, endpoint, and summary views.</li>
+    <li><strong>AI Chat Panel:</strong> The right-side conversation panel for querying the AI analysis engine about the loaded capture.</li>
+  </ul>
+
+  <div class="callout tip">
+    <div class="callout-icon">💡</div>
+    <p>Click <strong>↩ New Analysis</strong> in the top bar at any time to clear the current session and start fresh with a new file or feed.</p>
+  </div>
+
+  <!-- UPLOAD -->
+  <h2 id="upload">Uploading PCAP Files</h2>
+  <p>Uploading a capture file is the primary way to begin an analysis session. pktPCAP supports standard Wireshark and tcpdump capture formats.</p>
+
+  <div class="step-card">
+    <div class="step-num">Step 1</div>
+    <h3>Select Your File(s)</h3>
+    <p>Drag one or more <code>.pcap</code>, <code>.pcapng</code>, or <code>.cap</code> files directly onto the upload drop zone, or click the zone to open a file picker. Multiple files can be selected at once.</p>
+  </div>
+  <div class="step-card">
+    <div class="step-num">Step 2</div>
+    <h3>Multi-File Merge</h3>
+    <p>When multiple files are uploaded together, pktPCAP automatically merges and correlates them into a single unified session. This is useful for analyzing captures taken from multiple taps or time windows simultaneously.</p>
+  </div>
+  <div class="step-card">
+    <div class="step-num">Step 3</div>
+    <h3>Start Analysis</h3>
+    <p>Click <strong>Analyze</strong>. The server parses the capture, decodes all layers, reconstructs streams, and resolves DNS. The data panel and AI panel load when processing completes.</p>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p>Very large captures (over a few hundred MB) may take additional time to process. If your capture is from a long session, consider filtering it with Wireshark or tshark before uploading to focus on the relevant timeframe.</p>
+  </div>
+
+  <!-- LIVE FEEDS -->
+  <h2 id="livefeeds">Live Feed Capture</h2>
+  <p>Live feeds allow you to stream packet data from a remote host directly into pktPCAP in real time — no intermediate file save required. Navigate to <strong>Live Feeds</strong> in the sidebar to access this feature.</p>
+
+  <h3>Active Sessions</h3>
+  <p>Any currently streaming feed sessions will appear at the top of the Live Feeds page. Click a session to load it into the dashboard.</p>
+
+  <h3>Connecting a Remote Host</h3>
+  <p>To start a new live capture from a remote host, fill in the connection form:</p>
+  <ul>
+    <li><strong>Feed Name:</strong> A label for this session (e.g., <code>core-switch-uplink</code>).</li>
+    <li><strong>Interface:</strong> The network interface to capture on (e.g., <code>eth0</code>, <code>ens3</code>).</li>
+    <li><strong>Filter:</strong> An optional BPF capture filter to limit what is recorded (e.g., <code>not port 22</code> to exclude SSH management traffic).</li>
+  </ul>
+
+  <h4>Using tshark (CLI)</h4>
+  <p>After configuring the options above, pktPCAP generates the exact tshark command to run on your remote host. Copy it with the <strong>Copy Command</strong> button, then paste and execute it in an SSH session on the target machine. The feed will begin appearing in pktPCAP within seconds.</p>
+
+  <pre><code># Example generated tshark command (your actual command is generated by the UI)
+tshark -i eth0 -f "not port 22" -w - | curl -s -X POST \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @- \
+  https://&lt;your-server&gt;/api/feed/&lt;feed-name&gt;</code></pre>
+
+  <h4>Using Wireshark (GUI)</h4>
+  <p>If you prefer a graphical Wireshark workflow, select the <strong>Wireshark</strong> tab in the Live Feeds section. Configure Wireshark to use pktPCAP as its remote capture destination — Wireshark will SSH into the pktPCAP server and the stream is simultaneously displayed in Wireshark <em>and</em> recorded in pktPCAP.</p>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <p>Each live feed has a unique authentication token generated by pktPCAP. This token is embedded in the generated command — treat it like a password and do not share it outside the capture workflow.</p>
+  </div>
+
+  <!-- RUNNING ANALYSIS -->
+  <h2 id="analysis">Running an Analysis</h2>
+  <p>Whether you loaded a file or connected a live feed, the analysis workflow is the same. After data is loaded, the platform automatically populates all tabs in the data panel.</p>
+
+  <h3>What Happens During Analysis</h3>
+  <ul>
+    <li>All packets are decoded layer by layer (Ethernet → IP → TCP/UDP → Application).</li>
+    <li>TCP and UDP streams are reconstructed and indexed for browsing.</li>
+    <li>Protocol distribution is computed across the full capture.</li>
+    <li>DNS queries and responses are correlated to IP addresses.</li>
+    <li>Endpoint pairs, byte counts, and packet counts are tabulated.</li>
+    <li>An AI-generated summary is produced automatically and appears in the chat panel.</li>
+  </ul>
+
+  <!-- TABS REFERENCE -->
+  <h2 id="tabs">Analysis Tab Reference</h2>
+  <p>The data panel on the right side of the dashboard contains multiple scrollable tabs. Each tab surfaces a different analytical view of the loaded capture.</p>
+
+  <div class="tab-preview">
+    <div class="tab-row">
+      <div class="tab-icon">📋</div>
+      <div>
+        <div class="tab-name">Summary</div>
+        <div class="tab-desc">Top-level capture statistics: total packets, total bytes, capture duration, start/end timestamps, and a count breakdown by top protocols. The first tab loaded after any analysis.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">🔬</div>
+      <div>
+        <div class="tab-name">Protocols</div>
+        <div class="tab-desc">Full hierarchical protocol breakdown — Ethernet, IP, TCP, UDP, HTTP, DNS, TLS, ICMP, and more — with packet counts and byte totals for each. Drill into any protocol row to see individual frames.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">🔁</div>
+      <div>
+        <div class="tab-name">Streams</div>
+        <div class="tab-desc">Reconstructed TCP and UDP conversations. Click any stream to load the full payload sequence — useful for inspecting HTTP request/response cycles, DNS lookups, or unencrypted application traffic.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">🌐</div>
+      <div>
+        <div class="tab-name">Endpoints</div>
+        <div class="tab-desc">All communicating IP endpoints with their total packet and byte counts, resolved hostnames, and inbound/outbound breakdown. Sort by any column to surface top talkers or unusual peers.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">💬</div>
+      <div>
+        <div class="tab-name">Conversations</div>
+        <div class="tab-desc">Bi-directional traffic pairs (source ↔ destination) across all transport layer protocols. Useful for identifying all communication between two specific endpoints.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">📦</div>
+      <div>
+        <div class="tab-name">Packets</div>
+        <div class="tab-desc">Frame-level view with timestamps, source/destination addresses, protocol, length, and info columns. Click any frame to see the full decoded field breakdown.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">🌍</div>
+      <div>
+        <div class="tab-name">DNS</div>
+        <div class="tab-desc">All DNS queries and responses captured in the session. Shows query names, record types, resolved addresses, and response codes. Quickly spot unusual external resolutions or failed lookups.</div>
+      </div>
+    </div>
+    <div class="tab-row">
+      <div class="tab-icon">🔒</div>
+      <div>
+        <div class="tab-name">TLS / HTTP</div>
+        <div class="tab-desc">Dedicated views for TLS handshakes (certificate SNI, cipher suites, versions) and HTTP transactions (methods, URLs, status codes, user agents) where visible in the capture.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI CHAT -->
+  <h2 id="ai-chat">AI-Assisted Analysis</h2>
+  <p>The chat panel on the right side of the dashboard connects to an AI engine (OpenAI or Anthropic Claude, as configured by your administrator). After an analysis runs, the AI automatically generates an opening summary of the capture. You can then continue the conversation with natural-language questions.</p>
+
+  <h3>What the AI Can Help With</h3>
+  <ul>
+    <li>Summarizing traffic patterns and anomalies in plain language</li>
+    <li>Identifying unusual port usage, connection failures, or protocol mismatches</li>
+    <li>Explaining what a specific protocol exchange means</li>
+    <li>Correlating events across streams (e.g., "what happened before this DNS query resolved?")</li>
+    <li>Answering questions about endpoint behavior or data volumes</li>
+    <li>Flagging potential indicators of compromise from traffic patterns</li>
+  </ul>
+
+  <h3>Example Prompts</h3>
+  <div style="display:flex;flex-direction:column;gap:10px;margin:16px 0 24px;">
+    <div style="background:var(--bg-card);border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">EXAMPLE PROMPT</div>
+      <div style="font-family:'Fira Code',monospace;font-size:13px;color:var(--purple-glow);">"What are the top 5 external IPs this host is communicating with?"</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">EXAMPLE PROMPT</div>
+      <div style="font-family:'Fira Code',monospace;font-size:13px;color:var(--purple-glow);">"Are there any failed authentication attempts or reset connections in this capture?"</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">EXAMPLE PROMPT</div>
+      <div style="font-family:'Fira Code',monospace;font-size:13px;color:var(--purple-glow);">"Summarize the DNS queries — are there any unusual domains being resolved?"</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--bg-border);border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">EXAMPLE PROMPT</div>
+      <div style="font-family:'Fira Code',monospace;font-size:13px;color:var(--purple-glow);">"Which TLS versions are in use? Are any sessions negotiating outdated cipher suites?"</div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <p>Raw packet payload data is <strong>not</strong> sent to the AI provider. Only structured metadata, protocol summaries, and your typed questions are transmitted. All raw packet bytes remain on your organization's server.</p>
+  </div>
+
+  <!-- EXPORT -->
+  <h2 id="export">Exporting Results</h2>
+  <p>Analysis findings can be exported from the dashboard for use in incident tickets, reports, or knowledge base articles.</p>
+
+  <h3>Available Exports</h3>
+  <ul>
+    <li><strong>Protocol Summary:</strong> Export the protocol breakdown as a structured table.</li>
+    <li><strong>Endpoint List:</strong> CSV-compatible list of all communicating endpoints with traffic volumes.</li>
+    <li><strong>AI Analysis Text:</strong> Copy the full AI conversation thread, including the auto-generated summary, for pasting into tickets or documents.</li>
+    <li><strong>Stream Data:</strong> Individual stream payloads can be copied directly from the Streams tab.</li>
+  </ul>
+
+  <!-- SCREENSHOTS -->
+  <h2 id="screenshots">Dashboard Screenshots</h2>
+  <p>The <strong>Screenshot</strong> function captures the current state of the full dashboard — including the data panel and AI chat — and saves it as an image file on the server. Administrators can configure the save path in Settings. This feature is useful for visual record-keeping or including UI state in documentation.</p>
+
+  <div class="callout tip">
+    <div class="callout-icon">💡</div>
+    <p>The screenshot capture feature requires the server to have screenshot tooling available (e.g., a headless browser or OS-level capture tool). If it's not responding, check with your administrator that the server-side dependency is installed.</p>
+  </div>
+
+  <div style="height:60px;"></div>
+</main>
+</body>
+</html>

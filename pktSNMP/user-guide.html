@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktSNMP — Operator Guide</title>
+  <style>
+    :root{--bg:#090e1a;--surface:#0f1625;--surface2:#162032;--border:#1e2e48;
+      --accent:#00c9a7;--accent2:#3b82f6;--accent3:#f59e0b;--accent4:#a855f7;
+      --text:#e2e8f0;--muted:#7c8ea8;--red:#ef4444;--green:#22c55e;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+    a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+    .sidebar{width:252px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+      position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0;}
+    .sb-logo{padding:0 18px 18px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+    .sb-logo svg{width:130px;}
+    .sb-sec{padding:8px 18px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+    .sb-link{display:block;padding:7px 18px;font-size:.86rem;color:var(--muted);border-left:3px solid transparent;transition:all .15s;}
+    .sb-link:hover{color:var(--text);background:var(--surface2);text-decoration:none;}
+    .sb-link.act{color:var(--accent);border-left-color:var(--accent);background:rgba(0,201,167,.05);}
+    .sb-div{height:1px;background:var(--border);margin:10px 18px;}
+    .sb-other a{font-size:.78rem;color:var(--muted);display:block;padding:4px 18px;}
+    .main{flex:1;padding:48px 52px;max-width:860px;}
+    .pg-hdr{margin-bottom:44px;}
+    .pg-tag{display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;background:rgba(0,201,167,.1);color:var(--accent);
+      border:1px solid rgba(0,201,167,.28);margin-bottom:14px;}
+    h1{font-size:2rem;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;}
+    .pg-sub{font-size:1rem;color:var(--muted);}
+    .doc-sec{margin-bottom:56px;scroll-margin-top:20px;}
+    h2{font-size:1.3rem;font-weight:700;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    h3{font-size:.98rem;font-weight:700;margin:22px 0 9px;color:var(--accent);}
+    p{color:var(--muted);line-height:1.7;margin-bottom:12px;font-size:.9rem;}
+    .cg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+    .card{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;}
+    .ci{font-size:1.5rem;margin-bottom:7px;}.ct{font-size:.88rem;font-weight:700;margin-bottom:5px;}.cd{font-size:.78rem;color:var(--muted);}
+    .srow{display:flex;flex-direction:column;gap:8px;margin:14px 0;}
+    .si{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:11px 14px;}
+    .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+    .dot.r{background:#ef4444;box-shadow:0 0 7px #ef4444;}.dot.y{background:#f59e0b;box-shadow:0 0 7px #f59e0b;}
+    .dot.g{background:#22c55e;box-shadow:0 0 7px #22c55e;}.dot.gr{background:#4b5563;}
+    .si strong{font-size:.86rem;}.si p{font-size:.77rem;color:var(--muted);margin:0;}
+    .steps{display:flex;flex-direction:column;gap:14px;margin:14px 0;}
+    .step{display:flex;gap:14px;align-items:flex-start;}
+    .sn{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#000;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .sb strong{font-size:.9rem;display:block;margin-bottom:3px;}.sb p{font-size:.8rem;color:var(--muted);margin:0;}
+    table{width:100%;border-collapse:collapse;margin:14px 0;}
+    th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:.82rem;}
+    th{background:var(--surface2);color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;}
+    td{color:var(--muted);}td:first-child{color:var(--text);font-weight:600;}
+    .ck{color:var(--green);}.xx{color:#374151;}
+    .rlist{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0;}
+    .rlist li{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:7px 11px;font-size:.79rem;display:flex;gap:7px;align-items:center;}
+    .rlist li::before{content:'▸';color:var(--accent);}
+    .callout{display:flex;gap:11px;padding:13px 14px;border-radius:7px;margin:14px 0;background:rgba(0,201,167,.06);border:1px solid rgba(0,201,167,.22);}
+    .callout-i{font-size:1.1rem;flex-shrink:0;}.callout p{margin:0;font-size:.82rem;color:var(--muted);}
+    .callout strong{color:var(--text);}.callout.w{background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.22);}
+    .tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:.7rem;font-weight:700;
+      background:rgba(0,201,167,.1);color:var(--accent);border:1px solid rgba(0,201,167,.25);}
+  </style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sb-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 64">
+      <defs><clipPath id="c2"><rect width="172" height="64" rx="12"/></clipPath></defs>
+      <rect width="172" height="64" rx="12" fill="#111827"/>
+      <rect width="64" height="64" fill="#061d1d" clip-path="url(#c2)"/>
+      <g transform="translate(8,8) scale(2)">
+        <rect x="2" y="10" width="4" height="4" rx="1" fill="#2dd4bf"/>
+        <path d="M8 8.5 a6 6 0 0 1 0 7" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M11.5 6 a9.5 9.5 0 0 1 0 12" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <path d="M15 3.5 a13 13 0 0 1 0 17" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      </g>
+      <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+      <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">SNMP</text>
+    </svg>
+  </div>
+  <div class="sb-sec">Operator Guide</div>
+  <a href="#intro" class="sb-link act">Introduction</a>
+  <a href="#login" class="sb-link">Logging In</a>
+  <a href="#dashboard" class="sb-link">Dashboard</a>
+  <a href="#tree" class="sb-link">Environment Tree</a>
+  <a href="#devices" class="sb-link">Devices Page</a>
+  <a href="#metrics" class="sb-link">Metrics &amp; Charts</a>
+  <a href="#alerts" class="sb-link">Alerts</a>
+  <a href="#collectors" class="sb-link">Collectors</a>
+  <a href="#ai" class="sb-link">AI Assistant</a>
+  <a href="#roles" class="sb-link">Roles &amp; Permissions</a>
+  <div class="sb-div"></div>
+  <div class="sb-other">
+    <a href="index.html">← Overview</a>
+    <a href="admin-guide.html">Admin Guide</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="pg-hdr">
+    <span class="pg-tag">Operator Guide</span>
+    <h1>Using pktSNMP</h1>
+    <p class="pg-sub">Complete reference for network operators and analysts using the pktSNMP monitoring platform.</p>
+  </div>
+
+  <section class="doc-sec" id="intro">
+    <h2>Introduction</h2>
+    <p>pktSNMP is a real-time SNMP monitoring platform that collects telemetry from routers, switches, firewalls, and other network devices and displays it in an interactive dashboard.</p>
+    <div class="cg">
+      <div class="card"><div class="ci">👁</div><div class="ct">Monitor Device Health</div><div class="cd">Live up/down status for every device, organized by site and group.</div></div>
+      <div class="card"><div class="ci">📈</div><div class="ct">Analyze Traffic Metrics</div><div class="cd">Per-interface traffic rates, error counts, and operational status over time.</div></div>
+      <div class="card"><div class="ci">🔔</div><div class="ct">Respond to Alerts</div><div class="cd">Acknowledge and track alert events when devices go down or thresholds are crossed.</div></div>
+      <div class="card"><div class="ci">🤖</div><div class="ct">Query with AI</div><div class="cd">Ask plain-English questions about your network — get answers backed by live data.</div></div>
+    </div>
+  </section>
+
+  <section class="doc-sec" id="login">
+    <h2>Logging In</h2>
+    <p>Navigate to your pktSNMP server URL in a web browser to reach the login page.</p>
+    <div class="steps">
+      <div class="step"><div class="sn">1</div><div class="sb"><strong>Enter credentials</strong><p>Use the username and password your administrator provided, or click "Sign in with SSO" for single sign-on.</p></div></div>
+      <div class="step"><div class="sn">2</div><div class="sb"><strong>Dashboard loads</strong><p>After successful login you land on the main Dashboard. Your session stays active for 7 days via a secure refresh token.</p></div></div>
+      <div class="step"><div class="sn">3</div><div class="sb"><strong>Change your password</strong><p>If given a default password, go to Settings → Users and update it immediately.</p></div></div>
+    </div>
+    <div class="callout"><div class="callout-i">ℹ️</div><p><strong>SSO users:</strong> If your organization uses a SAML identity provider, click "Sign in with SSO." Your role is assigned by your IT admin in the identity provider — no action required on your part.</p></div>
+  </section>
+
+  <section class="doc-sec" id="dashboard">
+    <h2>Dashboard</h2>
+    <p>The Dashboard is your home base — a real-time summary of your entire network in one view.</p>
+    <h3>Environment Card</h3>
+    <p>The left panel shows the <strong>Environment Tree</strong>: a hierarchical list of all devices grouped by Org → Group → Site → Device. Status dots roll up from device to site to group — one red device instantly surfaces at every level above it.</p>
+    <h3>Collector Activity</h3>
+    <p>Small bar chart sparklines beneath each collector name show recent ingest activity. A flat sparkline means that collector hasn't sent data recently — contact your administrator.</p>
+    <h3>Alert Badge</h3>
+    <p>The navigation sidebar shows a live count of open, unacknowledged alerts, updated every 30 seconds.</p>
+  </section>
+
+  <section class="doc-sec" id="tree">
+    <h2>Environment Tree</h2>
+    <p>The Environment Tree gives you an at-a-glance picture of your entire network topology. Each node has a colored status dot:</p>
+    <div class="srow">
+      <div class="si"><div class="dot r"></div><div><strong>Red (pulsing)</strong><p>At least one device beneath this node is down or unreachable.</p></div></div>
+      <div class="si"><div class="dot y"></div><div><strong>Yellow (pulsing)</strong><p>At least one device has an active alert but is not fully down.</p></div></div>
+      <div class="si"><div class="dot g"></div><div><strong>Green</strong><p>All devices beneath this node are up and reporting normally.</p></div></div>
+      <div class="si"><div class="dot gr"></div><div><strong>Gray</strong><p>No enabled devices, or status is unknown (no recent data).</p></div></div>
+    </div>
+    <h3>Clicking a Device</h3>
+    <p>Click any device in the tree to open the <strong>Device Metrics Panel</strong> — a slide-in panel showing traffic sparklines, interface status, and quick links to the full Metrics page and alert rule creation.</p>
+    <h3>Hierarchy Levels</h3>
+    <p>The tree uses four levels: <strong>Org</strong> (top level, e.g., your company) → <strong>Group</strong> (a business unit or region) → <strong>Site</strong> (a physical or logical location) → <strong>Device</strong> (individual managed device).</p>
+  </section>
+
+  <section class="doc-sec" id="devices">
+    <h2>Devices Page</h2>
+    <p>The Devices page lists every network device registered in pktSNMP. Use it to find a specific device, check its current status, or manage device records (Admin / Analyst roles).</p>
+    <h3>Device Fields</h3>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Name</td><td>Display name shown in the tree and metrics pages</td></tr>
+      <tr><td>Device Type</td><td>Router / Switch / Firewall / Server / Wireless / UPS / Other</td></tr>
+      <tr><td>Status</td><td>Current up/down/unknown status from the most recent poll or trap</td></tr>
+      <tr><td>Last Seen</td><td>Timestamp of the most recent data received from this device</td></tr>
+      <tr><td>Collector</td><td>Which collector is responsible for polling this device</td></tr>
+      <tr><td>HA Role</td><td>Standalone / Active / Standby — for high-availability device pairs</td></tr>
+    </table>
+    <h3>CSV Export / Import</h3>
+    <p>Use the <strong>Export CSV</strong> button to download all device records. Analysts and admins can use <strong>Import CSV</strong> to bulk-create or update devices. New rows (unrecognized name + IP) are created; existing rows are updated by name match.</p>
+  </section>
+
+  <section class="doc-sec" id="metrics">
+    <h2>Metrics &amp; Charts</h2>
+    <p>The Metrics page provides full time-series visualization for any device. Access it by clicking <strong>View Full Metrics →</strong> in the Device Metrics Panel, or by navigating to Metrics in the sidebar and selecting a device.</p>
+    <h3>Available Charts</h3>
+    <div class="cg">
+      <div class="card"><div class="ct">Traffic (bps)</div><div class="cd">Inbound and outbound bytes per second per interface. Identifies bandwidth saturation.</div></div>
+      <div class="card"><div class="ct">Packets/sec</div><div class="cd">Unicast packet rate per interface. Useful for traffic pattern analysis.</div></div>
+      <div class="card"><div class="ct">Errors &amp; Discards</div><div class="cd">Input/output error and discard counts per interface over the selected time range.</div></div>
+      <div class="card"><div class="ct">Interface Speed</div><div class="cd">Negotiated speed per interface. Speed changes trigger alerts when configured.</div></div>
+    </div>
+    <h3>Time Range Selection</h3>
+    <p>Use the time picker in the top right of the Metrics page to select a preset range (1h, 6h, 24h, 7d) or enter a custom range. The URL updates to reflect your selection, so you can share a link to a specific view.</p>
+    <h3>Alert &amp; Trap Overlays</h3>
+    <p>Alert events and SNMP traps are shown as vertical markers on the charts, so you can correlate spikes in traffic or errors with specific incidents.</p>
+    <h3>CSV Export</h3>
+    <p>Click <strong>Export CSV</strong> on the Metrics page to download the raw time-series data for the selected device and time range. Useful for offline analysis or reporting.</p>
+    <div class="callout"><div class="callout-i">💡</div><p><strong>Tip:</strong> Bookmark a metrics URL with your preferred device and time range so you can return to the same view quickly.</p></div>
+  </section>
+
+  <section class="doc-sec" id="alerts">
+    <h2>Alerts</h2>
+    <p>The Alerts page shows all alert events — both open and resolved — generated by the alert engine. The engine evaluates all enabled rules every 60 seconds.</p>
+    <h3>Built-in Rule Types</h3>
+    <ul class="rlist">
+      <li>Interface down</li><li>Interface flapping</li>
+      <li>Metric threshold</li><li>Metric spike</li>
+      <li>Error rate</li><li>Discard rate</li>
+      <li>High error ratio</li><li>Bandwidth utilization</li>
+      <li>Speed change</li><li>Collector gap</li>
+      <li>Device unreachable</li><li>Trap received</li>
+    </ul>
+    <h3>Alert States</h3>
+    <div class="srow">
+      <div class="si"><div class="dot r"></div><div><strong>Open / Firing</strong><p>Condition is currently active. Device may be down or threshold exceeded.</p></div></div>
+      <div class="si"><div class="dot g"></div><div><strong>Resolved</strong><p>Condition cleared automatically — device recovered or metric returned to normal.</p></div></div>
+      <div class="si"><div class="dot gr"></div><div><strong>Acknowledged</strong><p>An analyst or admin has acknowledged the event. Still open but noted.</p></div></div>
+    </div>
+    <h3>Acknowledging Alerts</h3>
+    <p>Analysts and Admins can acknowledge open alerts by clicking the <strong>Acknowledge</strong> button on the alert row. This marks the alert as seen but does not resolve it — the engine will auto-resolve it when the condition clears.</p>
+    <h3>Notification Channels</h3>
+    <p>Alerts fire to configured channels: in-app badge, email, Slack, PagerDuty, or custom webhook. Contact your administrator to set up or modify notification channels in Settings → Alerts.</p>
+  </section>
+
+  <section class="doc-sec" id="collectors">
+    <h2>Collectors</h2>
+    <p>The Collectors page shows all registered data collectors — both the built-in local collector and any remote otelcol instances.</p>
+    <h3>Collector Status</h3>
+    <p>Each collector card shows a status indicator and a sparkline of recent poll activity (ingest events per time bucket). If a collector shows "unknown" status, it hasn't pushed data recently — this may indicate a network issue or a misconfigured remote collector.</p>
+    <h3>Local vs. Remote Collectors</h3>
+    <table>
+      <tr><th>Type</th><th>How it works</th><th>Where it runs</th></tr>
+      <tr><td>Local</td><td>Built-in pysnmp engine polls devices assigned to collector_id=1 and listens on UDP 162 for traps</td><td>In-process on the pktSNMP server</td></tr>
+      <tr><td>Remote</td><td>An otelcol-contrib instance polls devices at a remote site and sends data via OTLP HTTP</td><td>On a remote host at each site</td></tr>
+    </table>
+  </section>
+
+  <section class="doc-sec" id="ai">
+    <h2>AI Assistant</h2>
+    <p>The AI Assistant is accessible from the sidebar. It lets you ask natural-language questions about your network and get answers drawn directly from your live telemetry data.</p>
+    <h3>Example Questions</h3>
+    <div class="cg">
+      <div class="card"><div class="cd">"Which devices had interface errors in the last 2 hours?"</div></div>
+      <div class="card"><div class="cd">"Show me bandwidth utilization for Site A switches over the last 24 hours."</div></div>
+      <div class="card"><div class="cd">"Are there any devices that haven't been seen in the last 30 minutes?"</div></div>
+      <div class="card"><div class="cd">"What was the peak traffic rate on the core router yesterday?"</div></div>
+    </div>
+    <p>The AI assistant uses your actual metric data to answer — it is not a general-purpose chatbot. Complex or ambiguous questions may require more specific phrasing.</p>
+  </section>
+
+  <section class="doc-sec" id="roles">
+    <h2>Roles &amp; Permissions</h2>
+    <p>pktSNMP has three roles. Your role is assigned by your administrator and shown in Settings → Users.</p>
+    <table>
+      <tr><th>Action</th><th>Admin</th><th>Analyst</th><th>Viewer</th></tr>
+      <tr><td>View dashboard, metrics, alerts</td><td class="ck">✓</td><td class="ck">✓</td><td class="ck">✓</td></tr>
+      <tr><td>Acknowledge alerts</td><td class="ck">✓</td><td class="ck">✓</td><td class="xx">—</td></tr>
+      <tr><td>Add / edit devices</td><td class="ck">✓</td><td class="ck">✓</td><td class="xx">—</td></tr>
+      <tr><td>Configure alert rules</td><td class="ck">✓</td><td class="xx">—</td><td class="xx">—</td></tr>
+      <tr><td>Manage users &amp; settings</td><td class="ck">✓</td><td class="xx">—</td><td class="xx">—</td></tr>
+    </table>
+    <div class="callout w"><div class="callout-i">⚠️</div><p><strong>Need a higher role?</strong> Contact your administrator to request an Analyst or Admin role. If your organization uses SSO, roles are managed in your identity provider.</p></div>
+  </section>
+</main>
+</body>
+</html>

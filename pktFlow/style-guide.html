@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktFlow — Design System & Style Guide</title>
+  <style>
+    :root {
+      /* ─── CORE PALETTE ─────────────────────────────── */
+      --bg-primary:   #111827;   /* page background          */
+      --bg-card:      #0d1f3d;   /* card / sidebar surface   */
+      --bg-surface:   #1a2744;   /* elevated surface         */
+      --bg-deep:      #0a1628;   /* inset / code bg          */
+      /* ─── ACCENT ──────────────────────────────────── */
+      --accent:       #60a5fa;   /* primary blue highlight   */
+      --accent-dim:   #3b82f6;   /* button / interactive     */
+      /* ─── TEXT ────────────────────────────────────── */
+      --text-primary:   #ffffff;
+      --text-secondary: #9ca3af;
+      --text-muted:     #6b7280;
+      /* ─── BORDERS ─────────────────────────────────── */
+      --border:       #1e3a5f;
+      --border-accent: rgba(96,165,250,0.3);
+      /* ─── SEMANTIC ────────────────────────────────── */
+      --success:  #22c55e;
+      --warning:  #f59e0b;
+      --danger:   #ef4444;
+      --info:     #60a5fa;
+      /* ─── RADIUS ──────────────────────────────────── */
+      --radius-sm:  6px;
+      --radius-md:  10px;
+      --radius-lg:  14px;
+      --radius-xl:  16px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg-primary);color:var(--text-primary);
+      font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6;}
+    a{color:var(--accent);}
+    code,pre{font-family:'Cascadia Code','Courier New',monospace;}
+
+    /* ── LAYOUT ── */
+    .shell{display:flex;min-height:100vh;}
+    .sidebar{width:240px;flex-shrink:0;background:var(--bg-card);border-right:1px solid var(--border);
+      padding:1.5rem 1.25rem;position:sticky;top:0;height:100vh;overflow-y:auto;}
+    .sidebar-logo{margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);}
+    .sg-section-label{font-size:0.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+      color:var(--text-muted);margin:1.25rem 0 0.4rem;}
+    .sidebar nav a{display:block;padding:6px 10px;border-radius:var(--radius-sm);font-size:0.8rem;
+      color:var(--text-secondary);text-decoration:none;margin-bottom:1px;transition:all 0.15s;}
+    .sidebar nav a:hover{background:rgba(96,165,250,0.1);color:var(--accent);}
+    .content{flex:1;padding:3rem 3.5rem;max-width:960px;}
+
+    /* ── SECTION HEADERS ── */
+    .sg-section{margin-bottom:4rem;}
+    .sg-section-title{font-size:1.5rem;font-weight:800;margin-bottom:0.4rem;
+      padding-bottom:0.75rem;border-bottom:2px solid var(--accent);display:flex;align-items:center;gap:10px;}
+    .sg-section-desc{color:var(--text-secondary);font-size:0.9rem;margin-bottom:2rem;max-width:640px;}
+
+    /* ── DEMO + CODE BLOCKS ── */
+    .demo-block{background:var(--bg-card);border:1px solid var(--border);
+      border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.25rem;}
+    .demo-block .demo-preview{padding:1.75rem 2rem;}
+    .demo-block .demo-code{background:var(--bg-deep);border-top:1px solid var(--border);
+      padding:1.25rem 1.5rem;overflow-x:auto;}
+    .demo-block .demo-code pre{font-size:0.78rem;color:#e2e8f0;line-height:1.7;white-space:pre;}
+    .demo-label{font-size:0.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+      color:var(--text-muted);margin-bottom:1rem;}
+
+    /* ── COLOR SWATCHES ── */
+    .swatch-grid{display:flex;flex-wrap:wrap;gap:1rem;}
+    .swatch{border-radius:var(--radius-md);overflow:hidden;width:160px;
+      border:1px solid var(--border);}
+    .swatch-color{height:60px;}
+    .swatch-info{background:var(--bg-deep);padding:8px 10px;}
+    .swatch-name{font-size:0.75rem;font-weight:700;color:var(--text-primary);}
+    .swatch-value{font-size:0.7rem;color:var(--text-muted);font-family:monospace;}
+    .swatch-var{font-size:0.68rem;color:var(--accent);font-family:monospace;margin-top:2px;}
+
+    /* ── TYPE SCALE ── */
+    .type-row{display:flex;align-items:baseline;gap:1.5rem;padding:0.75rem 0;
+      border-bottom:1px solid rgba(30,58,95,0.5);}
+    .type-meta{width:140px;flex-shrink:0;font-size:0.75rem;color:var(--text-muted);font-family:monospace;}
+  </style>
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 158 64" height="34">
+      <rect width="64" height="64" rx="10" fill="#0d1f3d"/>
+      <g transform="translate(8,8) scale(2)">
+        <path d="M3 12h4l3-9 4 18 3-9h4" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="10" cy="3" r="1.5" fill="#60a5fa"/>
+        <circle cx="14" cy="21" r="1.5" fill="#60a5fa"/>
+      </g>
+      <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+      <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">FLOW</text>
+    </svg>
+    <div style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;letter-spacing:1px;text-transform:uppercase;">Design System</div>
+  </div>
+  <div class="sg-section-label">Foundation</div>
+  <nav>
+    <a href="#tokens">Design Tokens</a>
+    <a href="#colors">Color Palette</a>
+    <a href="#typography">Typography</a>
+    <a href="#logo">Logo Usage</a>
+  </nav>
+  <div class="sg-section-label">Components</div>
+  <nav>
+    <a href="#buttons">Buttons</a>
+    <a href="#badges">Badges &amp; Tags</a>
+    <a href="#cards">Cards</a>
+    <a href="#callouts">Callouts</a>
+    <a href="#tables">Tables</a>
+    <a href="#steps">Step Cards</a>
+  </nav>
+  <div class="sg-section-label">Patterns</div>
+  <nav>
+    <a href="#nav">Navigation Bar</a>
+    <a href="#layout-doc">Doc Layout</a>
+    <a href="#sections">Page Sections</a>
+    <a href="#diagrams">Diagrams</a>
+    <a href="#modals">Modals</a>
+  </nav>
+  <div class="sg-section-label">Reference</div>
+  <nav>
+    <a href="#base-css">Base CSS Template</a>
+    <a href="#rules">Hard Rules</a>
+  </nav>
+  <div style="margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border);">
+    <a href="index.html" style="font-size:0.75rem;color:var(--text-muted);text-decoration:none;">← Back to pktFlow</a>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="content">
+  <div style="margin-bottom:3rem;">
+    <div style="font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:0.5rem;">DESIGN SYSTEM</div>
+    <h1 style="font-size:2.4rem;font-weight:800;margin-bottom:0.75rem;">pktFlow Style Guide</h1>
+    <p style="color:var(--text-secondary);font-size:1.05rem;max-width:600px;">The complete reference for building pktFlow companion apps. Copy the base CSS template, follow the component patterns, and your UI will match the pktFlow visual language exactly.</p>
+  </div>
+
+<!-- ═══════════════════════════════════════════════
+     DESIGN TOKENS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="tokens">
+  <h2 class="sg-section-title">🎨 Design Tokens</h2>
+  <p class="sg-section-desc">Every color, radius, and semantic value is defined as a CSS custom property. Always reference tokens — never hardcode hex values in app code.</p>
+  <div class="demo-block">
+    <div class="demo-preview">
+      <div class="demo-label">CSS Variables — paste into your :root {}</div>
+      <pre style="font-size:0.78rem;color:#e2e8f0;line-height:1.9;background:var(--bg-deep);padding:1.25rem;border-radius:8px;overflow-x:auto;">:root {
+  /* Core backgrounds */
+  --bg-primary:   #111827;   /* page background            */
+  --bg-card:      #0d1f3d;   /* card, panel, sidebar       */
+  --bg-surface:   #1a2744;   /* elevated / hover surface   */
+  --bg-deep:      #0a1628;   /* inset wells, code blocks   */
+
+  /* Accent */
+  --accent:       #60a5fa;   /* highlights, links, icons   */
+  --accent-dim:   #3b82f6;   /* buttons, interactive       */
+
+  /* Text */
+  --text-primary:   #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted:     #6b7280;
+
+  /* Borders */
+  --border:         #1e3a5f;
+  --border-accent:  rgba(96,165,250,0.3);
+
+  /* Semantic */
+  --success:  #22c55e;
+  --warning:  #f59e0b;
+  --danger:   #ef4444;
+  --info:     #60a5fa;
+
+  /* Border radius scale */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  16px;
+}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     COLOR PALETTE
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="colors">
+  <h2 class="sg-section-title">🖌 Color Palette</h2>
+  <p class="sg-section-desc">Dark-first palette. All surfaces are shades of deep navy/charcoal. The single accent is a clear blue — used sparingly for emphasis only.</p>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-color" style="background:#111827;"></div><div class="swatch-info"><div class="swatch-name">BG Primary</div><div class="swatch-value">#111827</div><div class="swatch-var">--bg-primary</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#0d1f3d;"></div><div class="swatch-info"><div class="swatch-name">BG Card</div><div class="swatch-value">#0d1f3d</div><div class="swatch-var">--bg-card</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#1a2744;"></div><div class="swatch-info"><div class="swatch-name">BG Surface</div><div class="swatch-value">#1a2744</div><div class="swatch-var">--bg-surface</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#0a1628;"></div><div class="swatch-info"><div class="swatch-name">BG Deep</div><div class="swatch-value">#0a1628</div><div class="swatch-var">--bg-deep</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#60a5fa;"></div><div class="swatch-info"><div class="swatch-name">Accent</div><div class="swatch-value">#60a5fa</div><div class="swatch-var">--accent</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#3b82f6;"></div><div class="swatch-info"><div class="swatch-name">Accent Dim</div><div class="swatch-value">#3b82f6</div><div class="swatch-var">--accent-dim</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#1e3a5f;border:1px solid #2a4a70;"></div><div class="swatch-info"><div class="swatch-name">Border</div><div class="swatch-value">#1e3a5f</div><div class="swatch-var">--border</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#22c55e;"></div><div class="swatch-info"><div class="swatch-name">Success</div><div class="swatch-value">#22c55e</div><div class="swatch-var">--success</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#f59e0b;"></div><div class="swatch-info"><div class="swatch-name">Warning</div><div class="swatch-value">#f59e0b</div><div class="swatch-var">--warning</div></div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#ef4444;"></div><div class="swatch-info"><div class="swatch-name">Danger</div><div class="swatch-value">#ef4444</div><div class="swatch-var">--danger</div></div></div>
+  </div>
+  <div style="margin-top:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;font-size:0.85rem;color:var(--text-secondary);">
+    <strong style="color:var(--accent);">Rule:</strong> Never use accent blue for body text or large fills. It is for icons, highlights, borders, small labels, and interactive states only.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TYPOGRAPHY
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="typography">
+  <h2 class="sg-section-title">Aa Typography</h2>
+  <p class="sg-section-desc">System font stack. Never load a custom font — native fonts keep pages fast and consistent across Windows, macOS, and Linux.</p>
+  <div class="demo-block">
+    <div class="demo-preview">
+      <div class="demo-label">Font Stack</div>
+      <code style="color:var(--accent);font-size:0.85rem;">'Segoe UI', system-ui, -apple-system, sans-serif</code>
+      <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
+        <div class="type-row"><div class="type-meta">2.4rem / 800</div><div style="font-size:2.4rem;font-weight:800;letter-spacing:-0.02em;">Page Heading</div></div>
+        <div class="type-row"><div class="type-meta">1.8rem / 800</div><div style="font-size:1.8rem;font-weight:800;">Section Heading</div></div>
+        <div class="type-row"><div class="type-meta">1.4rem / 700</div><div style="font-size:1.4rem;font-weight:700;">Card / Panel Title</div></div>
+        <div class="type-row"><div class="type-meta">1.05rem / 600</div><div style="font-size:1.05rem;font-weight:600;color:var(--accent);">Subsection — accent color</div></div>
+        <div class="type-row"><div class="type-meta">1rem / 400</div><div style="font-size:1rem;color:var(--text-secondary);">Body text — secondary color for paragraphs</div></div>
+        <div class="type-row"><div class="type-meta">0.875rem / 400</div><div style="font-size:0.875rem;color:var(--text-secondary);">Small body / table cells</div></div>
+        <div class="type-row"><div class="type-meta">0.75rem / 700 CAPS</div><div style="font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);">SECTION LABEL / EYEBROW</div></div>
+        <div class="type-row"><div class="type-meta">0.7rem / 600 CAPS</div><div style="font-size:0.7rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);">sidebar category label</div></div>
+      </div>
+    </div>
+    <div class="demo-code"><pre>/* Page heading */
+font-size: clamp(2.4rem, 5vw, 4rem); font-weight: 800; letter-spacing: -0.02em;
+
+/* Section title */
+font-size: 1.4rem; font-weight: 700;
+
+/* Eyebrow / section label */
+font-size: 0.75rem; font-weight: 700; letter-spacing: 3px;
+text-transform: uppercase; color: var(--accent);
+
+/* Body */
+font-size: 1rem; color: var(--text-secondary); line-height: 1.7;
+
+/* Monospace (code, ids, values) */
+font-family: 'Cascadia Code', 'Courier New', monospace;</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     LOGO USAGE
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="logo">
+  <h2 class="sg-section-title">🔷 Logo Usage</h2>
+  <p class="sg-section-desc">Always inline the SVG — never use an &lt;img&gt; tag pointing to the .svg file. Browsers block SVG gradients and filters when loaded via &lt;img&gt; from the local filesystem.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="display:flex;gap:3rem;align-items:center;flex-wrap:wrap;">
+      <div>
+        <div class="demo-label">Lockup (nav, headers)</div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 158 64" height="44">
+          <rect width="64" height="64" rx="10" fill="#0d1f3d"/>
+          <g transform="translate(8,8) scale(2)"><path d="M3 12h4l3-9 4 18 3-9h4" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="10" cy="3" r="1.5" fill="#60a5fa"/><circle cx="14" cy="21" r="1.5" fill="#60a5fa"/></g>
+          <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+          <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">FLOW</text>
+        </svg>
+      </div>
+      <div>
+        <div class="demo-label">Icon only (favicon, compact)</div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" height="48">
+          <rect width="100" height="100" rx="22" fill="#0d1f3d"/>
+          <path d="M12.5 50h16.7l12.5-37.5 16.6 75 12.5-37.5h16.7" stroke="#60a5fa" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="41.7" cy="12.5" r="6" fill="#60a5fa"/>
+          <circle cx="58.3" cy="87.5" r="6" fill="#60a5fa"/>
+        </svg>
+      </div>
+      <div>
+        <div class="demo-label">On dark card surface</div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 158 64" height="34">
+            <rect width="64" height="64" rx="10" fill="#0d1f3d"/>
+            <g transform="translate(8,8) scale(2)"><path d="M3 12h4l3-9 4 18 3-9h4" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="10" cy="3" r="1.5" fill="#60a5fa"/><circle cx="14" cy="21" r="1.5" fill="#60a5fa"/></g>
+            <text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+            <text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">FLOW</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="demo-code"><pre>&lt;!-- ✅ CORRECT — inline SVG, transparent outer background --&gt;
+&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 158 64" height="38"&gt;
+  &lt;rect width="64" height="64" rx="10" fill="#0d1f3d"/&gt;  &lt;!-- icon panel only --&gt;
+  &lt;g transform="translate(8,8) scale(2)"&gt;
+    &lt;path d="M3 12h4l3-9 4 18 3-9h4" stroke="#60a5fa" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/&gt;
+    &lt;circle cx="10" cy="3" r="1.5" fill="#60a5fa"/&gt;
+    &lt;circle cx="14" cy="21" r="1.5" fill="#60a5fa"/&gt;
+  &lt;/g&gt;
+  &lt;text x="76" y="22" font-family="Courier New,monospace" font-size="10"
+        fill="#6b7280" letter-spacing="2"&gt;pkt&lt;/text&gt;
+  &lt;text x="74" y="48" font-family="Courier New,monospace" font-size="26"
+        font-weight="700" fill="white" letter-spacing="-1"&gt;FLOW&lt;/text&gt;
+&lt;/svg&gt;
+
+&lt;!-- ❌ WRONG — img tag makes SVG invisible on dark bg --&gt;
+&lt;img src="assets/logo-lockup.svg"/&gt;</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     BUTTONS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="buttons">
+  <h2 class="sg-section-title">Buttons</h2>
+  <p class="sg-section-desc">Two button variants: primary (filled) and secondary (ghost). No other button styles. Never use bare links for actions.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+      <a href="#" style="background:var(--accent-dim);color:white;padding:12px 28px;border-radius:var(--radius-md);font-weight:700;font-size:0.95rem;text-decoration:none;transition:all 0.2s;display:inline-block;">Primary Button</a>
+      <a href="#" style="background:transparent;color:var(--text-primary);padding:12px 28px;border-radius:var(--radius-md);font-weight:600;font-size:0.95rem;text-decoration:none;border:1px solid var(--border);display:inline-block;">Secondary Button</a>
+      <a href="#" style="background:rgba(96,165,250,0.1);border:1px solid var(--border-accent);color:var(--accent);padding:8px 18px;border-radius:var(--radius-md);font-size:0.85rem;font-weight:600;text-decoration:none;display:inline-block;">Ghost / Download</a>
+      <span style="background:var(--accent-dim);color:white;padding:6px 14px;border-radius:var(--radius-md);font-size:0.8rem;font-weight:600;opacity:0.45;cursor:not-allowed;">Disabled</span>
+    </div>
+    <div class="demo-code"><pre>/* Primary */
+background: var(--accent-dim); color: white;
+padding: 12px 28px; border-radius: var(--radius-md);
+font-weight: 700;
+/* hover */ background: var(--accent); transform: translateY(-1px);
+
+/* Secondary (ghost border) */
+background: transparent; color: var(--text-primary);
+border: 1px solid var(--border);
+/* hover */ border-color: var(--accent); color: var(--accent);
+
+/* Ghost / small action */
+background: rgba(96,165,250,0.1); border: 1px solid var(--border-accent);
+color: var(--accent); padding: 8px 18px;
+
+/* Disabled */
+opacity: 0.45; cursor: not-allowed; pointer-events: none;</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     BADGES
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="badges">
+  <h2 class="sg-section-title">Badges &amp; Tags</h2>
+  <p class="sg-section-desc">Small inline labels for status, roles, and page type. Always pill-shaped (border-radius: 20px) with a semi-transparent colored background.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+      <span style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:var(--accent);font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.5px;">PLATFORM OVERVIEW</span>
+      <span style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:#fcd34d;font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:20px;">IT ADMIN GUIDE</span>
+      <span style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#86efac;font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:20px;">● LIVE</span>
+      <span style="background:rgba(239,68,68,0.15);color:#fca5a5;font-size:0.75rem;font-weight:600;padding:3px 8px;border-radius:4px;">admin</span>
+      <span style="background:rgba(96,165,250,0.15);color:#93c5fd;font-size:0.75rem;font-weight:600;padding:3px 8px;border-radius:4px;">analyst</span>
+      <span style="background:rgba(107,114,128,0.2);color:#d1d5db;font-size:0.75rem;font-weight:600;padding:3px 8px;border-radius:4px;">viewer</span>
+    </div>
+    <div class="demo-code"><pre>/* Page-type pill badge */
+background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3);
+color: var(--accent); font-size: 0.75rem; font-weight: 700;
+padding: 4px 12px; border-radius: 20px; letter-spacing: 0.5px;
+
+/* Warning variant — swap accent for --warning */
+background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d;
+
+/* Role badge (square corners) */
+background: rgba(96,165,250,0.15); color: #93c5fd;
+padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CARDS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="cards">
+  <h2 class="sg-section-title">Cards</h2>
+  <p class="sg-section-desc">Cards use --bg-card background with a --border stroke and --radius-lg corners. On hover: lift slightly and highlight the border with --accent.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;transition:all 0.2s;">
+        <div style="width:44px;height:44px;border-radius:10px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:1rem;">📊</div>
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.4rem;">Feature Card</h3>
+        <p style="color:var(--text-secondary);font-size:0.875rem;line-height:1.7;">Description text in secondary color. Keep it under 3 lines.</p>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:1.5rem;">
+        <div style="width:44px;height:44px;border-radius:10px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:1rem;">⚡</div>
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.4rem;">Hover State</h3>
+        <p style="color:var(--text-secondary);font-size:0.875rem;line-height:1.7;">Border becomes --accent, card lifts 3px.</p>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;text-align:center;">
+        <div style="font-size:2rem;margin-bottom:0.75rem;">⚙️</div>
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.4rem;">Audience Card</h3>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:1rem;">Centered layout for role-based tiles.</p>
+        <a href="#" style="display:inline-block;background:rgba(96,165,250,0.1);border:1px solid var(--border-accent);color:var(--accent);padding:8px 16px;border-radius:var(--radius-sm);font-size:0.8rem;font-weight:600;text-decoration:none;">↓ Download</a>
+      </div>
+    </div>
+    <div class="demo-code"><pre>.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);   /* 14px */
+  padding: 1.5rem 2rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+.card-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: rgba(96,165,250,0.1);
+  border: 1px solid rgba(96,165,250,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; margin-bottom: 1rem;
+}</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CALLOUTS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="callouts">
+  <h2 class="sg-section-title">Callouts</h2>
+  <p class="sg-section-desc">Four semantic variants. Each uses a transparent tinted background with a matching border. Use for tips, notes, warnings, and critical alerts in docs.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="display:flex;flex-direction:column;gap:0.75rem;">
+      <div style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;gap:12px;font-size:0.9rem;color:#93c5fd;"><span>ℹ️</span><span><strong>Info:</strong> Used for context, reminders, or clarifications that readers should know.</span></div>
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;gap:12px;font-size:0.9rem;color:#86efac;"><span>💡</span><span><strong>Tip:</strong> Best practices, shortcuts, and pro advice. Green = positive / helpful.</span></div>
+      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;gap:12px;font-size:0.9rem;color:#fcd34d;"><span>⚠️</span><span><strong>Warning:</strong> Something to watch out for. Yellow = caution but not blocking.</span></div>
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;gap:12px;font-size:0.9rem;color:#fca5a5;"><span>🚨</span><span><strong>Danger:</strong> Security-critical or data-loss risk. Only use when something will break.</span></div>
+    </div>
+    <div class="demo-code"><pre>/* Base callout */
+.callout {
+  border-radius: var(--radius-md); padding: 1rem 1.25rem;
+  display: flex; gap: 12px; align-items: flex-start; font-size: 0.9rem;
+}
+/* Variants — swap color values */
+.callout.info    { background:rgba( 96,165,250,0.08); border:1px solid rgba( 96,165,250,0.25); color:#93c5fd; }
+.callout.tip     { background:rgba( 34,197, 94,0.08); border:1px solid rgba( 34,197, 94,0.25); color:#86efac; }
+.callout.warn    { background:rgba(245,158, 11,0.08); border:1px solid rgba(245,158, 11,0.25); color:#fcd34d; }
+.callout.danger  { background:rgba(239, 68, 68,0.08); border:1px solid rgba(239, 68, 68,0.25); color:#fca5a5; }</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TABLES
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="tables">
+  <h2 class="sg-section-title">Tables</h2>
+  <p class="sg-section-desc">Borderless rows with a subtle bottom border. Header uses --bg-card background and uppercase muted labels. Alternating row tint is optional.</p>
+  <div class="demo-block">
+    <div class="demo-preview">
+      <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+        <thead>
+          <tr>
+            <th style="background:var(--bg-card);color:var(--text-muted);font-weight:600;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Column A</th>
+            <th style="background:var(--bg-card);color:var(--text-muted);font-weight:600;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Column B</th>
+            <th style="background:var(--bg-card);color:var(--text-muted);font-weight:600;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);color:var(--text-secondary);">Row value one</td><td style="padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);color:var(--text-secondary);">Supporting detail</td><td style="padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);"><span style="color:var(--success);font-weight:600;font-size:0.8rem;">✓ Active</span></td></tr>
+          <tr style="background:rgba(13,31,61,0.4);"><td style="padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);color:var(--text-secondary);">Row value two</td><td style="padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);color:var(--text-secondary);">Supporting detail</td><td style="padding:10px 14px;border-bottom:1px solid rgba(30,58,95,0.5);"><span style="color:var(--warning);font-weight:600;font-size:0.8rem;">⚠ Pending</span></td></tr>
+          <tr><td style="padding:10px 14px;color:var(--text-secondary);">Row value three</td><td style="padding:10px 14px;color:var(--text-secondary);">Supporting detail</td><td style="padding:10px 14px;"><span style="color:var(--text-muted);font-weight:600;font-size:0.8rem;">— N/A</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="demo-code"><pre>.data-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+.data-table th {
+  background: var(--bg-card); color: var(--text-muted);
+  font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 10px 14px; color: var(--text-secondary);
+  border-bottom: 1px solid rgba(30,58,95,0.5);
+  vertical-align: top;
+}
+/* Optional zebra stripe */
+.data-table tr:nth-child(even) td { background: rgba(13,31,61,0.4); }
+/* Hover row highlight */
+.data-table tr:hover td { background: rgba(96,165,250,0.04); }</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     STEP CARDS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="steps">
+  <h2 class="sg-section-title">Step Cards</h2>
+  <p class="sg-section-desc">Numbered sequential steps. Step number circle color matches the guide type: blue for user guides, amber for admin guides.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="display:flex;flex-direction:column;gap:0.75rem;">
+      <div style="display:flex;gap:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-dim);color:white;font-weight:700;font-size:0.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">1</div>
+        <div><h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.25rem;">Step Title</h4><p style="color:var(--text-secondary);font-size:0.875rem;margin:0;">Step description — keep concise. One action per step.</p></div>
+      </div>
+      <div style="display:flex;gap:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--warning);color:#111827;font-weight:700;font-size:0.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">2</div>
+        <div><h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.25rem;">Admin Variant</h4><p style="color:var(--text-secondary);font-size:0.875rem;margin:0;">Admin guides use amber (--warning) for the step number circle.</p></div>
+      </div>
+    </div>
+    <div class="demo-code"><pre>.step {
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 1rem 1.25rem;
+}
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  color: white; font-weight: 700; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 2px;
+}
+/* User guide steps */   .step-num { background: var(--accent-dim); }
+/* Admin guide steps */  .step-num { background: var(--warning); color: #111827; }</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     NAVIGATION BAR
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="nav">
+  <h2 class="sg-section-title">Navigation Bar</h2>
+  <p class="sg-section-desc">Sticky top nav with frosted glass blur. Height always 64px. Logo left, links center, CTA button right. On mobile: hide links, keep logo + CTA.</p>
+  <div class="demo-block">
+    <div class="demo-preview" style="padding:0;overflow:hidden;border-radius:var(--radius-lg);">
+      <div style="position:relative;background:rgba(17,24,39,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 158 64" height="34"><rect width="64" height="64" rx="10" fill="#0d1f3d"/><g transform="translate(8,8) scale(2)"><path d="M3 12h4l3-9 4 18 3-9h4" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="10" cy="3" r="1.5" fill="#60a5fa"/><circle cx="14" cy="21" r="1.5" fill="#60a5fa"/></g><text x="76" y="22" font-family="Courier New,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text><text x="74" y="48" font-family="Courier New,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">FLOW</text></svg>
+        <div style="display:flex;gap:2rem;">
+          <span style="color:var(--text-secondary);font-size:0.875rem;font-weight:500;">Features</span>
+          <span style="color:var(--text-secondary);font-size:0.875rem;font-weight:500;">How It Works</span>
+          <span style="color:var(--text-secondary);font-size:0.875rem;font-weight:500;">Architecture</span>
+        </div>
+        <span style="background:var(--accent-dim);color:white;padding:8px 20px;border-radius:var(--radius-sm);font-size:0.875rem;font-weight:600;">Get Started</span>
+      </div>
+    </div>
+    <div class="demo-code"><pre>nav {
+  position: sticky; top: 0; z-index: 100; height: 64px;
+  background: rgba(17,24,39,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+/* Links */ color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;
+/* Link hover */ color: var(--text-primary);
+/* CTA */ background: var(--accent-dim); padding: 8px 20px;
+          border-radius: var(--radius-sm); font-weight: 600;</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     DOC LAYOUT (SIDEBAR + CONTENT)
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="layout-doc">
+  <h2 class="sg-section-title">Doc Page Layout</h2>
+  <p class="sg-section-desc">All guide pages use a sticky 260px sidebar + scrollable content area. The sidebar sticks at height 100vh with its own overflow-y scroll.</p>
+  <div class="demo-block">
+    <div class="demo-code"><pre>/* Shell */
+.shell { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 260px; flex-shrink: 0;
+  background: var(--bg-card); border-right: 1px solid var(--border);
+  padding: 2rem 1.5rem;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.sidebar-section {           /* category label */
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin: 1.5rem 0 0.5rem;
+}
+.sidebar nav a {
+  display: block; padding: 7px 12px; border-radius: 7px;
+  font-size: 0.875rem; color: var(--text-secondary); text-decoration: none;
+}
+.sidebar nav a:hover, .sidebar nav a.active {
+  background: rgba(96,165,250,0.1); color: var(--accent);
+}
+
+/* Content */
+.content { flex: 1; padding: 3rem 4rem; max-width: 900px; }</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE SECTIONS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="sections">
+  <h2 class="sg-section-title">Page Section Pattern</h2>
+  <p class="sg-section-desc">Every section on marketing/overview pages follows the same 4-part header: eyebrow label → title → subtitle → content. Spacing and max-width are fixed.</p>
+  <div class="demo-block">
+    <div class="demo-preview">
+      <div style="text-align:center;margin-bottom:2rem;">
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:0.75rem;">EYEBROW LABEL</div>
+        <h2 style="font-size:2rem;font-weight:800;margin-bottom:0.75rem;">Section Heading Goes Here</h2>
+        <p style="color:var(--text-secondary);font-size:1rem;max-width:560px;margin:0 auto;">Supporting subtitle — one or two sentences that expand on the heading. Max-width 600px, centered.</p>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1.25rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">[ content grid / diagram / table goes here ]</div>
+    </div>
+    <div class="demo-code"><pre>section { padding: 5rem 2rem; }
+.section-inner { max-width: 1100px; margin: 0 auto; }
+
+/* Eyebrow */
+.section-label {
+  text-align: center; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--accent);
+  margin-bottom: 1rem;
+}
+/* Title */
+.section-title {
+  text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800; margin-bottom: 1rem;
+}
+/* Subtitle */
+.section-sub {
+  text-align: center; color: var(--text-secondary);
+  font-size: 1.05rem; max-width: 600px; margin: 0 auto 3.5rem;
+}
+/* Alternate section bg */
+#section-id { background: rgba(13,31,61,0.4); }</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     DIAGRAMS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="diagrams">
+  <h2 class="sg-section-title">Diagrams</h2>
+  <p class="sg-section-desc">Always inline SVG — never &lt;img&gt;. SVGs must declare xmlns and use the standard pktFlow SVG palette below. Wrap in a .diagram-wrap div for the border and scroll.</p>
+  <div class="demo-block">
+    <div class="demo-code"><pre>/* SVG palette — use only these values inside diagrams */
+Background gradient:  #0d1f3d → #111827  (linearGradient)
+Zone fill:            #0a1628
+Card/panel fill:      #0d1f3d
+Border stroke:        #1e3a5f
+Accent stroke:        #60a5fa  (highlight borders, arrows)
+Secondary stroke:     #3b82f6  (secondary components)
+Text primary:         white (#ffffff)
+Text secondary:       #9ca3af
+Text muted/label:     #4b5563 or #6b7280
+Arrow/marker fill:    #60a5fa
+
+/* Container */
+.diagram-wrap {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); padding: 2rem; overflow-x: auto;
+}
+.diagram-wrap svg { width: 100%; display: block; margin: 0 auto; }
+
+/* Required SVG defs block (copy into every diagram) */
+&lt;defs&gt;
+  &lt;linearGradient id="diagBg" x1="0%" y1="0%" x2="100%" y2="100%"&gt;
+    &lt;stop offset="0%" style="stop-color:#0d1f3d"/&gt;
+    &lt;stop offset="100%" style="stop-color:#111827"/&gt;
+  &lt;/linearGradient&gt;
+  &lt;marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"&gt;
+    &lt;polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa"/&gt;
+  &lt;/marker&gt;
+  &lt;filter id="glow"&gt;
+    &lt;feGaussianBlur stdDeviation="2.5" result="cb"/&gt;
+    &lt;feMerge&gt;&lt;feMergeNode in="cb"/&gt;&lt;feMergeNode in="SourceGraphic"/&gt;&lt;/feMerge&gt;
+  &lt;/filter&gt;
+&lt;/defs&gt;
+&lt;rect width="W" height="H" rx="16" fill="url(#diagBg)"/&gt;
+
+/* To make a diagram zoomable (modal pop-out) */
+&lt;div class="diagram-wrap" onclick="openDiagramModal()" style="cursor:zoom-in;"&gt;
+  ... inline SVG ...
+&lt;/div&gt;
+/* Then add the modal pattern (see Modals section) */</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="modals">
+  <h2 class="sg-section-title">Modals</h2>
+  <p class="sg-section-desc">Full-screen overlay with frosted glass backdrop. Used for diagram zoom. Close via ✕ button, backdrop click, or Escape key.</p>
+  <div class="demo-block">
+    <div class="demo-preview">
+      <button onclick="document.getElementById('sg-modal-demo').classList.add('open')"
+        style="background:var(--accent-dim);color:white;padding:10px 24px;border-radius:var(--radius-md);font-weight:600;font-size:0.9rem;border:none;cursor:pointer;">Open Demo Modal</button>
+    </div>
+    <div class="demo-code"><pre>/* CSS */
+#my-modal {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(7,12,22,0.92); backdrop-filter: blur(8px);
+  align-items: center; justify-content: center; padding: 2rem;
+}
+#my-modal.open { display: flex; }
+.modal-inner {
+  background: var(--bg-card); border: 1px solid var(--accent);
+  border-radius: var(--radius-xl); padding: 1.5rem;
+  max-width: 95vw; max-height: 90vh; overflow: auto; position: relative;
+  animation: modal-in 0.2s ease;
+}
+@keyframes modal-in {
+  from { opacity:0; transform: scale(0.95); }
+  to   { opacity:1; transform: scale(1); }
+}
+.modal-close {
+  position: absolute; top: 12px; right: 14px;
+  background: rgba(96,165,250,0.1); border: 1px solid var(--border);
+  color: var(--accent); width: 32px; height: 32px; border-radius: 8px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--accent); color: white; }
+
+/* JS */
+function openModal() {
+  document.getElementById('my-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('my-modal')) {
+    document.getElementById('my-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+document.addEventListener('keydown', e =&gt; {
+  if (e.key === 'Escape') {
+    document.getElementById('my-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+});</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     BASE CSS TEMPLATE
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="base-css">
+  <h2 class="sg-section-title">📋 Base CSS Template</h2>
+  <p class="sg-section-desc">Copy this entire block as the starting point for any new pktApp. It includes all tokens, resets, and the three most-used component classes.</p>
+  <div class="demo-block">
+    <div class="demo-code"><pre>/* ════════════════════════════════════════════
+   pktFlow Base CSS — copy this into every new pktApp
+   ════════════════════════════════════════════ */
+:root {
+  --bg-primary:     #111827;
+  --bg-card:        #0d1f3d;
+  --bg-surface:     #1a2744;
+  --bg-deep:        #0a1628;
+  --accent:         #60a5fa;
+  --accent-dim:     #3b82f6;
+  --text-primary:   #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted:     #6b7280;
+  --border:         #1e3a5f;
+  --border-accent:  rgba(96,165,250,0.3);
+  --success:        #22c55e;
+  --warning:        #f59e0b;
+  --danger:         #ef4444;
+  --radius-sm:      6px;
+  --radius-md:      10px;
+  --radius-lg:      14px;
+  --radius-xl:      16px;
+}
+
+/* Reset */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Base */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+a { color: var(--accent); }
+code, pre { font-family: 'Cascadia Code', 'Courier New', monospace; }
+
+/* Sticky nav */
+nav.pkt-nav {
+  position: sticky; top: 0; z-index: 100; height: 64px;
+  background: rgba(17,24,39,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem; display: flex; align-items: center;
+  justify-content: space-between;
+}
+
+/* Card */
+.pkt-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.5rem 2rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.pkt-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+
+/* Callout */
+.pkt-callout {
+  border-radius: var(--radius-md); padding: 1rem 1.25rem;
+  display: flex; gap: 12px; align-items: flex-start; font-size: 0.9rem;
+}
+.pkt-callout.info   { background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.25); color:#93c5fd; }
+.pkt-callout.tip    { background:rgba(34,197,94,0.08);  border:1px solid rgba(34,197,94,0.25);  color:#86efac; }
+.pkt-callout.warn   { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:#fcd34d; }
+.pkt-callout.danger { background:rgba(239,68,68,0.08);  border:1px solid rgba(239,68,68,0.25);  color:#fca5a5; }
+
+/* Buttons */
+.btn-primary {
+  background: var(--accent-dim); color: white;
+  padding: 12px 28px; border-radius: var(--radius-md);
+  font-weight: 700; text-decoration: none; display: inline-block;
+  transition: all 0.2s;
+}
+.btn-primary:hover { background: var(--accent); transform: translateY(-1px); text-decoration: none; }
+.btn-secondary {
+  background: transparent; color: var(--text-primary);
+  border: 1px solid var(--border); padding: 12px 28px;
+  border-radius: var(--radius-md); font-weight: 600;
+  text-decoration: none; display: inline-block; transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+/* Table */
+.pkt-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.pkt-table th {
+  background: var(--bg-card); color: var(--text-muted); font-weight: 600;
+  padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pkt-table td { padding: 10px 14px; color: var(--text-secondary);
+  border-bottom: 1px solid rgba(30,58,95,0.5); vertical-align: top; }
+.pkt-table tr:hover td { background: rgba(96,165,250,0.04); }
+
+/* Code block */
+pre.pkt-code {
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 1.25rem 1.5rem;
+  font-size: 0.82rem; color: #e2e8f0; overflow-x: auto; line-height: 1.7;
+}
+
+/* Section layout */
+section.pkt-section { padding: 5rem 2rem; }
+.pkt-section-inner { max-width: 1100px; margin: 0 auto; }
+.pkt-eyebrow {
+  text-align: center; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 1rem;
+}
+.pkt-section-title {
+  text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800; margin-bottom: 1rem;
+}
+.pkt-section-sub {
+  text-align: center; color: var(--text-secondary);
+  font-size: 1.05rem; max-width: 600px; margin: 0 auto 3.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pkt-hide-mobile { display: none; }
+  section.pkt-section { padding: 3rem 1.25rem; }
+}</pre></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     HARD RULES
+════════════════════════════════════════════════ -->
+<div class="sg-section" id="rules">
+  <h2 class="sg-section-title">⛔ Hard Rules</h2>
+  <p class="sg-section-desc">These are non-negotiable for visual consistency across all pktApps.</p>
+  <div style="display:flex;flex-direction:column;gap:0.75rem;">
+    <div style="display:flex;gap:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="color:var(--danger);font-size:1.1rem;flex-shrink:0;">⛔</span>
+      <div><strong>Never use &lt;img&gt; for SVG files.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">SVG gradients and filters break when loaded via img from the filesystem. Always inline the SVG markup directly in the HTML.</span></div>
+    </div>
+    <div style="display:flex;gap:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="color:var(--danger);font-size:1.1rem;flex-shrink:0;">⛔</span>
+      <div><strong>Never hardcode hex colors in app CSS.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">Always use CSS custom properties (var(--token-name)). This ensures a single source of truth and makes future rebranding possible.</span></div>
+    </div>
+    <div style="display:flex;gap:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="color:var(--danger);font-size:1.1rem;flex-shrink:0;">⛔</span>
+      <div><strong>Never load external fonts.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">Use the system font stack only. No Google Fonts, no @font-face. Native fonts keep pages fast and visually consistent across OS.</span></div>
+    </div>
+    <div style="display:flex;gap:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="color:var(--danger);font-size:1.1rem;flex-shrink:0;">⛔</span>
+      <div><strong>Never use a white or light background.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">pktFlow is a dark-first design system. The lightest surface is --bg-surface (#1a2744). No section, card, or modal should use a light background.</span></div>
+    </div>
+    <div style="display:flex;gap:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="color:var(--danger);font-size:1.1rem;flex-shrink:0;">⛔</span>
+      <div><strong>Never introduce a second accent color.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">The only non-semantic color is blue (#60a5fa / #3b82f6). Semantic colors (success, warning, danger) are for status indicators only — not decorative use.</span></div>
+    </div>
+    <div style="display:flex;gap:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="color:var(--danger);font-size:1.1rem;flex-shrink:0;">⛔</span>
+      <div><strong>Never skip the SVG id namespace when combining diagrams.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">If two inline SVGs appear on the same page, their &lt;defs&gt; ids must be unique (e.g. id="glow-flow" vs id="glow-arch"). Shared ids cause one diagram to steal the other's defs.</span></div>
+    </div>
+    <div style="display:flex;gap:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:var(--radius-md);padding:1rem 1.25rem;align-items:flex-start;">
+      <span style="font-size:1.1rem;flex-shrink:0;">✅</span>
+      <div><strong style="color:#86efac;">Do: start from the Base CSS Template.</strong><br/><span style="color:var(--text-secondary);font-size:0.875rem;">Copy the Base CSS block from the section above as your starting stylesheet. Add your app-specific rules below it. Do not rewrite what's already defined.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer style="margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" height="28"><rect width="100" height="100" rx="22" fill="#0d1f3d"/><path d="M12.5 50h16.7l12.5-37.5 16.6 75 12.5-37.5h16.7" stroke="#60a5fa" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="41.7" cy="12.5" r="6" fill="#60a5fa"/><circle cx="58.3" cy="87.5" r="6" fill="#60a5fa"/></svg>
+    <span style="font-size:0.8rem;color:var(--text-muted);">pktFlow Design System</span>
+  </div>
+  <div style="font-size:0.75rem;color:var(--text-muted);">Use these patterns in every pktApp to maintain visual consistency across the platform.</div>
+</footer>
+
+</main>
+</div>
+
+<!-- DEMO MODAL -->
+<div id="sg-modal-demo" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(7,12,22,0.92);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:2rem;" onclick="if(event.target===this){this.classList.remove('open');this.style.display='none';}">
+  <div style="background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--radius-xl);padding:2rem;max-width:500px;width:100%;position:relative;animation:modal-in 0.2s ease;">
+    <button onclick="document.getElementById('sg-modal-demo').classList.remove('open');document.getElementById('sg-modal-demo').style.display='none';" style="position:absolute;top:12px;right:14px;background:rgba(96,165,250,0.1);border:1px solid var(--border);color:var(--accent);width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;">✕</button>
+    <div style="font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border);">Modal Demo</div>
+    <p style="color:var(--text-secondary);margin-bottom:1rem;">This is the pktFlow modal pattern. Click the backdrop or press Escape to close.</p>
+    <div style="background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem;font-size:0.85rem;color:#e2e8f0;font-family:monospace;">border: 1px solid var(--accent);<br/>animation: modal-in 0.2s ease;</div>
+  </div>
+</div>
+<style>
+  @keyframes modal-in { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+  #sg-modal-demo.open { display:flex !important; }
+</style>
+<script>
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var m = document.getElementById('sg-modal-demo');
+      m.classList.remove('open'); m.style.display = 'none';
+    }
+  });
+</script>
+
+</body>
+</html>
