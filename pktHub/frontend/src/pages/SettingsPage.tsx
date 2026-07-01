@@ -1220,43 +1220,43 @@ function NOCSection({ settings, set, save }: {
   save: { save: () => Promise<void>; saving: boolean; saved: boolean; error: string }
 }) {
   const { isAdmin, isAnalyst } = useAuth()
-  const [noc, setNOC Displays] = useState<any[]>([])
-  const [nocLoading, setNOC DisplaysLoading] = useState(true)
+  const [noc, setNocList] = useState<any[]>([])
+  const [nocLoading, setNocListLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [copied, setCopied] = useState<number | null>(null)
 
-  const loadNOC Displays = () => {
-    setNOC DisplaysLoading(true)
-    api.listNOC().then(setNOC Displays).catch(() => {}).finally(() => setNOC DisplaysLoading(false))
+  const loadNocList = () => {
+    setNocListLoading(true)
+    api.listNOC().then(setNocList).catch(() => {}).finally(() => setNocListLoading(false))
   }
-  useEffect(() => { loadNOC Displays() }, [])
+  useEffect(() => { loadNocList() }, [])
 
   const canCreate = isAdmin || isAnalyst
 
   const create = async () => {
     setCreating(true); setCreateError('')
     try {
-      await api.createNOC({ ...form, slides: [] })
+      await api.createNOC({ ...form, layout: [] })
       setShowForm(false)
       setForm({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
-      loadNOC Displays()
+      loadNocList()
     } catch (e: any) { setCreateError(e.message) }
     finally { setCreating(false) }
   }
 
   const del = async (id: number, name: string) => {
-    if (!confirm(`Delete noc "${name}"?`)) return
-    await api.deleteNOC(id).then(loadNOC Displays).catch((e: any) => alert(e.message))
+    if (!confirm(`Delete NOC display "${name}"?`)) return
+    await api.deleteNOC(id).then(loadNocList).catch((e: any) => alert(e.message))
   }
 
   const publish = async (k: any) => {
     try {
       if (k.is_published) await api.unpublishNOC(k.id)
       else await api.publishNOC(k.id)
-      loadNOC Displays()
+      loadNocList()
     } catch (e: any) { alert(e.message) }
   }
 

@@ -7,7 +7,7 @@ import { Monitor, Plus, Trash2, Globe, EyeOff, Copy, ExternalLink, Pencil } from
 export default function NOCBuilderPage() {
   const { isAdmin, isAnalyst } = useAuth()
   const navigate = useNavigate()
-  const [noc, setNOC Displays] = useState<any[]>([])
+  const [nocList, setNocList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', display_mode: 'static', dwell_seconds: 30 })
@@ -15,7 +15,7 @@ export default function NOCBuilderPage() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState<number | null>(null)
 
-  const load = () => api.listNOC().then(setNOC Displays).catch(() => {}).finally(() => setLoading(false))
+  const load = () => api.listNOC().then(setNocList).catch(() => {}).finally(() => setLoading(false))
   useEffect(() => { load() }, [])
 
   const create = async () => {
@@ -34,7 +34,7 @@ export default function NOCBuilderPage() {
   }
 
   const del = async (id: number, name: string) => {
-    if (!confirm(`Delete noc "${name}"?`)) return
+    if (!confirm(`Delete NOC display "${name}"?`)) return
     await api.deleteNOC(id).then(load).catch(e => alert(e.message))
   }
 
@@ -126,14 +126,14 @@ export default function NOCBuilderPage() {
       )}
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
-      {!loading && noc.length === 0 && (
+      {!loading && nocList.length === 0 && (
         <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#111827' }}>
-          No noc yet. Create one to get started.
+          No NOC displays yet. Create one to get started.
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {noc.map(k => (
+        {nocList.map(k => (
           <div key={k.id} className="rounded-xl border border-purple-500/15 p-4 space-y-3" style={{ background: '#111827' }}>
             <div className="flex items-start justify-between">
               <div>

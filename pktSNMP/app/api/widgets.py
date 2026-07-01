@@ -107,6 +107,10 @@ def _fmt_ts(ts: str) -> str:
     if not ts: return '—'
     return str(ts)[:19].replace('T', ' ')
 
+def _auth_color(count: int) -> str:
+    return '#f87171' if (count or 0) > 0 else '#475569'
+
+
 
 # ── Device Table widget ───────────────────────────────────────────────────────
 
@@ -140,7 +144,7 @@ async def widget_device_table():
             f"<td><span class='status-dot status-{_status_class(r['status'])}'></span>{r['name'] or '—'}</td>"
             f"<td style='font-family:monospace;color:#60a5fa'>{r['ip'] or '—'}</td>"
             f"<td style='color:#64748b'>{r['device_type'] or '—'}</td>"
-            f"<td><span class='badge badge-{_badge_class(r[\"status\"])}'>{(r['status'] or 'unknown').upper()}</span></td>"
+            f"<td><span class='badge badge-{_badge_class(r['status'])}'>{(r['status'] or 'unknown').upper()}</span></td>"
             f"<td style='font-size:10px;color:#475569'>{_fmt_ts(r['last_seen'])}</td>"
             f"</tr>"
             for r in rows
@@ -204,11 +208,11 @@ async def widget_collector_status():
     if rows:
         trs = "".join(
             f"<tr>"
-            f"<td><span class='status-dot status-{_status_class(r[\"status\"])}'></span>{r['name'] or '—'}</td>"
+            f"<td><span class='status-dot status-{_status_class(r['status'])}'></span>{r['name'] or '—'}</td>"
             f"<td style='font-family:monospace;color:#60a5fa'>{r['ip'] or '—'}</td>"
-            f"<td><span class='badge badge-{_badge_class(r[\"status\"])}'>{(r['status'] or 'unknown').upper()}</span></td>"
+            f"<td><span class='badge badge-{_badge_class(r['status'])}'>{(r['status'] or 'unknown').upper()}</span></td>"
             f"<td style='font-size:10px;color:#475569'>{_fmt_ts(r['last_seen'])}</td>"
-            f"<td style='color:{\"#f87171\" if (r[\"auth_failure_count\"] or 0) > 0 else \"#475569\"}'>{r['auth_failure_count'] or 0}</td>"
+            f"<td style='color:{_auth_color(r['auth_failure_count'])}'>{r['auth_failure_count'] or 0}</td>"
             f"</tr>"
             for r in rows
         )
