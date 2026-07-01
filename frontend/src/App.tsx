@@ -7,7 +7,6 @@ import DashboardPage from './pages/DashboardPage'
 import AppManagerPage from './pages/AppManagerPage'
 import KioskBuilderPage from './pages/KioskBuilderPage'
 import SettingsPage from './pages/SettingsPage'
-import UsersPage from './pages/UsersPage'
 import AuditPage from './pages/AuditPage'
 import ProxyShell from './pages/ProxyShell'
 import KioskDisplayPage from './pages/KioskDisplayPage'
@@ -42,11 +41,12 @@ export default function App() {
             <Route path="apps" element={<AppManagerPage />} />
             <Route path="kiosks" element={<KioskBuilderPage />} />
             <Route path="audit" element={<AuditPage />} />
-            <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+            {/* Users is now under Settings → Users tab */}
+            <Route path="users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
             <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
           </Route>
 
-          {/* Proxied pktXXXX apps — thin top bar mode */}
+          {/* Proxied pktApps — thin top bar mode */}
           <Route path="/proxy/:appId/*" element={<RequireAuth><ProxyShell /></RequireAuth>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />

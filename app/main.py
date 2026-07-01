@@ -16,8 +16,12 @@ from app.kiosk import router as kiosk_router
 from app.audit import router as audit_router
 from app.settings_api import router as settings_router
 from app.dashboard import router as dashboard_router
+from app.notifications import router as notifications_router
+from app.alert_rules import router as alert_rules_router
+from app.ssl_api import router as ssl_router
+from app.backup_api import router as backup_router
 
-app = FastAPI(title="pktSuite", version="1.0.0", docs_url="/api/docs")
+app = FastAPI(title="pktHub", version="1.0.0", docs_url="/api/docs")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,10 +40,14 @@ app.include_router(kiosk_router)
 app.include_router(audit_router)
 app.include_router(settings_router)
 app.include_router(dashboard_router)
+app.include_router(notifications_router)
+app.include_router(alert_rules_router)
+app.include_router(ssl_router)
+app.include_router(backup_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "pktsuite", "version": "1.0.0"}
+    return {"status": "ok", "service": "pkthub", "version": "1.0.0"}
 
 @app.on_event("startup")
 async def startup():

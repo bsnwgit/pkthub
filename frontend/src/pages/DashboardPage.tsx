@@ -57,8 +57,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">NOC/SOC Dashboard</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Platform overview — live health across all registered apps</p>
+          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Platform overview — live health across all registered pktApps</p>
         </div>
         <button onClick={load} className="text-xs text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg border border-gray-700 hover:border-gray-500 transition-colors">
           Refresh
@@ -121,8 +121,8 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-xs text-gray-500 mb-2">{app.base_url}</p>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.mode === 'managed' ? 'bg-orange-900/30 text-orange-400' : 'bg-blue-900/20 text-blue-400'}`}>
-                    {app.mode === 'managed' ? 'Managed' : 'Observe'}
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.status === 'managed' ? 'bg-orange-900/30 text-orange-400' : 'bg-blue-900/20 text-blue-400'}`}>
+                    {app.status === 'managed' ? 'Managed' : 'Observe'}
                   </span>
                   <span className="text-xs text-gray-500">Open &rarr;</span>
                 </div>

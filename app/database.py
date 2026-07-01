@@ -49,9 +49,16 @@ async def init_db():
                 widget_manifest TEXT DEFAULT '[]',
                 supported_versions TEXT DEFAULT '[1]',
                 registered_at TEXT DEFAULT (datetime('now')),
-                registered_by INTEGER REFERENCES users(id)
+                registered_by INTEGER REFERENCES users(id),
+                return_url TEXT DEFAULT NULL
             )
         """)
+
+        # Migration: add return_url to existing databases that predate this column
+        async with db.execute("PRAGMA table_info(registered_apps)") as cur:
+            cols = {row[1] for row in await cur.fetchall()}
+        if "return_url" not in cols:
+            await db.execute("ALTER TABLE registered_apps ADD COLUMN return_url TEXT DEFAULT NULL")
 
         await db.execute("""
             CREATE TABLE IF NOT EXISTS kiosk_layouts (
@@ -100,5 +107,35 @@ async def init_db():
                 created_at TEXT DEFAULT (datetime('now'))
             )
         """)
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS alert_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                severity TEXT NOT NULL DEFAULT 'warning',
+                description TEXT DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+
+        # Seed default alert rules if table is empty
+        async with db.execute("SELECT COUNT(*) FROM alert_rules") as cur:
+            row = await cur.fetchone()
+        if row[0] == 0:
+            defaults = [
+                ("App goes unreachable",       "app.unreachable",       "critical", "Fired when a registered pktAPP app stops responding to health checks."),
+                ("App health degraded",         "app.degraded",          "warning",  "Fired when a pktAPP app responds but reports a non-healthy status."),
+                ("App health recovered",        "app.recovered",         "info",     "Fired when a previously unreachable or degraded app comes back healthy."),
+                ("Break-glass unlock triggered","break_glass.triggered", "critical", "Fired when the --emergency-unlock CLI is invoked on a pktAPP app."),
+                ("App mode changed",            "app.mode_change",       "info",     "Fired when a pktAPP app is switched between Observe and Managed mode."),
+            ]
+            for name, event_type, severity, description in defaults:
+                await db.execute(
+                    "INSERT INTO alert_rules (name, event_type, severity, description, enabled) VALUES (?, ?, ?, ?, 1)",
+                    (name, event_type, severity, description)
+                )
 
         await db.commit()

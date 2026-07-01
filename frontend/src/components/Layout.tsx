@@ -1,23 +1,20 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PktSuiteLockup } from './Logo'
 import {
-  LayoutDashboard, Server, Monitor, Users, Settings, FileText, LogOut, ChevronRight
+  LayoutDashboard, Monitor, Settings, FileText, LogOut
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/apps', label: 'App Manager', icon: Server },
   { to: '/kiosks', label: 'Kiosk Builder', icon: Monitor },
   { to: '/audit', label: 'Audit Log', icon: FileText, analystOk: true },
-  { to: '/users', label: 'Users', icon: Users, adminOnly: true },
   { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
 ]
 
 export default function Layout() {
   const { user, logout, isAdmin, isAnalyst } = useAuth()
-  const navigate = useNavigate()
 
   const visible = navItems.filter(item => {
     if (item.adminOnly) return isAdmin
@@ -30,8 +27,8 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="flex flex-col w-60 shrink-0 border-r border-gray-800" style={{ background: '#0d1f3c' }}>
         {/* Logo */}
-        <div className="flex items-center px-4 py-4 border-b border-gray-800">
-          <PktSuiteLockup height={36} />
+        <div className="flex items-center px-3 py-3 border-b border-gray-800">
+          <PktSuiteLockup height={44} />
         </div>
 
         {/* Nav */}

@@ -1,95 +1,170 @@
-import { useState, FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, FormEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { PktSuiteIcon } from '../components/Logo'
+import { api } from '../api/client'
+import { PktSuiteLockup } from '../components/Logo'
+
+const SSO_ERROR_MESSAGES: Record<string, string> = {
+  missing_params:          'SSO login failed: missing code or state.',
+  invalid_state:           'SSO login failed: invalid state (possible CSRF). Please try again.',
+  user_inactive:           'Your account is inactive. Contact an administrator.',
+  saml_disabled:           'SAML SSO is not currently enabled.',
+  saml_init_failed:        'Failed to initiate SAML login. Check your IdP configuration.',
+  saml_processing_failed:  'SAML response could not be processed. Check your IdP configuration.',
+  saml_invalid_response:   'SAML response validation failed. Check IdP certificate and entity IDs.',
+  not_authenticated:       'SAML authentication was not confirmed by the IdP.',
+}
+
+function getCookie(name: string): string | null {
+  const m = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+function clearCookie(name: string) {
+  document.cookie = `${name}=; max-age=0; path=/; samesite=lax`
+}
 
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [searchParams] = useSearchParams()
 
-  const submit = async (e: FormEvent) => {
+  const [username, setUsername]     = useState('')
+  const [password, setPassword]     = useState('')
+  const [error, setError]           = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [samlEnabled, setSamlEnabled]   = useState(false)
+  const [localEnabled, setLocalEnabled] = useState(true)
+  const [samlLoading, setSamlLoading]   = useState(false)
+
+  useEffect(() => {
+    // Handle SSO token dropped by SAML callback
+    if (searchParams.get('sso') === '1') {
+      const token    = getCookie('sso_access_token')
+      const role     = getCookie('sso_role')
+      const uname    = getCookie('sso_username')
+      if (token) {
+        clearCookie('sso_access_token')
+        clearCookie('sso_role')
+        clearCookie('sso_username')
+        localStorage.setItem('pkthub_token', token)
+        if (role)  localStorage.setItem('pkthub_role', role)
+        if (uname) localStorage.setItem('pkthub_username', uname)
+        window.location.href = '/'
+        return
+      }
+    }
+
+    const ssoError = searchParams.get('sso_error')
+    if (ssoError) {
+      setError(SSO_ERROR_MESSAGES[ssoError] ?? `SSO error: ${ssoError}`)
+    }
+
+    api.authConfig()
+      .then(data => {
+        if (data.saml_enabled) setSamlEnabled(true)
+        setLocalEnabled(data.local_enabled !== false)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
       await login(username, password)
-      navigate('/', { replace: true })
+      navigate('/')
     } catch (err: any) {
-      setError(err.message || 'Invalid credentials')
+      setError(err.message || 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
+  const handleSamlLogin = () => {
+    setSamlLoading(true)
+    window.location.href = '/api/auth/saml/login'
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
-      {/* Radial glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, #60a5fa 0%, #2dd4bf 33%, #4ade80 66%, #a78bfa 100%)' }} />
-      </div>
-
-      <div className="relative z-10 w-full max-w-sm px-4">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="w-full max-w-sm px-4">
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <PktSuiteIcon size={56} />
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white">pktSuite</h1>
-          <p className="mt-1 text-sm text-gray-400">NOC/SOC Management Platform</p>
+        <div className="flex justify-center mb-8">
+          <PktSuiteLockup height={52} />
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-gray-700/50 p-6" style={{ background: '#111827' }}>
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                required
-                autoFocus
-                className="w-full px-3 py-2.5 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="admin"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 space-y-5">
 
-            {error && (
-              <div className="rounded-lg px-3 py-2 text-sm text-red-400 bg-red-900/20 border border-red-800/30">
-                {error}
+          {/* SAML SSO button — shown when configured */}
+          {samlEnabled && (
+            <>
+              <button
+                type="button"
+                onClick={handleSamlLogin}
+                disabled={samlLoading}
+                className="w-full flex items-center justify-center gap-2.5 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 transition-colors"
+              >
+                <svg viewBox="0 0 28 28" className="w-5 h-5 flex-shrink-0" fill="currentColor">
+                  <circle cx="14" cy="14" r="14" fill="white"/>
+                  <circle cx="14" cy="14" r="6" fill="#007DC1"/>
+                </svg>
+                {samlLoading ? 'Redirecting…' : 'Sign in with Okta'}
+              </button>
+
+              {localEnabled && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-gray-700" />
+                  <span className="text-xs text-gray-500">or</span>
+                  <div className="flex-1 h-px bg-gray-700" />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Local login form */}
+          {localEnabled && (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-white mb-1.5">Username or Email</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  required
+                  autoFocus
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="admin"
+                />
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-white mb-1.5">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-60"
-              style={{ background: 'linear-gradient(90deg, #60a5fa, #2dd4bf)' }}
-            >
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
-        </div>
+              {error && (
+                <div className="bg-red-950 border border-red-800 rounded-lg px-3 py-2 text-red-300 text-sm">
+                  {error}
+                </div>
+              )}
 
-        {/* Quad color indicator */}
-        <div className="mt-6 flex justify-center gap-1.5">
-          {['#60a5fa', '#2dd4bf', '#4ade80', '#a78bfa'].map(c => (
-            <div key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
-          ))}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 transition-colors"
+              >
+                {loading ? 'Signing in…' : 'Sign in'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

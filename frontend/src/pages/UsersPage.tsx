@@ -48,7 +48,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Users</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Manage pktSuite user accounts and roles</p>
+          <p className="text-sm text-gray-400 mt-0.5">Manage pktHub user accounts and roles</p>
         </div>
         <button
           onClick={() => setShowForm(v => !v)}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { api } from '../api/client'
+import { api, setMemoryToken, clearMemoryToken } from '../api/client'
 
 interface User {
   id: number
@@ -24,11 +24,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('pktsuite_token')
+    const token = localStorage.getItem('pkthub_token')
     if (token) {
+      setMemoryToken(token)
       api.me()
         .then(u => setUser(u as User))
-        .catch(() => localStorage.removeItem('pktsuite_token'))
+        .catch(() => {
+          clearMemoryToken()
+          localStorage.removeItem('pkthub_token')
+        })
         .finally(() => setLoading(false))
     } else {
       setLoading(false)
@@ -37,13 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     const res = await api.login(username, password)
-    localStorage.setItem('pktsuite_token', res.access_token)
+    setMemoryToken(res.access_token)
+    localStorage.setItem('pkthub_token', res.access_token)
     const me = await api.me()
     setUser(me as User)
   }
 
   const logout = () => {
-    localStorage.removeItem('pktsuite_token')
+    clearMemoryToken()
+    localStorage.removeItem('pkthub_token')
     setUser(null)
     window.location.href = '/login'
   }

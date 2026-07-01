@@ -60,9 +60,22 @@ class PasswordChange(BaseModel):
 # --- App Registry ---
 class AppRegisterRequest(BaseModel):
     name: str
-    display_name: str
     base_url: str
-    app_type: str
+    description: str = ""
+    display_name: Optional[str] = None   # defaults to name if omitted
+    app_type: str = "pktapp"
+    # Optional: pktHub's own URL as the browser sees it (e.g. https://172.23.80.5:8760).
+    # When set, the proxy uses this as an absolute base for proxied HTML responses
+    # instead of a root-relative path. Useful when the hub hostname doesn't resolve
+    # from the server's own DNS but an IP does.
+    return_url: Optional[str] = None
+
+class AppUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    base_url: Optional[str] = None
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    return_url: Optional[str] = None
 
 class AppOut(BaseModel):
     id: int
@@ -70,12 +83,39 @@ class AppOut(BaseModel):
     display_name: str
     base_url: str
     app_type: str
-    status: str
+    status: str       # observe | managed | offline
+    mode: str = ""    # alias populated from status for frontend compat
     health_status: str
     last_health_check: Optional[str] = None
     widget_manifest: List[Any] = []
     supported_versions: List[int] = [1]
     registered_at: str
+    return_url: Optional[str] = None
+
+# --- Alert Rules ---
+class AlertRuleCreate(BaseModel):
+    name: str
+    event_type: str
+    severity: str = "warning"
+    description: str = ""
+    enabled: bool = True
+
+class AlertRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    event_type: Optional[str] = None
+    severity: Optional[str] = None
+    description: Optional[str] = None
+    enabled: Optional[bool] = None
+
+class AlertRuleOut(BaseModel):
+    id: int
+    name: str
+    event_type: str
+    severity: str
+    description: str
+    enabled: bool
+    created_at: str
+    updated_at: str
 
 class AppStatusUpdate(BaseModel):
     status: AppStatus

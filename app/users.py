@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 import aiosqlite
 from app.database import get_db
 from app.auth import get_current_user, require_admin, hash_password, verify_password
@@ -15,9 +15,9 @@ async def list_users(
     async with db.execute("SELECT * FROM users ORDER BY created_at DESC") as cur:
         rows = await cur.fetchall()
     return [UserOut(
-        id=r["id"], username=r["username"], email=r["email"],
+        id=r["id"], username=r["username"], email=r["email"] or "",
         role=r["role"], is_active=bool(r["is_active"]),
-        created_at=r["created_at"], last_login=r.get("last_login")
+        created_at=r["created_at"], last_login=r["last_login"]
     ) for r in rows]
 
 @router.post("", response_model=UserOut, status_code=201)
@@ -62,9 +62,9 @@ async def update_user(
         row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserOut(id=row["id"], username=row["username"], email=row["email"],
+    return UserOut(id=row["id"], username=row["username"], email=row["email"] or "",
                    role=row["role"], is_active=bool(row["is_active"]),
-                   created_at=row["created_at"], last_login=row.get("last_login"))
+                   created_at=row["created_at"], last_login=row["last_login"])
 
 @router.delete("/{user_id}", status_code=204)
 async def delete_user(
@@ -87,4 +87,17 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Current password incorrect")
     hashed = hash_password(body.new_password)
     await db.execute("UPDATE users SET hashed_password = ? WHERE id = ?", (hashed, current_user["id"]))
+    await db.commit()
+
+@router.post("/{user_id}/reset-password", status_code=204)
+async def reset_user_password(
+    user_id: int,
+    password: str = Body(..., embed=True),
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    if not password:
+        raise HTTPException(status_code=400, detail="password required")
+    hashed = hash_password(password)
+    await db.execute("UPDATE users SET hashed_password = ? WHERE id = ?", (hashed, user_id))
     await db.commit()

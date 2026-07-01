@@ -8,7 +8,7 @@ from typing import List
 
 from app.database import get_db
 from app.auth import require_admin, require_analyst_or_admin, get_current_user
-from app.models import AppRegisterRequest, AppOut, AppStatusUpdate
+from app.models import AppRegisterRequest, AppUpdateRequest, AppOut, AppStatusUpdate
 from app.audit import write_audit
 
 router = APIRouter(prefix="/api/apps", tags=["registry"])
@@ -18,13 +18,16 @@ SUITE_VERSION = 1
 def _parse_app(row) -> AppOut:
     manifest = json.loads(row["widget_manifest"]) if row["widget_manifest"] else []
     versions = json.loads(row["supported_versions"]) if row["supported_versions"] else [1]
+    status = row["status"] or "observe"
     return AppOut(
         id=row["id"], name=row["name"], display_name=row["display_name"],
         base_url=row["base_url"], app_type=row["app_type"],
-        status=row["status"], health_status=row["health_status"] or "unknown",
+        status=status, mode=status,   # mode mirrors status for frontend compat
+        health_status=row["health_status"] or "unknown",
         last_health_check=row["last_health_check"],
         widget_manifest=manifest, supported_versions=versions,
-        registered_at=row["registered_at"]
+        registered_at=row["registered_at"],
+        return_url=row["return_url"] if "return_url" in row.keys() else None,
     )
 
 @router.get("", response_model=List[AppOut])
@@ -44,8 +47,10 @@ async def register_app(
     db: aiosqlite.Connection = Depends(get_db)
 ):
     suite_token = secrets.token_urlsafe(32)
+    display_name = body.display_name or body.name
+    app_type = body.app_type or "pktapp"
 
-    # Attempt handshake with the pktXXXX app
+    # Attempt handshake with the pktAPP app
     manifest = []
     supported_versions = [1]
     try:
@@ -64,18 +69,17 @@ async def register_app(
                 manifest = data.get("widget_manifest", [])
                 supported_versions = data.get("supported_suite_versions", [1])
     except Exception:
-        # Handshake failed — register in observe mode anyway, mark health as unknown
         pass
 
     cur = await db.execute(
         """INSERT INTO registered_apps
            (name, display_name, base_url, app_type, suite_token, status,
-            widget_manifest, supported_versions, registered_by)
-           VALUES (?, ?, ?, ?, ?, 'observe', ?, ?, ?)
+            widget_manifest, supported_versions, registered_by, return_url)
+           VALUES (?, ?, ?, ?, ?, 'observe', ?, ?, ?, ?)
            RETURNING *""",
-        (body.name, body.display_name, body.base_url, body.app_type,
+        (body.name, display_name, body.base_url, app_type,
          suite_token, json.dumps(manifest), json.dumps(supported_versions),
-         current_user["id"])
+         current_user["id"], body.return_url)
     )
     row = await cur.fetchone()
     await db.commit()
@@ -83,6 +87,45 @@ async def register_app(
     await write_audit(db, current_user, "app.register", f"app:{body.name}", {"base_url": body.base_url})
     background_tasks.add_task(poll_health, row["id"], body.base_url, suite_token)
 
+    return _parse_app(row)
+
+@router.patch("/{app_id}", response_model=AppOut)
+async def update_app(
+    app_id: int,
+    body: AppUpdateRequest,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+
+    updates = {}
+    if body.name is not None:
+        updates["name"] = body.name
+    if body.base_url is not None:
+        updates["base_url"] = body.base_url
+    if body.display_name is not None:
+        updates["display_name"] = body.display_name
+    if body.return_url is not None:
+        # Empty string means clear it
+        updates["return_url"] = body.return_url if body.return_url.strip() else None
+    elif body.return_url == "":
+        updates["return_url"] = None
+
+    if not updates:
+        return _parse_app(app)
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [app_id]
+    await db.execute(f"UPDATE registered_apps SET {set_clause} WHERE id = ?", values)
+    await db.commit()
+
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        row = await cur.fetchone()
+
+    await write_audit(db, current_user, "app.update", f"app:{row['name']}", updates)
     return _parse_app(row)
 
 @router.delete("/{app_id}", status_code=204)
@@ -96,7 +139,6 @@ async def deregister_app(
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
 
-    # Notify the pktXXXX app to deregister
     try:
         async with httpx.AsyncClient(verify=False, timeout=10) as client:
             await client.post(
@@ -105,7 +147,7 @@ async def deregister_app(
                 headers={"X-Suite-Version": str(SUITE_VERSION), "X-Suite-Token": app["suite_token"]}
             )
     except Exception:
-        pass  # Deregister locally regardless
+        pass
 
     await db.execute("DELETE FROM registered_apps WHERE id = ?", (app_id,))
     await db.commit()
@@ -139,7 +181,6 @@ async def rotate_token(
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
 
-    # Push new token to app
     try:
         async with httpx.AsyncClient(verify=False, timeout=10) as client:
             await client.post(
@@ -156,7 +197,6 @@ async def rotate_token(
     return {"message": "Token rotated"}
 
 async def poll_health(app_id: int, base_url: str, suite_token: str):
-    """Background task: check app health and update DB."""
     import aiosqlite as _aio
     settings_obj = __import__("app.config", fromlist=["get_settings"]).get_settings()
     try:

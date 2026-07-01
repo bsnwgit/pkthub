@@ -1,5 +1,5 @@
 """
-pktSuite deploy script
+pktHub deploy script
 Uploads source to pkt server, builds frontend, restarts service.
 Run: python deploy.py
 """
@@ -14,10 +14,10 @@ sys.stdout.reconfigure(encoding='utf-8')
 HOST = "172.23.80.5"
 USER = "ec2-user"
 KEY_PATH = r"C:\Users\robert.barnett\.ssh\VyneCorpNetInfra.pem"
-LOCAL_ROOT = r"C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktDashboard"
-REMOTE_ROOT = "/mnt/software/pktsuite"
+LOCAL_ROOT = r"C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub"
+REMOTE_ROOT = "/mnt/software/pkthub"
 
-SKIP_PATTERNS = {".git", "node_modules", "__pycache__", ".pyc", "dist", "*.db", "config.yaml", "pktsuite_briefing.md"}
+SKIP_PATTERNS = {".git", "node_modules", "__pycache__", ".pyc", "dist", "*.db", "config.yaml", "pkthub_briefing.md"}
 
 def should_skip(path: str) -> bool:
     name = os.path.basename(path)
@@ -52,6 +52,9 @@ def run(client, cmd, label=""):
 
 def sftp_upload(sftp, local_dir, remote_dir):
     """Recursively upload local_dir to remote_dir."""
+    if not os.path.exists(local_dir):
+        print(f"  !! SKIPPED (not found): {local_dir}")
+        return
     for root, dirs, files in os.walk(local_dir):
         # Filter dirs in-place
         dirs[:] = [d for d in dirs if not should_skip(os.path.join(root, d))]
@@ -74,8 +77,9 @@ def sftp_upload(sftp, local_dir, remote_dir):
 
 def main():
     print("=" * 60)
-    print("pktSuite Deploy")
+    print("pktHub Deploy")
     print("=" * 60)
+    print(f"  Source: {LOCAL_ROOT}")
 
     print("\n[1] Connecting…")
     client = connect()
@@ -97,7 +101,7 @@ def main():
 
     # Upload root-level Python/config files
     print("\n[4] Uploading root files…")
-    for fname in ["requirements.txt", "config.example.yaml", "pktsuite.service"]:
+    for fname in ["requirements.txt", "config.example.yaml", "pkthub.service"]:
         local = os.path.join(LOCAL_ROOT, fname)
         if os.path.exists(local):
             sftp.put(local, f"{REMOTE_ROOT}/{fname}")
@@ -118,8 +122,8 @@ def main():
     # Build frontend in /tmp (avoids disk space issues in app dir)
     print("\n[7] Building frontend (npm install + vite build)…")
     build_cmd = (
-        f"cd /tmp && rm -rf pktsuite_build && cp -r {REMOTE_ROOT}/frontend pktsuite_build && "
-        f"cd pktsuite_build && npm install --silent && npm run build && "
+        f"cd /tmp && rm -rf pkthub_build && cp -r {REMOTE_ROOT}/frontend pkthub_build && "
+        f"cd pkthub_build && npm install --silent && npm run build && "
         f"rm -rf {REMOTE_ROOT}/frontend/dist && "
         f"cp -r dist {REMOTE_ROOT}/frontend/dist"
     )
@@ -128,7 +132,7 @@ def main():
     # Install/reload systemd service
     print("\n[8] Installing systemd service…")
     run(client,
-        f"sudo cp {REMOTE_ROOT}/pktsuite.service /etc/systemd/system/pktsuite.service && sudo systemctl daemon-reload",
+        f"sudo cp {REMOTE_ROOT}/pkthub.service /etc/systemd/system/pkthub.service && sudo systemctl daemon-reload",
         "systemctl daemon-reload")
 
     # Create config from example if not present
@@ -137,14 +141,14 @@ def main():
         "ensure config.yaml")
 
     # Restart service
-    print("\n[9] Restarting pktSuite service…")
-    run(client, "sudo systemctl restart pktsuite", "restart")
+    print("\n[9] Restarting pktHub service…")
+    run(client, "sudo systemctl restart pkthub", "restart")
     time.sleep(3)
-    run(client, "sudo systemctl is-active pktsuite", "is-active check")
-    run(client, "sudo systemctl status pktsuite --no-pager -l | head -30", "status")
+    run(client, "sudo systemctl is-active pkthub", "is-active check")
+    run(client, "sudo systemctl status pkthub --no-pager -l | head -30", "status")
 
     client.close()
-    print("\n[DONE] pktSuite deployed. https://172.23.80.5:8760")
+    print("\n[DONE] pktHub deployed. https://172.23.80.5:8760")
 
 if __name__ == "__main__":
     main()

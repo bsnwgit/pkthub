@@ -62,7 +62,7 @@ export default function KioskBuilderPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Kiosk Builder</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Create and publish NOC/SOC wall display layouts</p>
+          <p className="text-sm text-gray-400 mt-0.5">Create and publish wall display layouts</p>
         </div>
         {canCreate && (
           <button
@@ -184,9 +184,9 @@ export default function KioskBuilderPage() {
       <div className="rounded-xl border border-blue-800/30 p-4 text-sm" style={{ background: '#0f1f38' }}>
         <p className="text-blue-300 font-medium mb-1">Widget Library</p>
         <p className="text-gray-400 text-xs">
-          When a pktXXXX app is registered, pktSuite reads its <code className="text-blue-300">/api/widgets/manifest</code> endpoint
+          When a pktAPP app is registered, pktHub reads its <code className="text-blue-300">/api/widgets/manifest</code> endpoint
           to discover available widgets. Registered widget types will appear in the builder library for drag-and-drop placement.
-          Ensure pktXXXX apps implement the manifest endpoint (Track 2).
+          Ensure pktApps implement the manifest endpoint (Track 2).
         </p>
       </div>
     </div>

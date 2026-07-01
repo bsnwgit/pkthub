@@ -1,8 +1,8 @@
 host: "0.0.0.0"
 port: 8760
 https: true
-ssl_certfile: "/etc/ssl/pktsuite/cert.pem"
-ssl_keyfile: "/etc/ssl/pktsuite/key.pem"
+ssl_certfile: "/etc/ssl/pkthub/cert.pem"
+ssl_keyfile: "/etc/ssl/pkthub/key.pem"
 
 # Secret key for JWT signing — generate with: openssl rand -hex 32
 jwt_secret: "CHANGE_ME_generate_with_openssl_rand_hex_32"
@@ -20,7 +20,7 @@ okta_client_id: ""
 okta_client_secret: ""
 
 # SQLite database path
-db_path: "/mnt/software/pktsuite/pktsuite.db"
+db_path: "/mnt/software/pkthub/pkthub.db"
 
 # Health polling interval (seconds)
 health_poll_interval: 30

@@ -23,7 +23,10 @@ export default function ProxyShell() {
   useEffect(() => {
     api.listApps().then(apps => {
       const found = apps.find(a => String(a.id) === appId)
-      if (found) setApp(found)
+      if (!found) return
+      // Establish proxy session cookie BEFORE creating the iframe.
+      // Ignore failures — a leftover cookie may already be valid.
+      api.createProxySession(Number(appId)).catch(() => {}).finally(() => setApp(found))
     })
   }, [appId])
 
@@ -52,7 +55,7 @@ export default function ProxyShell() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => navigate('/')}
-            title="pktSuite Home"
+            title="pktHub Home"
             className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
           >
             <Home size={16} />
