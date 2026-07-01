@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktPCAP — Administrator Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-deep: #030712; --bg-dark: #0d1117; --bg-card: #111827;
+      --bg-border: #1f2937; --purple: #8b6ce8; --purple-glow: #a78bfa;
+      --blue: #3b82f6; --text-pri: #f9fafb; --text-sec: #9ca3af;
+      --text-dim: #4b5563; --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: Inter, -apple-system, sans-serif; background: var(--bg-deep);
+      color: var(--text-pri); line-height: 1.6; display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 260px; flex-shrink: 0; background: var(--bg-dark);
+      border-right: 1px solid var(--bg-border);
+      position: fixed; top: 0; left: 0; bottom: 0;
+      overflow-y: auto; padding: 28px 16px; z-index: 50;
+    }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; padding: 0 8px; }
+    .sidebar-logo svg { width: 32px; height: 32px; border-radius: 7px; }
+    .sidebar-logo-name { font-size: 16px; font-weight: 700; }
+    .sidebar-section { font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text-dim); padding: 0 12px; margin: 20px 0 8px; }
+    .sidebar-link { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text-sec);
+      text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; }
+    .sidebar-link:hover { background: var(--bg-card); color: var(--text-pri); }
+    .sidebar-guide-label { display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+      border-radius: 6px; font-size: 11px; font-weight: 600; color: #60a5fa;
+      background: rgba(59,130,246,0.08); margin-bottom: 8px; }
+    .sidebar-back { display: flex; align-items: center; gap: 6px; color: var(--text-dim);
+      font-size: 12px; text-decoration: none; padding: 6px 12px; margin-bottom: 16px;
+      border-radius: 6px; transition: color 0.15s; }
+    .sidebar-back:hover { color: var(--text-sec); }
+
+    .main { margin-left: 260px; flex: 1; max-width: 860px; padding: 60px 56px; }
+
+    .guide-hero { margin-bottom: 60px; padding-bottom: 48px; border-bottom: 1px solid var(--bg-border); }
+    .guide-badge { display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25);
+      color: #60a5fa; padding: 5px 14px; border-radius: 100px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 20px; }
+    .guide-hero h1 { font-size: 38px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 16px; }
+    .guide-hero p { font-size: 16px; color: var(--text-sec); max-width: 580px; line-height: 1.75; }
+
+    h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin: 56px 0 16px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--bg-border); }
+    h3 { font-size: 18px; font-weight: 700; margin: 32px 0 12px; }
+    h4 { font-size: 13px; font-weight: 700; color: #60a5fa; margin: 24px 0 8px;
+      text-transform: uppercase; letter-spacing: 0.6px; }
+    p { color: var(--text-sec); font-size: 15px; line-height: 1.8; margin-bottom: 16px; }
+    strong { color: var(--text-pri); font-weight: 600; }
+    code { font-family: 'Fira Code', monospace; font-size: 13px; color: var(--purple-glow);
+      background: rgba(139,108,232,0.1); padding: 2px 6px; border-radius: 4px; }
+    pre { background: var(--bg-card); border: 1px solid var(--bg-border); border-radius: 12px;
+      padding: 20px 24px; margin: 20px 0; overflow-x: auto; }
+    pre code { background: none; padding: 0; color: #e5e7eb; font-size: 13px; line-height: 1.7; }
+    ul, ol { color: var(--text-sec); font-size: 15px; padding-left: 20px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.7; }
+
+    .callout { border-radius: 12px; padding: 18px 20px; margin: 24px 0;
+      display: flex; gap: 14px; align-items: flex-start; }
+    .callout.info { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); }
+    .callout.tip { background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.2); }
+    .callout.warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
+    .callout.danger { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout p { margin: 0; font-size: 14px; line-height: 1.65; }
+    .callout.info p { color: #93c5fd; }
+    .callout.tip p { color: #6ee7b7; }
+    .callout.warn p { color: #fcd34d; }
+    .callout.danger p { color: #fca5a5; }
+
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+    th { background: var(--bg-card); color: var(--text-sec); padding: 10px 14px;
+      text-align: left; border-bottom: 1px solid var(--bg-border);
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--bg-border); color: var(--text-sec); vertical-align: top; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    td code { font-size: 12px; }
+  </style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="96" fill="#180e2d"/>
+      <circle cx="208" cy="208" r="152" fill="none" stroke="#8b6ce8" stroke-width="34"/>
+      <rect x="138" y="172" width="140" height="72" rx="14" fill="none" stroke="#8b6ce8" stroke-width="22"/>
+      <line x1="155" y1="197" x2="262" y2="197" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+      <line x1="155" y1="220" x2="262" y2="220" stroke="#8b6ce8" stroke-width="16" stroke-linecap="round"/>
+      <line x1="318" y1="318" x2="422" y2="422" stroke="#8b6ce8" stroke-width="38" stroke-linecap="round"/>
+    </svg>
+    <span class="sidebar-logo-name">pktPCAP</span>
+  </div>
+  <a class="sidebar-back" href="index.html">← Platform Overview</a>
+  <div class="sidebar-guide-label">⚙️ Administrator Guide</div>
+  <div class="sidebar-section">Deployment</div>
+  <a class="sidebar-link" href="#requirements">Requirements</a>
+  <a class="sidebar-link" href="#install">Installation</a>
+  <a class="sidebar-link" href="#service">systemd Service</a>
+  <a class="sidebar-link" href="#ssl">SSL / TLS</a>
+  <div class="sidebar-section">Access Control</div>
+  <a class="sidebar-link" href="#auth">Authentication</a>
+  <a class="sidebar-link" href="#sso">SAML SSO (Okta)</a>
+  <a class="sidebar-link" href="#users">User Management</a>
+  <a class="sidebar-link" href="#roles">Role Reference</a>
+  <div class="sidebar-section">Configuration</div>
+  <a class="sidebar-link" href="#settings">Settings Panel</a>
+  <a class="sidebar-link" href="#ai-config">AI Provider Config</a>
+  <a class="sidebar-link" href="#logs">Logs &amp; Monitoring</a>
+  <div class="sidebar-section">Reference</div>
+  <a class="sidebar-link" href="#api">API Endpoints</a>
+  <a class="sidebar-link" href="#troubleshooting">Troubleshooting</a>
+  <div class="sidebar-section">Integrations</div>
+  <a class="sidebar-link" href="#pkthub-integration">pktHub Integration</a>
+  <div class="sidebar-section">Other Guides</div>
+  <a class="sidebar-link" href="analyst-guide.html">Analyst Guide →</a>
+</aside>
+
+<main class="main">
+  <div class="guide-hero">
+    <div class="guide-badge">⚙️ Administrator Guide</div>
+    <h1>IT Administrator<br/>Guide</h1>
+    <p>Covers deployment, SSL configuration, authentication setup (local and SAML SSO), user and role management, AI provider configuration, logging, and troubleshooting.</p>
+  </div>
+
+  <!-- REQUIREMENTS -->
+  <h2 id="requirements">System Requirements</h2>
+  <table>
+    <tr><th>Component</th><th>Requirement</th></tr>
+    <tr><td>Operating System</td><td>Linux (Amazon Linux 2, RHEL 8+, or Ubuntu 20.04+)</td></tr>
+    <tr><td>Python</td><td>3.8 or later</td></tr>
+    <tr><td>Network</td><td>HTTPS port (default 8765) accessible from analyst workstations</td></tr>
+    <tr><td>Disk</td><td>Minimum 20 GB free — capture files can be large</td></tr>
+    <tr><td>RAM</td><td>4 GB recommended (parsing large captures is memory-intensive)</td></tr>
+    <tr><td>Outbound Internet</td><td>Required for AI API calls (OpenAI / Anthropic endpoints)</td></tr>
+    <tr><td>Capture Tools (optional)</td><td><code>tshark</code> installed on remote hosts for live feed capture</td></tr>
+    <tr><td>SSL Certificate</td><td>Valid cert/key pair — wildcard or host-specific</td></tr>
+  </table>
+
+  <!-- INSTALLATION -->
+  <h2 id="install">Installation</h2>
+  <h3>1. Clone the Repository</h3>
+  <pre><code>git clone git@github.com:&lt;your-org&gt;/pktpcap.git /opt/pktpcap</code></pre>
+
+  <h3>2. Create a Python Virtual Environment</h3>
+  <pre><code>cd /opt/pktpcap
+python3 -m venv venv
+# Install packages using the virtualenv pip explicitly
+./venv/bin/python -m pip install -r service/requirements.txt</code></pre>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p>Always install packages using <code>./venv/bin/python -m pip install</code> rather than calling the <code>pip</code> binary directly. If multiple Python environments are present on the host, the pip shebang may point to the wrong interpreter.</p>
+  </div>
+
+  <h3>3. Place SSL Certificates</h3>
+  <p>Create the <code>ssl/</code> directory at the root of the installation and place your certificate and private key there:</p>
+  <pre><code>mkdir -p /opt/pktpcap/ssl
+cp /path/to/your/server.crt /opt/pktpcap/ssl/server.crt
+cp /path/to/your/server.key /opt/pktpcap/ssl/server.key
+chmod 600 /opt/pktpcap/ssl/server.key</code></pre>
+  <p>SSL is auto-detected on startup based solely on file presence. No configuration toggle is needed. See the <a href="#ssl" style="color:var(--purple-glow);">SSL section</a> for more detail.</p>
+
+  <h3>4. Initialize the Database</h3>
+  <p>Start the server once manually to let it initialize the SQLite database and generate the secret key:</p>
+  <pre><code>cd /opt/pktpcap/service
+../venv/bin/python server.py</code></pre>
+  <p>Confirm it starts cleanly, then stop it (<code>Ctrl+C</code>) and proceed to the systemd setup.</p>
+
+  <!-- SYSTEMD -->
+  <h2 id="service">systemd Service</h2>
+  <p>pktPCAP runs as a managed systemd service for automatic start on boot and supervised restart on failure.</p>
+
+  <h3>Service Unit File</h3>
+  <pre><code># /etc/systemd/system/pktpcap.service
+[Unit]
+Description=pktPCAP Packet Capture Analysis Platform
+After=network.target
+
+[Service]
+Type=simple
+User=your-service-user
+WorkingDirectory=/opt/pktpcap/service
+ExecStart=/opt/pktpcap/venv/bin/python server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+  <h3>Enable and Start</h3>
+  <pre><code>sudo systemctl daemon-reload
+sudo systemctl enable pktpcap
+sudo systemctl start pktpcap
+sudo systemctl status pktpcap</code></pre>
+
+  <h3>Service Commands</h3>
+  <table>
+    <tr><th>Action</th><th>Command</th></tr>
+    <tr><td>Start</td><td><code>sudo systemctl start pktpcap</code></td></tr>
+    <tr><td>Stop</td><td><code>sudo systemctl stop pktpcap</code></td></tr>
+    <tr><td>Restart</td><td><code>sudo systemctl restart pktpcap</code></td></tr>
+    <tr><td>Status</td><td><code>sudo systemctl status pktpcap</code></td></tr>
+    <tr><td>Live logs</td><td><code>sudo journalctl -u pktpcap -f</code></td></tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="callout-icon">💡</div>
+    <p>Administrators can also restart the service directly from the pktPCAP Settings panel under <strong>Service Controls</strong>, without needing SSH access.</p>
+  </div>
+
+  <!-- SSL -->
+  <h2 id="ssl">SSL / TLS Configuration</h2>
+  <p>pktPCAP enforces HTTPS. TLS is activated automatically when certificate files are detected at startup — there is no database toggle or environment variable required.</p>
+
+  <h3>Certificate Paths</h3>
+  <table>
+    <tr><th>File</th><th>Path</th><th>Description</th></tr>
+    <tr><td>Certificate</td><td><code>ssl/server.crt</code></td><td>PEM-format certificate (or chain)</td></tr>
+    <tr><td>Private Key</td><td><code>ssl/server.key</code></td><td>PEM-format private key</td></tr>
+  </table>
+  <p>Both paths are relative to the repository root. If either file is missing on startup, the server falls back to HTTP — avoid this in production.</p>
+
+  <h3>Converting a PFX/P12 Certificate</h3>
+  <p>If your certificate is in PKCS#12 format (exported from a Windows certificate store or provided by your CA), convert it to PEM with:</p>
+  <pre><code># Extract the certificate
+openssl pkcs12 -in your-cert.pfx -nokeys -out ssl/server.crt
+
+# Extract the private key
+openssl pkcs12 -in your-cert.pfx -nocerts -nodes -out ssl/server.key</code></pre>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚨</div>
+    <p>Protect the private key file. Set permissions to <code>600</code> and ensure it is owned by the service user. Never commit it to version control.</p>
+  </div>
+
+  <h3>Certificate Renewal</h3>
+  <p>Replace the files at <code>ssl/server.crt</code> and <code>ssl/server.key</code> in place, then restart the service to pick up the new certificate:</p>
+  <pre><code>sudo systemctl restart pktpcap</code></pre>
+
+  <!-- AUTH -->
+  <h2 id="auth">Authentication</h2>
+  <p>pktPCAP supports two authentication methods that can be used simultaneously:</p>
+  <ul>
+    <li><strong>Local Authentication:</strong> Username and password stored in the SQLite database (bcrypt hashed). Managed from the Settings panel.</li>
+    <li><strong>SAML 2.0 SSO:</strong> Enterprise identity provider integration (see <a href="#sso" style="color:var(--purple-glow);">SSO section</a>).</li>
+  </ul>
+  <p>Authentication state is maintained via server-side Flask sessions. All sessions are invalidated on logout or service restart.</p>
+
+  <!-- SSO -->
+  <h2 id="sso">SAML SSO Configuration (Okta)</h2>
+  <p>pktPCAP integrates with SAML 2.0 identity providers using the <code>python3-saml</code> library. The following steps document the configuration for Okta, but the process is similar for any SAML-compliant IdP.</p>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p><code>python3-saml</code> must be installed in the pktPCAP virtualenv for SSO to be available. The Settings panel will show whether SAML is active. If it shows as unavailable, install it: <code>./venv/bin/python -m pip install python3-saml</code></p>
+  </div>
+
+  <h3>1. Create an Okta App Integration</h3>
+  <ol>
+    <li>In Okta Admin, go to <strong>Applications → Create App Integration → SAML 2.0</strong>.</li>
+    <li>Set the <strong>Single Sign-On URL</strong> to: <code>https://&lt;your-server&gt;:&lt;port&gt;/api/auth/saml/callback</code></li>
+    <li>Set the <strong>Audience URI (SP Entity ID)</strong> to: <code>https://&lt;your-server&gt;:&lt;port&gt;/api/auth/saml/metadata</code></li>
+    <li>Under <strong>Attribute Statements</strong>, add an attribute named <code>role</code> mapped to <code>appuser.Role</code> if you want role sync on every login.</li>
+  </ol>
+
+  <h3>2. Configure pktPCAP Settings</h3>
+  <p>In the pktPCAP Settings panel (Admins only), navigate to <strong>SSO / SAML Settings</strong> and populate:</p>
+  <table>
+    <tr><th>Field</th><th>Value</th></tr>
+    <tr><td>IdP Entity ID</td><td>From Okta app → Sign On → SAML Setup (Issuer)</td></tr>
+    <tr><td>IdP SSO URL</td><td>From Okta app → Sign On → SAML Setup (Identity Provider Single Sign-On URL)</td></tr>
+    <tr><td>IdP Certificate</td><td>The X.509 certificate from Okta (download from app settings)</td></tr>
+    <tr><td>SP Entity ID</td><td><code>https://&lt;your-server&gt;:&lt;port&gt;/api/auth/saml/metadata</code></td></tr>
+  </table>
+
+  <h3>3. First Login Behavior</h3>
+  <p>When a user authenticates via SSO for the first time, pktPCAP automatically provisions their account. If Okta sends a <code>role</code> attribute, the user is assigned that role. If no role attribute is sent, the user is assigned the <strong>Admin</strong> role by default — adjust this in the Settings panel post-provision if needed.</p>
+
+  <h3>4. Role Sync</h3>
+  <p>On every subsequent SSO login, pktPCAP reads the <code>role</code> attribute (if present) from Okta and syncs it to the local user record. This allows role changes to be managed centrally in Okta without requiring administrator action in pktPCAP.</p>
+
+  <h3>Service Provider Metadata</h3>
+  <p>The SP metadata XML is available at: <code>/api/auth/saml/metadata</code> — provide this URL to your IdP during app setup if it supports metadata import.</p>
+
+  <!-- USER MANAGEMENT -->
+  <h2 id="users">User Management</h2>
+  <p>User accounts are managed from the <strong>Settings → Users</strong> panel, accessible only to Admins.</p>
+
+  <h3>Creating a User</h3>
+  <ol>
+    <li>Navigate to Settings → Users → <strong>Add User</strong>.</li>
+    <li>Enter username, email address, and initial password.</li>
+    <li>Assign a role (Admin, Analyst, or Viewer).</li>
+    <li>Set status to <strong>Active</strong> and save.</li>
+  </ol>
+
+  <h3>Editing a User</h3>
+  <p>Click any user row to edit their username, email, role, or status. Changes take effect on their next login (active sessions are not immediately terminated).</p>
+
+  <h3>Resetting a Password</h3>
+  <p>Use the <strong>Reset Password</strong> action on the user row to set a new password. The user will need to sign in with the new credentials — SSO users do not use passwords.</p>
+
+  <h3>Deactivating a User</h3>
+  <p>Set a user's status to <strong>Inactive</strong> to prevent login without deleting their account and history. This is the recommended approach for offboarded users.</p>
+
+  <!-- ROLES -->
+  <h2 id="roles">Role Reference</h2>
+  <table>
+    <tr><th>Permission</th><th>Admin</th><th>Analyst</th><th>Viewer</th></tr>
+    <tr><td>Upload PCAP files</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Connect live feeds</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Run AI analysis</td><td>✓</td><td>✓</td><td>Read-only</td></tr>
+    <tr><td>View analysis data</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td>Export results</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Take screenshots</td><td>✓</td><td>✓</td><td>✗</td></tr>
+    <tr><td>Access Settings panel</td><td>✓</td><td>✗</td><td>✗</td></tr>
+    <tr><td>Manage users</td><td>✓</td><td>✗</td><td>✗</td></tr>
+    <tr><td>Configure AI provider</td><td>✓</td><td>✗</td><td>✗</td></tr>
+    <tr><td>Configure SSO</td><td>✓</td><td>✗</td><td>✗</td></tr>
+    <tr><td>View logs</td><td>✓</td><td>✗</td><td>✗</td></tr>
+    <tr><td>Restart service</td><td>✓</td><td>✗</td><td>✗</td></tr>
+  </table>
+  <p>All role enforcement is server-side. UI elements (such as the Settings navigation item) are hidden from non-Admin users as a convenience, but access is independently enforced by the backend on every API request.</p>
+
+  <!-- SETTINGS -->
+  <h2 id="settings">Settings Panel</h2>
+  <p>The Settings panel (<code>/settings</code>) is only accessible to Admin-role users. It provides a web-based interface for all configuration tasks described in this guide, including:</p>
+  <ul>
+    <li>User and role management</li>
+    <li>AI provider API key and model selection</li>
+    <li>SAML SSO configuration</li>
+    <li>Application log viewer and log-level control</li>
+    <li>Service restart button</li>
+    <li>SSL status display</li>
+  </ul>
+
+  <!-- AI CONFIG -->
+  <h2 id="ai-config">AI Provider Configuration</h2>
+  <p>pktPCAP supports two AI backends. Configure your preferred provider from Settings → AI Configuration.</p>
+
+  <h3>OpenAI</h3>
+  <p>Provide your OpenAI API key and select the desired model (e.g., <code>gpt-4o</code>, <code>gpt-4-turbo</code>). The key is stored encrypted in the database and never exposed to the browser.</p>
+
+  <h3>Anthropic Claude</h3>
+  <p>Provide your Anthropic API key and select the model (e.g., <code>claude-sonnet-4-5</code>). Configuration is identical to OpenAI.</p>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <p>Only structured packet metadata and analyst queries are sent to the AI provider API. Raw packet bytes, payload contents, and capture files are never transmitted — all parsing happens locally on the server.</p>
+  </div>
+
+  <h3>Testing the AI Connection</h3>
+  <p>Use the <strong>Test Connection</strong> button in Settings → AI Configuration to send a minimal probe request and confirm the API key and model are valid before analysts begin using the platform.</p>
+
+  <!-- LOGS -->
+  <h2 id="logs">Logs &amp; Monitoring</h2>
+  <p>Application logs are viewable directly in the Settings panel. Logs include request activity, authentication events, analysis jobs, errors, and service lifecycle events.</p>
+
+  <h3>Log Levels</h3>
+  <table>
+    <tr><th>Level</th><th>What is Logged</th></tr>
+    <tr><td><code>DEBUG</code></td><td>Full request/response detail, internal state — verbose, for troubleshooting only</td></tr>
+    <tr><td><code>INFO</code></td><td>Normal operation: logins, uploads, analysis completions — recommended for production</td></tr>
+    <tr><td><code>WARNING</code></td><td>Recoverable issues: auth failures, partial parse results, degraded operations</td></tr>
+    <tr><td><code>ERROR</code></td><td>Non-fatal errors that require attention</td></tr>
+    <tr><td><code>CRITICAL</code></td><td>Service-threatening failures</td></tr>
+  </table>
+  <p>Change the log level in real time from Settings → Logs → Log Level without restarting the service. The level change takes effect immediately.</p>
+
+  <h3>Clearing Logs</h3>
+  <p>Logs can be cleared from the Settings panel. This removes all stored log entries from the database — it does not affect <code>journald</code> system logs.</p>
+
+  <!-- API REFERENCE -->
+  <h2 id="api">API Endpoint Reference</h2>
+  <p>All endpoints require a valid authenticated session. Endpoints marked <strong>[Admin]</strong> return <code>403 Forbidden</code> for non-Admin sessions.</p>
+
+  <h3>Authentication</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><code>POST</code></td><td><code>/api/login</code></td><td>Local username/password login</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/logout</code></td><td>Invalidate current session</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/auth/current-user</code></td><td>Returns current user info and role</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/auth/saml/login</code></td><td>Initiates SAML SSO redirect</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/auth/saml/callback</code></td><td>Receives SAML assertion from IdP</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/auth/saml/metadata</code></td><td>SP metadata XML for IdP registration</td></tr>
+  </table>
+
+  <h3>User Management [Admin]</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><code>GET</code></td><td><code>/api/users</code></td><td>List all users</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/users</code></td><td>Create a new user</td></tr>
+    <tr><td><code>PUT</code></td><td><code>/api/users/&lt;id&gt;</code></td><td>Update user (role, status, email)</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/api/users/&lt;id&gt;</code></td><td>Delete user</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/users/&lt;id&gt;/reset-password</code></td><td>Reset user password</td></tr>
+  </table>
+
+  <h3>Settings &amp; Configuration [Admin]</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><code>GET</code></td><td><code>/api/settings</code></td><td>Retrieve current settings</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/settings</code></td><td>Update settings (AI keys, SAML, etc.)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/logs</code></td><td>Retrieve application log entries</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/api/logs</code></td><td>Clear all logs</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/logs/level</code></td><td>Change runtime log level</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/restart</code></td><td>Restart the server process</td></tr>
+  </table>
+
+  <h3>Analysis &amp; Capture</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><code>POST</code></td><td><code>/api/ai</code></td><td>Submit a query to the AI engine</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/feed/&lt;name&gt;</code></td><td>Receive live packet feed stream</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/feeds</code></td><td>List active feed sessions</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/save-image</code></td><td>Save a dashboard image server-side</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/screenshot</code></td><td>Capture a full dashboard screenshot</td></tr>
+  </table>
+
+  <!-- TROUBLESHOOTING -->
+  <h2 id="troubleshooting">Troubleshooting</h2>
+
+  <h3>Service won't start</h3>
+  <p>Check the journal for detailed error output: <code>sudo journalctl -u pktpcap -n 50 --no-pager</code>. Common causes:</p>
+  <ul>
+    <li>Python module missing — run <code>./venv/bin/python -m pip install -r service/requirements.txt</code></li>
+    <li>Port already in use — check with <code>ss -tlnp | grep 8765</code></li>
+    <li>SSL cert missing or malformed — confirm files exist at <code>ssl/server.crt</code> and <code>ssl/server.key</code></li>
+  </ul>
+
+  <h3>SAML SSO login fails with "Invalid Response"</h3>
+  <ul>
+    <li>Verify the SP Entity ID in your IdP matches exactly (including port number and trailing path).</li>
+    <li>Confirm the IdP certificate in pktPCAP Settings matches the current signing certificate in your IdP.</li>
+    <li>Check that your server's clock is synchronized — SAML assertions have a short validity window and clock skew causes validation failures.</li>
+  </ul>
+
+  <h3>AI analysis returns an error</h3>
+  <ul>
+    <li>Verify the API key is valid and has not expired — use <strong>Test Connection</strong> in Settings.</li>
+    <li>Confirm the server has outbound internet access to the AI provider endpoint.</li>
+    <li>Check the log viewer in Settings for the specific error message from the AI API.</li>
+  </ul>
+
+  <h3>Live feed not appearing after running the tshark command</h3>
+  <ul>
+    <li>Confirm the feed token embedded in the command is current — regenerate it from the Live Feeds page if needed.</li>
+    <li>Verify the remote host can reach the pktPCAP server on the configured port.</li>
+    <li>Check that <code>tshark</code> is installed on the remote host: <code>tshark --version</code></li>
+    <li>Confirm the capture interface name is correct for the remote host — interfaces vary by OS and configuration.</li>
+  </ul>
+
+  <h3>Large file uploads time out</h3>
+  <p>If very large captures fail to upload, the issue is typically a client-side or reverse-proxy timeout. If pktPCAP is behind a load balancer or reverse proxy, increase the upstream timeout. For very large captures, consider pre-filtering with Wireshark or tshark to reduce file size before uploading.</p>
+
+  <!-- PKTHUB INTEGRATION -->
+  <h2 id="pkthub-integration">pktHub Integration</h2>
+  <p>pktPCAP integrates with pktHub — the unified management hub — allowing users to access pktPCAP through pktHub's reverse proxy without a separate login. Authentication is handled automatically via a suite token that pktPCAP generates and pktHub presents on every proxied request.</p>
+
+  <h3>Getting the Suite Token</h3>
+  <ol>
+    <li>Open pktPCAP and navigate to <strong>Settings → Integrations</strong>.</li>
+    <li>Scroll to the <strong>pktHub Integration</strong> card.</li>
+    <li>Click <strong>Reveal</strong> to view the token, then <strong>Copy</strong> to copy it to your clipboard.</li>
+    <li>If no token exists yet, one is generated automatically on first visit.</li>
+  </ol>
+
+  <h3>Registering pktPCAP in pktHub</h3>
+  <ol>
+    <li>In pktHub, navigate to <strong>Settings → App Registry</strong>.</li>
+    <li>Click <strong>Register App</strong>.</li>
+    <li>Fill in:
+      <ul>
+        <li><strong>App Name:</strong> pktPCAP</li>
+        <li><strong>Base URL:</strong> <code>https://&lt;host&gt;:8765</code></li>
+        <li><strong>Suite Token:</strong> paste the token you copied from pktPCAP</li>
+        <li><strong>Hub Return URL:</strong> same as Base URL (optional)</li>
+      </ul>
+    </li>
+    <li>Click <strong>Register</strong>. pktHub calls <code>/api/health</code> to verify connectivity, then stores the token.</li>
+  </ol>
+
+  <h3>How the Proxy Auth Works</h3>
+  <p>When a user opens pktPCAP through pktHub's proxy, pktHub automatically includes the <code>X-Suite-Token</code> header on every request. pktPCAP's <code>before_request</code> hook validates the token against its stored value. If it matches, the user is authenticated as the pktHub user (<code>X-Suite-User</code> and <code>X-Suite-Role</code> headers) without needing to log in separately.</p>
+
+  <h3>Regenerating the Suite Token</h3>
+  <p>If you need to revoke pktHub's access to pktPCAP (e.g., for a security rotation), use the <strong>Regen</strong> button in Settings → Integrations → pktHub Integration. This generates a new token immediately — the old token stops working. You must then re-register pktPCAP in pktHub with the new token.</p>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p><strong>Important:</strong> After regenerating the token, pktPCAP will appear as <em>degraded</em> in pktHub until you re-register with the new token. Existing user sessions through the proxy will stop working immediately.</p>
+  </div>
+
+  <h3>Health Monitoring</h3>
+  <p>pktHub polls <code>GET /api/health</code> on pktPCAP every 30 seconds. This endpoint is public (no authentication required) and returns:</p>
+  <pre><code>{"status": "ok", "app": "pktpcap", "version": "0.1.0"}</code></pre>
+  <p>A 200 response marks pktPCAP as <strong>healthy</strong>. Any other response marks it <strong>degraded</strong>.</p>
+
+  <div style="height:60px;"></div>
+</main>
+</body>
+</html>
