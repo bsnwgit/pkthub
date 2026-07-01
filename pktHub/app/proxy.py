@@ -350,3 +350,91 @@ will handle authentication and role pass-through automatically.</p>
     for cookie_val in resp.headers.get_list("set-cookie"):
         proxy_response.headers.append("set-cookie", cookie_val)
     return proxy_response
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public display proxy — for NOC display pages (no user session required)
+# Auth: noc_token must match a published NOC layout in noc_layouts.
+# Used by NOCDisplayPage iframes: /proxy-display/{token}/{app_id}/{path}
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.api_route(
+    "/proxy-display/{noc_token}/{app_id}/{path:path}",
+    methods=["GET"],
+)
+async def proxy_display_widget(
+    noc_token: str,
+    app_id: int,
+    path: str,
+    request: Request,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    # ── 1. Validate NOC display token ─────────────────────────────────────────
+    async with db.execute(
+        "SELECT id FROM noc_layouts WHERE display_token = ? AND is_published = 1",
+        (noc_token,),
+    ) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(status_code=404, detail="Display not found or not published")
+
+    # ── 2. Load target app ────────────────────────────────────────────────────
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+
+    # ── 3. Build target URL and proxy prefix ──────────────────────────────────
+    target_url = f"{app['base_url'].rstrip('/')}/{path}"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
+
+    host_header = request.headers.get("host", "")
+    scheme = "https" if request.url.scheme == "https" else "http"
+    proxy_prefix = (
+        f"{scheme}://{host_header}/proxy-display/{noc_token}/{app_id}/"
+        if host_header
+        else f"/proxy-display/{noc_token}/{app_id}/"
+    )
+
+    # ── 4. Forward with suite token — no user credentials ────────────────────
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in _STRIP_REQUEST_HEADERS
+    }
+    headers["X-Suite-Token"]   = app["suite_token"]
+    headers["X-Suite-Version"] = str(SUITE_VERSION)
+    headers["X-Suite-User"]    = "noc-display"
+    headers["X-Suite-Role"]    = "viewer"
+
+    async with httpx.AsyncClient(verify=False, timeout=30) as client:
+        try:
+            resp = await client.request(
+                method="GET",
+                url=target_url,
+                headers=headers,
+                follow_redirects=False,
+            )
+        except httpx.ConnectError:
+            raise HTTPException(status_code=502, detail="Cannot reach app")
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=504, detail="App timed out")
+
+    # ── 5. Build response, rewriting HTML ─────────────────────────────────────
+    content_type = resp.headers.get("content-type", "")
+    content_enc  = resp.headers.get("content-encoding", "")
+    response_headers = {
+        k: v for k, v in resp.headers.items()
+        if k.lower() not in _STRIP_RESPONSE_HEADERS and k.lower() != "set-cookie"
+    }
+    response_headers["Cache-Control"] = "no-store"
+
+    if _should_rewrite_html(content_type):
+        content = _rewrite_html(resp.content, proxy_prefix, content_type, content_enc)
+    else:
+        content = resp.content
+
+    return Response(
+        content=content,
+        status_code=resp.status_code,
+        headers=response_headers,
+    )

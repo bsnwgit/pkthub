@@ -97,7 +97,7 @@ export default function NOCDisplayPage() {
       <div className="flex-1 relative" style={{ overflow: 'hidden' }}>
         {slides.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-sm text-gray-600">No slides configured for this noc.</div>
+            <div className="text-sm text-gray-600">No slides configured for this display.</div>
           </div>
         ) : !slide || !slide.widgets || slide.widgets.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -107,7 +107,8 @@ export default function NOCDisplayPage() {
           slide.widgets.map((w: NOCWidget) => (
             <iframe
               key={w.id}
-              src={`/proxy/${w.app_id}${w.view_path}`}
+              // Use the public display proxy — validates NOC token, no user login required
+              src={`/proxy-display/${token}/${w.app_id}${w.view_path}`}
               title={w.title || w.widget_id}
               style={{
                 position: 'absolute',

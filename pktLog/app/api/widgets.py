@@ -88,7 +88,32 @@ def _widget_page(title: str, body: str) -> str:
 </html>"""
 
 
-_SEV_LABELS = {0:'EMG',1:'ALT',2:'CRT',3:'ERR',4:'WRN',5:'NTC',6:'INF',7:'DBG'}
+_SEV_LABELS = {0: 'EMG', 1: 'ALT', 2: 'CRT', 3: 'ERR', 4: 'WRN', 5: 'NTC', 6: 'INF', 7: 'DBG'}
+
+
+def _clamp_sev(raw) -> int:
+    """Clamp raw severity value to 0-7 range. Python 3.9 safe (no backslash in f-string)."""
+    try:
+        return min(7, max(0, int(raw or 7)))
+    except (TypeError, ValueError):
+        return 7
+
+
+def _log_row_html(r: dict, fmt_ts_fn) -> str:
+    """Build a single log row div. Extracted to avoid backslash-in-f-string (Python 3.9)."""
+    sev = _clamp_sev(r.get('severity', 7))
+    sev_label = _SEV_LABELS.get(sev, 'INF')
+    ts = fmt_ts_fn(r.get('ts', ''))
+    host = (r.get('host') or '')[:20]
+    msg = str(r.get('msg') or '')[:200]
+    return (
+        f"<div class='log-row'>"
+        f"<span class='sev sev-{sev}'>{sev_label}</span>"
+        f"<span class='ts'>{ts}</span>"
+        f"<span class='host'>{host}</span>"
+        f"<span class='msg'>{msg}</span>"
+        f"</div>"
+    )
 
 
 # ── Log Stream widget ─────────────────────────────────────────────────────────
@@ -117,20 +142,12 @@ async def widget_log_stream():
         pass
 
     def fmt_ts(ts: str) -> str:
-        if not ts: return ''
+        if not ts:
+            return ''
         return str(ts)[:19].replace('T', ' ')
 
     if rows:
-        log_rows = "".join(
-            f"<div class='log-row'>"
-            f"<span class='sev sev-{min(7,max(0,int(r.get(\"severity\",7) or 7)))}'>"
-            f"{_SEV_LABELS.get(min(7,max(0,int(r.get(\"severity\",7) or 7))), 'INF')}</span>"
-            f"<span class='ts'>{fmt_ts(r.get('ts',''))}</span>"
-            f"<span class='host'>{r.get('host','')[:20] if r.get('host') else ''}</span>"
-            f"<span class='msg'>{str(r.get('msg',''))[:200]}</span>"
-            f"</div>"
-            for r in rows
-        )
+        log_rows = "".join(_log_row_html(r, fmt_ts) for r in rows)
         content = f"<div>{log_rows}</div>"
     else:
         content = "<div class='empty'>No recent log entries</div>"

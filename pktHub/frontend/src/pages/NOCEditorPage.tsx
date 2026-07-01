@@ -60,6 +60,8 @@ export default function NOCEditorPage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saveMsg, setSaveMsg] = useState('')
+  // Track which app IDs have proxy sessions ready for live iframe previews
+  const [proxyReady, setProxyReady] = useState<Set<number>>(new Set())
 
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragDataRef = useRef<{ appId: number; manifest: WidgetManifestEntry } | null>(null)
@@ -81,6 +83,14 @@ export default function NOCEditorPage() {
       )
       setApps(withWidgets)
       setLoading(false)
+
+      // Pre-fetch proxy sessions for all widget-bearing apps so live iframe
+      // previews render in the canvas without requiring separate navigation.
+      withWidgets.forEach((a: any) => {
+        api.createProxySession(a.id)
+          .then(() => setProxyReady(prev => new Set(prev).add(a.id)))
+          .catch(() => {})  // non-fatal — preview just won't load for that app
+      })
     }).catch(err => {
       console.error(err)
       setLoading(false)
@@ -308,6 +318,7 @@ export default function NOCEditorPage() {
           <div style={{ minWidth: '1800px', minHeight: '1000px', position: 'relative' }}>
             {currentSlide?.widgets.map(w => {
               const isSel = w.id === selectedWidgetId
+              const hasProxy = proxyReady.has(w.app_id)
               return (
                 <div
                   key={w.id}
@@ -326,12 +337,18 @@ export default function NOCEditorPage() {
                     <span style={{ flex: 1, fontSize: '11px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.title}</span>
                     <span style={{ fontSize: '10px', color: '#475569', fontFamily: 'monospace', flexShrink: 0 }}>{w.w}×{w.h}</span>
                   </div>
-                  {/* Live preview iframe (pointer-events blocked while editing) */}
-                  <iframe
-                    src={`/proxy/${w.app_id}${w.view_path}`}
-                    title={w.title}
-                    style={{ width: '100%', height: `calc(100% - 26px)`, border: 'none', pointerEvents: 'none', background: '#0f172a', display: 'block' }}
-                  />
+                  {/* Live preview iframe (proxy session must be ready; pointer-events blocked while editing) */}
+                  {hasProxy ? (
+                    <iframe
+                      src={`/proxy/${w.app_id}${w.view_path}`}
+                      title={w.title}
+                      style={{ width: '100%', height: `calc(100% - 26px)`, border: 'none', pointerEvents: 'none', background: '#0f172a', display: 'block' }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: `calc(100% - 26px)`, background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#334155' }}>connecting…</span>
+                    </div>
+                  )}
                   {/* Resize handle — bottom-right corner */}
                   <div
                     onMouseDown={e => onResizeMouseDown(e, w)}
@@ -363,16 +380,21 @@ export default function NOCEditorPage() {
             <>
               <div style={{ padding: '10px 14px 6px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid #1e293b' }}>Widget</div>
               <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {(['title'] as const).map(field => (
-                  <label key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>Title</span>
-                    <input
-                      value={selectedWidget.title}
-                      onChange={e => updateWidget(selectedWidget.id, { title: e.target.value })}
-                      style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', padding: '6px 8px', fontSize: '13px', color: '#e2e8f0', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-                    />
-                  </label>
-                ))}
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>Title</span>
+                  <input
+                    value={selectedWidget.title}
+                    onChange={e => updateWidget(selectedWidget.id, { title: e.target.value })}
+                    style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', padding: '6px 8px', fontSize: '13px', color: '#e2e8f0', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>Source</span>
+                  <span style={{ fontSize: '12px', color: '#60a5fa' }}>
+                    {apps.find(a => a.id === selectedWidget.app_id)?.name ?? `App ${selectedWidget.app_id}`}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#475569', fontFamily: 'monospace' }}>{selectedWidget.widget_id}</span>
+                </div>
                 {(['x', 'y', 'w', 'h'] as const).map(field => (
                   <label key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>{field.toUpperCase()}</span>
