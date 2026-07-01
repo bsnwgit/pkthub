@@ -50,6 +50,74 @@ function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
   return APP_COLORS[key] || '#6b7280'
 }
+
+// ── Per-app inline SVG icons ──────────────────────────────────────────────────
+function PktLogIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="3.5" width="18" height="2.5" rx="1.25" fill={color} opacity="0.95" />
+      <rect x="2" y="9.75" width="13" height="2.5" rx="1.25" fill={color} opacity="0.70" />
+      <rect x="2" y="16" width="8" height="2.5" rx="1.25" fill={color} opacity="0.45" />
+    </svg>
+  )
+}
+function PktFlowIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 7 H14 L10 3.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>
+      <path d="M14 7 L10 10.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>
+      <path d="M20 15 H8 L12 11.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
+      <path d="M8 15 L12 18.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
+    </svg>
+  )
+}
+function PktSnmpIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="11" cy="4.5" r="2.5" fill={color} opacity="0.95"/>
+      <circle cx="4"  cy="17"  r="2"   fill={color} opacity="0.80"/>
+      <circle cx="18" cy="17"  r="2"   fill={color} opacity="0.80"/>
+      <circle cx="11" cy="17"  r="2"   fill={color} opacity="0.60"/>
+      <line x1="11" y1="7"  x2="4"  y2="15" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+      <line x1="11" y1="7"  x2="18" y2="15" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+      <line x1="11" y1="7"  x2="11" y2="15" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.35"/>
+    </svg>
+  )
+}
+function PktPcapIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 3 H19 L13 10.5 V18 L9 20 V10.5 Z" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round"/>
+    </svg>
+  )
+}
+function AppLogoIcon({ name, color }: { name: string; color: string }) {
+  const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
+  if (key === 'pktlog')  return <PktLogIcon  color={color} />
+  if (key === 'pktflow') return <PktFlowIcon color={color} />
+  if (key === 'pktsnmp') return <PktSnmpIcon color={color} />
+  if (key === 'pktpcap') return <PktPcapIcon color={color} />
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="16" height="16" rx="4" fill={color} fillOpacity="0.2" stroke={color} strokeWidth="1.5"/>
+      <circle cx="11" cy="11" r="3" fill={color} opacity="0.7"/>
+    </svg>
+  )
+}
+function AppLogo({ name, statusColor }: { name: string; statusColor: string }) {
+  const color = appColor(name)
+  return (
+    <div className="relative shrink-0">
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+           style={{ background: color + '16', border: `1px solid ${color}28` }}>
+        <AppLogoIcon name={name} color={color} />
+      </div>
+      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+           style={{ background: statusColor, borderColor: '#111827' }} />
+    </div>
+  )
+}
+
 const STATUS_COLOR: Record<string, string> = {
   healthy: '#4ade80', degraded: '#f59e0b', unreachable: '#f87171', unknown: '#6b7280',
 }
@@ -328,9 +396,7 @@ export default function AppManagerPage() {
                 <div className="flex items-start justify-between gap-3">
                   {/* Left: status dot + info */}
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="mt-1.5 shrink-0">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: statusColor }} />
-                    </div>
+                    <AppLogo name={app.name} statusColor={statusColor} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-bold text-white">{app.name}</h3>
