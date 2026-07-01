@@ -125,6 +125,23 @@ def _get_server_ip():
     except Exception:
         return "127.0.0.1"
 
+
+def _update_lock_heartbeat():
+    """Update lock_heartbeat_at in SQLite (called on each valid hub request)."""
+    import sqlite3 as _sq
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('lock_heartbeat_at', datetime('now'))")
+        _conn.commit()
+        _conn.close()
+    except Exception:
+        pass
+
+
 # -- Flask app -----------------------------------------------------------------
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -148,12 +165,39 @@ def _ensure_secret_key():
 # ── Auth middleware ───────────────────────────────────────────────────────────
 
 _AUTH_PUBLIC      = {"/login", "/api/login", "/api/logout", "/api/health"}
-_AUTH_PUBLIC_PFX  = ("/static/", "/api/auth/saml", "/api/feed/")
+_AUTH_PUBLIC_PFX  = ("/static/", "/api/auth/saml", "/api/feed/", "/api/suite/")
 
 @app.route("/api/health")
 def api_health():
     """Public health endpoint — no auth required. Called by pktHub to check status."""
-    return jsonify({"status": "ok", "app": "pktpcap", "version": "0.1.0"}), 200
+    import sqlite3 as _sq
+    _locked = False; _rurl = ""
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _row = _conn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        _locked = bool(_row and _row[0] == "true")
+        _rrow = _conn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+        _rurl = _rrow[0] if _rrow and _rrow[0] else ""
+        _suite_tk = request.headers.get("X-Suite-Token", "")
+        if _suite_tk:
+            _st_row = _conn.execute("SELECT value FROM settings WHERE key='suite_token'").fetchone()
+            _raw_hb_tok = _st_row[0] if _st_row and _st_row[0] else ""
+            try:
+                import json as _json_hb
+                _stored_hb_tok = _json_hb.loads(_raw_hb_tok) if _raw_hb_tok else ""
+            except Exception:
+                _stored_hb_tok = _raw_hb_tok
+            if _stored_hb_tok and _suite_tk == _stored_hb_tok:
+                _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('lock_heartbeat_at', datetime('now'))")
+                _conn.commit()
+        _conn.close()
+    except Exception:
+        pass
+    return jsonify({"status": "ok", "app": "pktpcap", "version": "0.1.0",
+                    "direct_ui_locked": _locked, "hub_redirect_url": _rurl}), 200
 
 
 @app.before_request
@@ -175,12 +219,47 @@ def require_login():
         _st_cfg = load_config()
         _expected = _st_cfg.get("suite_token", "")
         if _expected and _suite_tk == _expected:
+            _update_lock_heartbeat()
             _hub_user = request.headers.get("X-Suite-User", "hub_user")
             _hub_role = request.headers.get("X-Suite-Role", "viewer")
             session["user_id"] = _hub_user
             session["role"] = "admin" if _hub_role == "admin" else "viewer"
             session["login_time"] = time.time()
             return None
+
+
+    # ── Direct access lock ──────────────────────────────────────────────────
+    import sqlite3 as _sq
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _lconn = _sq.connect(_db_path)
+        _lrow = _lconn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        if _lrow and _lrow[0] == "true":
+            _lhrow = _lconn.execute("SELECT value FROM settings WHERE key='lock_heartbeat_at'").fetchone()
+            _lexpired = True
+            if _lhrow and _lhrow[0]:
+                import datetime as _ldta
+                try:
+                    _llast = _ldta.datetime.fromisoformat(str(_lhrow[0]).replace(" ", "T"))
+                    _lexpired = (_ldta.datetime.now() - _llast).total_seconds() > 300
+                except Exception:
+                    pass
+            if _lexpired:
+                _lconn.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES ('direct_ui_locked', 'false')")
+                _lconn.commit()
+            else:
+                _lrrow = _lconn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+                _lrurl = _lrrow[0] if _lrrow and _lrrow[0] else ""
+                _lconn.close()
+                if _lrurl:
+                    return redirect(_lrurl, 302)
+        _lconn.close()
+    except Exception:
+        pass
+    # ────────────────────────────────────────────────────────────────────────
 
     uid = session.get("user_id")
     if not uid:
@@ -220,7 +299,8 @@ def login_page():
     if session.get("user_id"):
         return redirect("/")
     cfg = load_config()
-    saml_enabled = bool(cfg.get("okta_saml_enabled") and cfg.get("okta_sso_url"))
+    saml_enabled       = bool(cfg.get("okta_saml_enabled") and cfg.get("okta_sso_url"))
+    local_auth_enabled = bool(cfg.get("local_auth_enabled", True))
     error_map = {
         "session_expired": "Your session has expired. Please sign in again.",
         "user_not_found":  "User not found. Contact your administrator.",
@@ -232,6 +312,7 @@ def login_page():
     return render_template("login.html",
                            app_name=cfg.get("app_name", "pktPCAP"),
                            saml_enabled=saml_enabled,
+                           local_auth_enabled=local_auth_enabled,
                            error=error)
 
 @app.route("/api/login", methods=["POST"])
@@ -948,6 +1029,106 @@ def get_suite_token():
     token = (cfg.get("suite_token") or "").strip()
     return jsonify({"suite_token": token, "has_token": bool(token)})
 
+
+
+# ── Suite: direct-access lock/unlock ─────────────────────────────────────────
+@app.route("/api/suite/direct-access", methods=["POST"])
+def suite_set_direct_access():
+    """Hub sends this to lock/unlock direct UI access. Auth: X-Suite-Token."""
+    import sqlite3 as _sq
+    _suite_tk = request.headers.get("X-Suite-Token", "")
+    cfg = load_config()
+    if not _suite_tk or not cfg.get("suite_token") or _suite_tk != cfg.get("suite_token"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        body = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+    locked = bool(body.get("locked", False))
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('direct_ui_locked', ?)",
+                      ("true" if locked else "false",))
+        _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('lock_heartbeat_at', datetime('now'))")
+        _conn.commit()
+        _conn.close()
+        return jsonify({"status": "ok", "direct_ui_locked": locked})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/suite/direct-access", methods=["GET"])
+def suite_get_direct_access():
+    """Return current lock state. Auth: X-Suite-Token."""
+    import sqlite3 as _sq
+    _suite_tk = request.headers.get("X-Suite-Token", "")
+    cfg = load_config()
+    if not _suite_tk or not cfg.get("suite_token") or _suite_tk != cfg.get("suite_token"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _row  = _conn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        _rrow = _conn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+        _conn.close()
+        return jsonify({
+            "direct_ui_locked": bool(_row and _row[0] == "true"),
+            "hub_redirect_url":  _rrow[0] if _rrow and _rrow[0] else "",
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+# ── End direct-access routes ──────────────────────────────────────────────────
+
+
+
+# ── Suite: public mode status + hub redirect URL setter ───────────────────────
+@app.route("/api/suite/mode", methods=["GET"])
+def suite_mode():
+    """Public — returns direct_ui_locked and hub_redirect_url."""
+    import sqlite3 as _sq
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _row  = _conn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        _rrow = _conn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+        _conn.close()
+        return jsonify({
+            "direct_ui_locked": bool(_row and _row[0] == "true"),
+            "hub_redirect_url":  _rrow[0] if _rrow and _rrow[0] else "",
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/suite/hub-redirect-url", methods=["PATCH"])
+def suite_set_hub_redirect_url():
+    """Set hub_redirect_url. Regular session auth."""
+    import sqlite3 as _sq
+    body = request.get_json(force=True)
+    url = (body.get("hub_redirect_url") or "").strip()
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('hub_redirect_url', ?)", (url,))
+        _conn.commit()
+        _conn.close()
+        return jsonify({"status": "ok", "hub_redirect_url": url})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+# ── End public mode / hub redirect ────────────────────────────────────────────
+
 # -- Entry point ---------------------------------------------------------------
 
 def open_browser(port, scheme="http"):
@@ -956,6 +1137,40 @@ def open_browser(port, scheme="http"):
 
 if __name__ == "__main__":
     init_db()
+    # ── Direct access lock failsafe ─────────────────────────────────────────
+    try:
+        import sqlite3 as _sq, urllib.request as _ureq, ssl as _ssl
+        _db_path_fs = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path_fs):
+            _db_path_fs = str(BASE / _db_path_fs)
+        _fconn = _sq.connect(_db_path_fs)
+        _frow = _fconn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        if _frow and _frow[0] == "true":
+            _frrow = _fconn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+            _hub_url = _frrow[0] if _frrow and _frrow[0] else ""
+            _hub_up = False
+            if _hub_url:
+                try:
+                    _ctx = _ssl.create_default_context()
+                    _ctx.check_hostname = False
+                    _ctx.verify_mode = _ssl.CERT_NONE
+                    _freq = _ureq.urlopen(
+                        f"{_hub_url.rstrip('/')}/api/health", timeout=5, context=_ctx)
+                    _hub_up = _freq.status == 200
+                except Exception:
+                    pass
+            if not _hub_up:
+                _fconn.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES ('direct_ui_locked', 'false')")
+                _fconn.commit()
+                log.warning("Startup failsafe: direct_ui_locked was set but hub unreachable — lock cleared")
+            else:
+                log.info("Startup: direct_ui_locked=true, hub reachable — lock maintained")
+        _fconn.close()
+    except Exception as _fe:
+        log.warning(f"Startup lock check: {_fe}")
+    # ─────────────────────────────────────────────────────────────────────────
+
     _ensure_secret_key()
     _ensure_feed_token()
 

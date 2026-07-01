@@ -8,7 +8,7 @@ from typing import List
 
 from app.database import get_db
 from app.auth import require_admin, require_analyst_or_admin, get_current_user
-from app.models import AppRegisterRequest, AppUpdateRequest, AppOut, AppStatusUpdate
+from app.models import AppRegisterRequest, AppUpdateRequest, AppOut, AppStatusUpdate, DirectAccessRequest
 from app.audit import write_audit
 
 router = APIRouter(prefix="/api/apps", tags=["registry"])
@@ -28,6 +28,8 @@ def _parse_app(row) -> AppOut:
         widget_manifest=manifest, supported_versions=versions,
         registered_at=row["registered_at"],
         return_url=row["return_url"] if "return_url" in row.keys() else None,
+        access_mode=row["access_mode"] if "access_mode" in row.keys() else "direct",
+        lock_verified_at=row["lock_verified_at"] if "lock_verified_at" in row.keys() else None,
     )
 
 
@@ -216,21 +218,194 @@ async def rotate_token(
     return {"message": "Token rotated"}
 
 async def poll_health(app_id: int, base_url: str, suite_token: str):
-    import aiosqlite as _aio
+    import aiosqlite as _aio, json as _json
     settings_obj = __import__("app.config", fromlist=["get_settings"]).get_settings()
+    health = "unreachable"
+    app_direct_ui_locked = None
     try:
         async with httpx.AsyncClient(verify=False, timeout=8) as client:
             resp = await client.get(
                 f"{base_url.rstrip('/')}/api/health",
                 headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
             )
-            health = "healthy" if resp.status_code == 200 else "degraded"
+            if resp.status_code == 200:
+                health = "healthy"
+                data = resp.json()
+                if isinstance(data, dict):
+                    app_direct_ui_locked = data.get("direct_ui_locked")
+            else:
+                health = "degraded"
     except Exception:
         health = "unreachable"
 
     async with _aio.connect(settings_obj.db_path) as db:
-        await db.execute(
-            "UPDATE registered_apps SET health_status = ?, last_health_check = datetime('now') WHERE id = ?",
-            (health, app_id)
-        )
+        db.row_factory = _aio.Row
+        async with db.execute(
+            "SELECT access_mode FROM registered_apps WHERE id = ?", (app_id,)
+        ) as cur:
+            row = await cur.fetchone()
+        stored_mode = (row["access_mode"] if row and row["access_mode"] else "direct")
+
+        # Drift detection: hub says managed but app reports unlocked (failsafe fired)
+        if stored_mode == "managed" and app_direct_ui_locked is False:
+            await db.execute(
+                """UPDATE registered_apps
+                   SET health_status = ?, last_health_check = datetime('now'),
+                       access_mode = 'direct', lock_verified_at = NULL
+                   WHERE id = ?""",
+                (health, app_id)
+            )
+            await db.execute(
+                """INSERT INTO audit_log (user_id, username, action, resource, details)
+                   VALUES (NULL, 'system', 'app.lock_drift_detected', ?, ?)""",
+                (f"app_id:{app_id}", _json.dumps({"reason": "app reported unlocked while hub expected managed mode"}))
+            )
+        else:
+            await db.execute(
+                "UPDATE registered_apps SET health_status = ?, last_health_check = datetime('now') WHERE id = ?",
+                (health, app_id)
+            )
         await db.commit()
+
+
+@router.post("/{app_id}/direct-access", response_model=dict)
+async def set_direct_access(
+    app_id: int,
+    body: DirectAccessRequest,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Send lock/unlock command to app via suite token. Verifies state after."""
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    base_url   = app["base_url"].rstrip("/")
+    suite_token = app["suite_token"]
+
+    if body.locked:
+        # Pre-flight: confirm app has hub_redirect_url set
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                chk = await client.get(f"{base_url}/api/suite/direct-access",
+                    headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
+            if chk.status_code != 200:
+                raise HTTPException(status_code=503, detail="Cannot reach app to verify redirect URL")
+            app_state   = chk.json()
+            redirect_url = app_state.get("hub_redirect_url", "")
+            if not redirect_url:
+                raise HTTPException(status_code=400,
+                    detail="hub_redirect_url is not set on the app. Set it in the app Settings → Integrations → pktHub Integration before enabling Managed mode.")
+            # Pre-flight: test redirect URL is reachable
+            try:
+                async with httpx.AsyncClient(verify=False, timeout=6) as hc:
+                    pr = await hc.get(redirect_url)
+                if pr.status_code >= 500:
+                    raise HTTPException(status_code=400, detail=f"Redirect URL returned HTTP {pr.status_code}.")
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(status_code=400,
+                    detail=f"Redirect URL '{redirect_url}' is not reachable. Verify the URL before enabling Managed mode.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Cannot reach app: {e}")
+
+    # Send lock command
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=10) as client:
+            resp = await client.post(f"{base_url}/api/suite/direct-access",
+                json={"locked": body.locked},
+                headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"App returned HTTP {resp.status_code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Could not reach app: {e}")
+
+    # Verify
+    verified = False
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            vr = await client.get(f"{base_url}/api/suite/direct-access",
+                headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
+        if vr.status_code == 200:
+            verified = vr.json().get("direct_ui_locked") == body.locked
+    except Exception:
+        pass
+
+    if not verified:
+        raise HTTPException(status_code=502,
+            detail="Lock command sent but state could not be verified on the app.")
+
+    new_mode = "managed" if body.locked else "direct"
+    await db.execute(
+        "UPDATE registered_apps SET access_mode = ?, lock_verified_at = datetime('now') WHERE id = ?",
+        (new_mode, app_id))
+    await db.commit()
+    await write_audit(db, current_user, "app.direct_access_change", f"app:{app['name']}",
+                      {"locked": body.locked, "access_mode": new_mode})
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        row = await cur.fetchone()
+    return {"status": "ok", "direct_ui_locked": body.locked, "verified": True,
+            "access_mode": new_mode, "app": _parse_app(row).model_dump()}
+
+
+@router.post("/direct-access/bulk", response_model=dict)
+async def bulk_direct_access(
+    body: DirectAccessRequest,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Set all registered apps to managed or direct mode (best-effort)."""
+    async with db.execute("SELECT * FROM registered_apps ORDER BY registered_at") as cur:
+        apps = await cur.fetchall()
+    results = []
+    for app in apps:
+        ok = False
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=10) as client:
+                r = await client.post(f"{app['base_url'].rstrip('/')}/api/suite/direct-access",
+                    json={"locked": body.locked},
+                    headers={"X-Suite-Token": app["suite_token"], "X-Suite-Version": str(SUITE_VERSION)})
+            ok = r.status_code == 200
+        except Exception:
+            pass
+        if ok:
+            new_mode = "managed" if body.locked else "direct"
+            await db.execute(
+                "UPDATE registered_apps SET access_mode = ?, lock_verified_at = datetime('now') WHERE id = ?",
+                (new_mode, app["id"]))
+        results.append({"app_id": app["id"], "name": app["name"], "success": ok})
+    await db.commit()
+    await write_audit(db, current_user, "app.bulk_direct_access_change", "all_apps",
+                      {"locked": body.locked, "results": results})
+    return {"results": results}
+
+
+@router.get("/{app_id}/access-log", response_model=list)
+async def get_app_access_log(
+    app_id: int,
+    limit: int = 20,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Recent direct-access audit events for a specific app."""
+    import json as _j
+    async with db.execute("SELECT name FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    async with db.execute(
+        """SELECT * FROM audit_log
+           WHERE (action LIKE 'app.direct_access%' OR action = 'app.lock_drift_detected')
+             AND (resource LIKE ? OR resource LIKE ?)
+           ORDER BY timestamp DESC LIMIT ?""",
+        (f"app:{app['name']}%", f"app_id:{app_id}", limit)
+    ) as cur:
+        rows = await cur.fetchall()
+    return [{"id": r["id"], "username": r["username"], "action": r["action"],
+             "details": _j.loads(r["details"] or "{}"), "timestamp": r["timestamp"]}
+            for r in rows]

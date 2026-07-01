@@ -1,5 +1,5 @@
 """
-pktSNMP — FastAPI application entry point.
+pktFlow — FastAPI application entry point.
 """
 from __future__ import annotations
 
@@ -15,32 +15,27 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.database import init_db
 from app.storage.factory import init_storage, get_storage
+from app.ingest.buffer import IngestBuffer
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import (
-    snmp as snmp_router,
-    settings as settings_router,
-    auth,
-    users,
-    system as system_router,
-)
-from app.api import suite as suite_router
+from app.api import ingest, flows, devices, alerts, settings as settings_router, auth, users, ai, system as system_router, ws as ws_router
 from app.api import logs as logs_router
+from app.api import suite as suite_router
 
 settings = get_settings()
-log = logging.getLogger("pktsnmp")
+log = logging.getLogger("pktflow")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown logic."""
     # ── Startup ───────────────────────────────────────────────────────────────
-    # Attach SQLite log handler before anything else so startup events are captured.
+    # Attach SQLite log handler FIRST so subsequent startup messages are captured
     from app.logging_handler import SQLiteLogHandler
     _log_handler = SQLiteLogHandler(db_path=settings.db_path)
-    _log_handler.attach_to_root_logger("pktsnmp")
+    _log_handler.attach_to_root_logger("pktflow")
 
-    log.info("pktSNMP starting up")
+    log.info("pktFlow starting up")
 
     # Run SQLite migrations
     await init_db()
@@ -77,15 +72,19 @@ async def lifespan(app: FastAPI):
 
 
 
-    # Connect to storage backend
+    # Connect to flow storage backend
     await init_storage()
-    log.info(f"Storage ready: {get_storage().__class__.__name__}")
+    log.info(f"Flow storage ready: {get_storage().__class__.__name__}")
+
+    # Start ingest buffer flush scheduler
+    buffer = IngestBuffer.get_instance()
+    await buffer.start()
+    log.info("Ingest buffer started")
 
     # Start alert engine
     from app.alerts.engine import AlertEngine
     engine = AlertEngine()
-    await engine.start(settings.db_path)
-    app.state.alert_engine = engine
+    await engine.start()
     log.info("Alert engine started")
 
     # Start alert event cleanup job
@@ -100,40 +99,49 @@ async def lifespan(app: FastAPI):
     await backup_scheduler.start()
     log.info("Backup scheduler started")
 
-    # Seed OID catalog
-    from app.snmp.oid_catalog import seed_catalog
-    import aiosqlite as _aiosqlite
-    async with _aiosqlite.connect(settings.db_path) as _oid_db:
-        await seed_catalog(_oid_db)
-    log.info("OID catalog seeded")
-
-    # Start local SNMP collector (wire in alert engine)
-    from app.snmp.local_collector import LocalCollector
-    local_collector = LocalCollector(alert_engine=engine)
-    await local_collector.start(settings.db_path)
-    app.state.local_collector = local_collector
-    log.info("Local SNMP collector started")
+    # Start UDP NetFlow listener if ingest_method is "udp" or "both"
+    udp_listener = None
+    try:
+        import aiosqlite as _aiosqlite
+        import json as _json
+        _db_path = Path(__file__).parent.parent / "pktflow.db"
+        async with _aiosqlite.connect(str(_db_path)) as _db:
+            async with _db.execute(
+                "SELECT key, value FROM settings WHERE key IN ('ingest_method', 'ingest_udp_port_netflow')"
+            ) as _cur:
+                _rows = {r[0]: _json.loads(r[1]) for r in await _cur.fetchall()}
+        _method = _rows.get("ingest_method", "http")
+        if _method in ("udp", "both"):
+            _port = int(_rows.get("ingest_udp_port_netflow", 2055))
+            from app.ingest.udp_listener import UDPNetFlowListener
+            udp_listener = UDPNetFlowListener()
+            await udp_listener.start(port=_port)
+            log.info("UDP NetFlow listener active on port %d", _port)
+    except Exception as _e:
+        log.warning("UDP listener not started: %s", _e)
 
     yield
 
     # ── Shutdown ──────────────────────────────────────────────────────────────
-    log.info("pktSNMP shutting down")
-    if hasattr(app.state, "local_collector"):
-        await app.state.local_collector.stop()
+    log.info("pktFlow shutting down")
+    if udp_listener:
+        await udp_listener.stop()
+    await buffer.stop()
     await engine.stop()
     await cleanup.stop()
     await backup_scheduler.stop()
-    from app.storage.factory import close_storage
-    await close_storage()
-    _log_handler.stop()
+    storage = get_storage()
+    if hasattr(storage, "close"):
+        await storage.close()
     log.info("Shutdown complete")
+    _log_handler.stop()
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="pktSNMP",
-    description="Enterprise SNMP Ingest Management & Visualization Platform",
+    title="pktFlow",
+    description="Enterprise NetFlow Visualization & Alerting Platform",
     version="0.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -200,15 +208,17 @@ async def _direct_access_lock(request: Request, call_next):
 
 # ── API Routers ───────────────────────────────────────────────────────────────
 
-from app.api import alerts as alerts_router
-
 app.include_router(auth.router,            prefix="/api/auth",     tags=["auth"])
 app.include_router(users.router,           prefix="/api/users",    tags=["users"])
-app.include_router(snmp_router.router,     prefix="/api/snmp",     tags=["snmp"])
+app.include_router(ingest.router,          prefix="/api/ingest",   tags=["ingest"])
+app.include_router(flows.router,           prefix="/api/flows",    tags=["flows"])
+app.include_router(devices.router,         prefix="/api/devices",  tags=["devices"])
+app.include_router(alerts.router,          prefix="/api/alerts",   tags=["alerts"])
 app.include_router(settings_router.router, prefix="/api/settings", tags=["settings"])
+app.include_router(ai.router,              prefix="/api/ai",       tags=["ai"])
 app.include_router(system_router.router,   prefix="/api/system",   tags=["system"])
-app.include_router(alerts_router.router,   prefix="/api/alerts",   tags=["alerts"])
 app.include_router(logs_router.router,     prefix="/api/logs",     tags=["logs"])
+app.include_router(ws_router.router,       prefix="/api",          tags=["ws"])
 app.include_router(suite_router.router, prefix="/api/suite", tags=["suite"])
 
 # ── Health check ──────────────────────────────────────────────────────────────
@@ -237,17 +247,22 @@ async def health(request: Request):
     return {"status": "ok", "version": "0.1.0", "direct_ui_locked": _locked, "hub_redirect_url": _rurl}
 
 # ── Serve React frontend (production build) ───────────────────────────────────
+# In development, Vite's dev server handles this on a different port.
 _frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
+    # Serve static assets (JS, CSS, images) from /assets
     app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")), name="assets")
 
+    # Serve public static files (logos, favicons, etc.)
+    _logos_dir = _frontend_dist / "logos"
+    if _logos_dir.exists():
+        app.mount("/logos", StaticFiles(directory=str(_logos_dir)), name="logos")
+
+    # Catch-all: serve index.html for all non-API routes (SPA client-side routing)
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(request: Request, full_path: str):
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not found")
-        static_file = _frontend_dist / full_path
-        if static_file.exists() and static_file.is_file():
-            return FileResponse(str(static_file))
         index = _frontend_dist / "index.html"
         response = FileResponse(str(index))
         # pktHub suite-token bootstrap — set sso cookies so React logs in automatically
@@ -277,10 +292,10 @@ if __name__ == "__main__":
     import uvicorn
 
     # Read SSL settings from SQLite before uvicorn starts
-    _db_path = Path(__file__).parent.parent / "pktsnmp.db"
-    _ssl_enabled  = False
+    _db_path = Path(__file__).parent.parent / "pktflow.db"
+    _ssl_enabled = False
     _ssl_certfile = None
-    _ssl_keyfile  = None
+    _ssl_keyfile = None
     try:
         _conn = sqlite3.connect(str(_db_path))
         for _key in ("ssl_enabled", "ssl_certfile", "ssl_keyfile"):
@@ -295,28 +310,20 @@ if __name__ == "__main__":
                     _ssl_keyfile = _val if _val else None
         _conn.close()
     except Exception as _e:
-        log.warning(f"Could not read SSL settings from config DB: {_e}")
+        log.warning(f"Could not read SSL settings from DB: {_e}. Starting without SSL.")
 
-    _uvicorn_kwargs = dict(
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level.lower(),
+    _uvicorn_kwargs: dict = dict(
+        host="0.0.0.0",
+        port=8766,
         workers=1,
+        log_level="info",
     )
-    # Fall back to the well-known upload paths if DB paths are empty
-    _SSL_DIR   = Path(__file__).parent.parent / "ssl"
-    _CERT_FILE = _SSL_DIR / "server.crt"
-    _KEY_FILE  = _SSL_DIR / "server.key"
-    if not _ssl_certfile and _CERT_FILE.exists():
-        _ssl_certfile = str(_CERT_FILE)
-    if not _ssl_keyfile and _KEY_FILE.exists():
-        _ssl_keyfile = str(_KEY_FILE)
-
     if _ssl_enabled and _ssl_certfile and _ssl_keyfile:
         _uvicorn_kwargs["ssl_certfile"] = _ssl_certfile
-        _uvicorn_kwargs["ssl_keyfile"]  = _ssl_keyfile
-        log.info(f"Starting with HTTPS: cert={_ssl_certfile}")
+        _uvicorn_kwargs["ssl_keyfile"] = _ssl_keyfile
+        log.info(f"SSL enabled — cert: {_ssl_certfile}")
     else:
-        log.info("Starting with HTTP (no SSL configured)")
+        if _ssl_enabled:
+            log.warning("SSL enabled in settings but cert/key paths are missing — starting without SSL.")
 
     uvicorn.run("app.main:app", **_uvicorn_kwargs)
