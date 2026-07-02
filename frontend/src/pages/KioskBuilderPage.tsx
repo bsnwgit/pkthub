@@ -161,7 +161,7 @@ export default function KioskBuilderPage() {
                       className="p-1.5 text-gray-400 hover:text-green-400 rounded-lg transition-colors">
                       {copied === k.id ? <span className="text-xs text-green-400">Copied!</span> : <Copy size={13} />}
                     </button>
-                    <a href={`/display/${k.display_token}`} target="_blank" rel="noreferrer"
+                    <a href={`/display/${k.display_token}`}
                       className="p-1.5 text-gray-400 hover:text-white rounded-lg transition-colors">
                       <ExternalLink size={13} />
                     </a>

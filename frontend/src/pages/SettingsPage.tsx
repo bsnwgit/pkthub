@@ -1837,9 +1837,9 @@ export default function SettingsPage() {
               <Field label="ACS URL (read-only)" hint="Register this URL as the Single Sign-On URL in your Okta app">
                 <div className="flex items-center gap-2">
                   <TextInput value={`${str('base_url')}/api/auth/saml/callback`} readOnly mono />
-                  <a href={`${str('base_url')}/api/auth/saml/metadata`} target="_blank" rel="noreferrer"
+                  <a href={`${str('base_url')}/api/auth/saml/metadata`}
                     className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap">
-                    View SP metadata ↗
+                    View SP metadata
                   </a>
                 </div>
               </Field>
