@@ -873,6 +873,13 @@ def delete_feed(name):
         _feed_sessions.pop(name, None)
     return jsonify({"ok": True})
 
+# ── Widget routes (pktHub NOC Builder) ───────────────────────────────────────
+try:
+    from widgets_routes import register as _register_widgets
+    _register_widgets(app)
+except ImportError:
+    pass
+
 # -- Entry point ---------------------------------------------------------------
 
 def open_browser(port, scheme="http"):

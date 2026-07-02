@@ -22,6 +22,8 @@ from app.api import pktlog as pktlog_router
 from app.api import logs as logs_router
 from app.api import syslog as syslog_router
 from app.api import collectors as collectors_router
+from app.api import suite as suite_router
+from app.api import widgets as widgets_router
 
 settings = get_settings()
 log = logging.getLogger("pktlog")
@@ -116,6 +118,8 @@ app.include_router(pktlog_router.router,   prefix="/api/pktlog",   tags=["pktlog
 app.include_router(logs_router.router,     prefix="/api/logs",     tags=["logs"])
 app.include_router(syslog_router.router,    prefix="/api/syslog",      tags=["syslog"])
 app.include_router(collectors_router.router, prefix="/api/collectors", tags=["collectors"])
+app.include_router(suite_router.router,   prefix="/api/suite",  tags=["suite"])
+app.include_router(widgets_router.router, prefix="/api",        tags=["widgets"])
 
 # ── Health check ──────────────────────────────────────────────────────────────
 
