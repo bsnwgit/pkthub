@@ -20,6 +20,7 @@ from app.notifications import router as notifications_router
 from app.alert_rules import router as alert_rules_router
 from app.ssl_api import router as ssl_router
 from app.backup_api import router as backup_router
+from app.app_alerts import router as app_alerts_router
 
 app = FastAPI(title="pktHub", version="1.0.0", docs_url="/api/docs")
 
@@ -44,6 +45,7 @@ app.include_router(notifications_router)
 app.include_router(alert_rules_router)
 app.include_router(ssl_router)
 app.include_router(backup_router)
+app.include_router(app_alerts_router)
 
 @app.get("/api/health")
 async def health():

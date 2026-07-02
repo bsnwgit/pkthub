@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { Activity, Server, AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react'
+import AlertLogSection from '../components/AlertLogSection'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa',
@@ -46,10 +47,10 @@ export default function DashboardPage() {
   }, [])
 
   const stats = data ? [
-    { label: 'Total Apps', value: data.total_apps ?? 0, color: '#60a5fa' },
-    { label: 'Healthy', value: data.healthy ?? 0, color: '#4ade80' },
-    { label: 'Degraded', value: data.degraded ?? 0, color: '#f59e0b' },
-    { label: 'Unreachable', value: data.unreachable ?? 0, color: '#f87171' },
+    { label: 'Total Apps', value: data.summary?.total_apps ?? 0, color: '#60a5fa' },
+    { label: 'Healthy', value: data.summary?.healthy ?? 0, color: '#4ade80' },
+    { label: 'Degraded', value: data.summary?.degraded ?? 0, color: '#f59e0b' },
+    { label: 'Unreachable', value: data.summary?.unreachable ?? 0, color: '#f87171' },
   ] : []
 
   return (
@@ -84,10 +85,10 @@ export default function DashboardPage() {
       )}
 
       {/* Audit events 24h */}
-      {data?.audit_events_24h !== undefined && (
+      {data?.summary?.audit_events_24h !== undefined && (
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Activity size={14} />
-          <span><strong className="text-white">{data.audit_events_24h}</strong> audit events in the last 24h</span>
+          <span><strong className="text-white">{data.summary.audit_events_24h}</strong> audit events in the last 24h</span>
         </div>
       )}
 
@@ -110,7 +111,7 @@ export default function DashboardPage() {
                 key={app.id}
                 className="rounded-xl border p-4 cursor-pointer hover:border-opacity-60 transition-colors"
                 style={{ background: '#111827', borderColor: color + '33' }}
-                onClick={() => navigate(`/proxy/${app.id}`)}
+                onClick={() => navigate(`/context?app=${app.id}`)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -121,8 +122,8 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-xs text-gray-500 mb-2">{app.base_url}</p>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.status === 'managed' ? 'bg-orange-900/30 text-orange-400' : 'bg-blue-900/20 text-blue-400'}`}>
-                    {app.status === 'managed' ? 'Managed' : 'Observe'}
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.access_mode === 'managed' ? 'bg-orange-900/30 text-orange-400' : 'bg-blue-900/20 text-blue-400'}`}>
+                    {app.access_mode === 'managed' ? 'Managed' : 'Observe'}
                   </span>
                   <span className="text-xs text-gray-500">Open &rarr;</span>
                 </div>
@@ -131,6 +132,9 @@ export default function DashboardPage() {
           })}
         </div>
       </div>
+
+      {/* App Alert Log */}
+      <AlertLogSection />
     </div>
   )
 }

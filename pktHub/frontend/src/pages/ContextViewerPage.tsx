@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 import { PktSuiteIcon } from '../components/Logo'
-import { Home, ChevronDown, Check } from 'lucide-react'
+import { Home, ChevronDown, Check, ShieldAlert, RefreshCw } from 'lucide-react'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
@@ -14,17 +14,31 @@ function appColor(name: string) {
 
 export default function ContextViewerPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [apps, setApps] = useState<any[]>([])
   const [selectedApp, setSelectedApp] = useState<any>(null)
   const [iframeSrc, setIframeSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [alerts, setAlerts] = useState<any[]>([])
+  const [resyncing, setResyncing] = useState(false)
+  const [searchParams] = useSearchParams()
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const selectedAppRef = useRef<any>(null)
 
   useEffect(() => {
     api.listApps().then(setApps).catch(() => {})
   }, [])
+
+
+  // Auto-select app when navigated from Dashboard card (?app=ID in URL)
+  useEffect(() => {
+    const appId = searchParams.get('app')
+    if (!appId || apps.length === 0 || selectedApp) return
+    const found = apps.find((a: any) => String(a.id) === appId)
+    if (found) selectApp(found)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apps])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -36,6 +50,51 @@ export default function ContextViewerPage() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+
+  // Keep ref in sync with selectedApp state for use in message handler closure
+  useEffect(() => {
+    selectedAppRef.current = selectedApp
+  }, [selectedApp])
+
+  // Handle PKT_NAVIGATE messages from proxied pktApp iframes
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type !== 'PKT_NAVIGATE') return
+      const app = selectedAppRef.current
+      if (!app) return
+      const path = (event.data.path as string) || ''
+      if (!path) return
+      window.open(`/proxy/${app.id}${path}`, '_blank', 'noopener')
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
+  // Poll alerts for selected app — detect token mismatch
+  useEffect(() => {
+    if (!selectedApp) { setAlerts([]); return }
+    const fetchAlerts = () => api.listAlerts().then(setAlerts).catch(() => {})
+    fetchAlerts()
+    const t = setInterval(fetchAlerts, 30_000)
+    return () => clearInterval(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedApp?.id])
+
+  const hasTokenMismatch = selectedApp != null && alerts.some(
+    (a: any) => a.app_id === selectedApp.id && a.event_type === 'token_mismatch' && a.status === 'active'
+  )
+
+  const resyncToken = async () => {
+    if (!selectedApp) return
+    setResyncing(true)
+    try {
+      await api.resyncToken(selectedApp.id)
+      api.listAlerts().then(setAlerts).catch(() => {})
+    } catch { /* swallow */ }
+    finally { setResyncing(false) }
+  }
 
   async function selectApp(app: any) {
     setDropdownOpen(false)
@@ -143,6 +202,34 @@ export default function ContextViewerPage() {
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <p className="text-sm text-gray-500">Connecting…</p>
+          </div>
+        )}
+        {hasTokenMismatch && (
+          <div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 text-center px-6"
+            style={{ background: 'rgba(10,22,40,0.95)', backdropFilter: 'blur(4px)' }}
+          >
+            <div className="p-3 rounded-full" style={{ background: '#7f1d1d' }}>
+              <ShieldAlert size={32} className="text-red-300" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-red-300">Suite Token Mismatch</p>
+              <p className="text-sm text-gray-400 mt-1 max-w-sm">
+                The token stored for{' '}
+                <span className="font-semibold text-white">{selectedApp?.name}</span>{' '}
+                doesn&apos;t match the app&apos;s current token. Proxy requests will fail until resolved.
+              </p>
+            </div>
+            <button
+              onClick={resyncToken}
+              disabled={resyncing}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-colors"
+              style={{ background: '#dc2626' }}
+            >
+              <RefreshCw size={14} className={resyncing ? 'animate-spin' : ''} />
+              {resyncing ? 'Syncing…' : 'Re-sync Token from App'}
+            </button>
+            <p className="text-xs text-gray-600">Fetches the live token from the app and updates pktHub&apos;s registry.</p>
           </div>
         )}
         {iframeSrc && (

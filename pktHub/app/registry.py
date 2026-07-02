@@ -230,6 +230,52 @@ async def rotate_token(
     await write_audit(db, current_user, "app.rotate_token", f"app:{app['name']}", {})
     return {"message": "Token rotated"}
 
+@router.post("/{app_id}/resync-token", response_model=dict)
+async def resync_token(
+    app_id: int,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Pull the current suite token from the pktApp and update registered_apps."""
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    base_url = app["base_url"].rstrip("/")
+
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            resp = await client.get(
+                f"{base_url}/api/suite/token",
+                headers={"X-Suite-Version": str(SUITE_VERSION)}
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"App returned HTTP {resp.status_code}")
+        tok_data = resp.json()
+        new_token = tok_data.get("suite_token", "")
+        if not new_token:
+            raise HTTPException(status_code=502, detail="App returned empty suite_token")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Cannot reach app: {e}")
+
+    await db.execute(
+        "UPDATE registered_apps SET suite_token = ? WHERE id = ?",
+        (new_token, app_id)
+    )
+    # Resolve any active token_mismatch alert for this app
+    await db.execute(
+        """UPDATE app_alerts SET status='resolved', resolved_at=datetime('now')
+           WHERE app_id = ? AND event_type = 'token_mismatch' AND status = 'active'""",
+        (app_id,)
+    )
+    await db.commit()
+    await write_audit(db, current_user, "app.resync_token", f"app:{app['name']}",
+                      {"previous_token_prefix": app["suite_token"][:8] + "..."})
+    return {"ok": True, "message": "Token synced from app"}
+
+
 async def poll_health(app_id: int, base_url: str, suite_token: str):
     import aiosqlite as _aio, json as _json
     settings_obj = __import__("app.config", fromlist=["get_settings"]).get_settings()
@@ -266,12 +312,29 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
     except Exception:
         pass  # widget manifest is optional — pktApps without it just show no widgets
 
+    # ── Token verification — only when app is reachable ─────────────────────────────────────────
+    token_ok = None
+    if health != "unreachable":
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                tok_resp = await client.get(
+                    f"{base_url.rstrip('/')}/api/suite/token",
+                    headers={"X-Suite-Version": str(SUITE_VERSION)}
+                )
+                if tok_resp.status_code == 200:
+                    tok_data = tok_resp.json()
+                    reported_token = tok_data.get("suite_token", "")
+                    token_ok = (reported_token == suite_token)
+        except Exception:
+            token_ok = None  # network issue — leave alert state unchanged
+
     async with _aio.connect(settings_obj.db_path) as db:
         db.row_factory = _aio.Row
         async with db.execute(
-            "SELECT access_mode FROM registered_apps WHERE id = ?", (app_id,)
+            "SELECT name, access_mode FROM registered_apps WHERE id = ?", (app_id,)
         ) as cur:
             row = await cur.fetchone()
+        app_name    = row["name"] if row else f"app:{app_id}"
         stored_mode = (row["access_mode"] if row and row["access_mode"] else "direct")
 
         # Drift detection: hub says managed but app reports unlocked (failsafe fired)
@@ -300,6 +363,61 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
                 "UPDATE registered_apps SET widget_manifest = ? WHERE id = ?",
                 (_json.dumps(widget_manifest), app_id)
             )
+
+        # ── Alert generation ────────────────────────────────────────────────
+        try:
+            async with db.execute(
+                "SELECT id, event_type FROM app_alerts "
+                "WHERE app_id = ? AND acked_at IS NULL AND status = 'active'",
+                (app_id,)
+            ) as _acur:
+                _active = {r["event_type"]: r["id"] for r in await _acur.fetchall()}
+
+            if health == "unreachable":
+                if "connection_lost" not in _active:
+                    await db.execute(
+                        "INSERT INTO app_alerts (app_id, app_name, event_type) VALUES (?, ?, 'connection_lost')",
+                        (app_id, app_name)
+                    )
+                if "unhealthy" in _active:
+                    await db.execute(
+                        "UPDATE app_alerts SET status='resolved', resolved_at=datetime('now') WHERE id=?",
+                        (_active["unhealthy"],)
+                    )
+            elif health == "degraded":
+                if "unhealthy" not in _active:
+                    await db.execute(
+                        "INSERT INTO app_alerts (app_id, app_name, event_type) VALUES (?, ?, 'unhealthy')",
+                        (app_id, app_name)
+                    )
+                if "connection_lost" in _active:
+                    await db.execute(
+                        "UPDATE app_alerts SET status='resolved', resolved_at=datetime('now') WHERE id=?",
+                        (_active["connection_lost"],)
+                    )
+            elif health == "healthy":
+                for _etype, _aid in _active.items():
+                    if _etype in ("connection_lost", "unhealthy"):
+                        await db.execute(
+                            "UPDATE app_alerts SET status='resolved', resolved_at=datetime('now') WHERE id=?",
+                            (_aid,)
+                        )
+
+            # Token mismatch alerts
+            if token_ok is False:
+                if "token_mismatch" not in _active:
+                    await db.execute(
+                        "INSERT INTO app_alerts (app_id, app_name, event_type) VALUES (?, ?, 'token_mismatch')",
+                        (app_id, app_name)
+                    )
+            elif token_ok is True:
+                if "token_mismatch" in _active:
+                    await db.execute(
+                        "UPDATE app_alerts SET status='resolved', resolved_at=datetime('now') WHERE id=?",
+                        (_active["token_mismatch"],)
+                    )
+        except Exception:
+            pass  # alert table may not exist on older DBs yet — migration will fix on restart
 
         await db.commit()
 

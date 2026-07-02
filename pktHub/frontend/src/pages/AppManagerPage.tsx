@@ -4,8 +4,9 @@ import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import {
   Plus, Trash2, RefreshCw, ExternalLink, ChevronDown,
-  ShieldCheck, Eye, X, CheckCircle, AlertCircle
+  ShieldCheck, Eye, X, CircleCheck, CircleAlert
 } from 'lucide-react'
+import AlertLogSection from '../components/AlertLogSection'
 
 // ── Styled confirmation modal ─────────────────────────────────────────────────
 interface ModalProps {
@@ -148,6 +149,7 @@ export default function AppManagerPage() {
   const [auditLogs, setAuditLogs]   = useState<Record<number, any[]>>({})
   const [logsLoading, setLogsLoading] = useState<Record<number, boolean>>({})
   const [bulkWorking, setBulkWorking] = useState(false)
+  const [alerts, setAlerts] = useState<any[]>([])
 
   const closeModal = () => setModal(m => ({ ...m, open: false }))
 
@@ -166,7 +168,10 @@ export default function AppManagerPage() {
 
   const load = () => {
     setLoading(true)
-    api.listApps().then(setApps).catch(e => setError(e.message)).finally(() => setLoading(false))
+    Promise.all([api.listApps(), api.listAlerts()])
+      .then(([appsData, alertsData]) => { setApps(appsData); setAlerts(alertsData) })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
@@ -216,6 +221,17 @@ export default function AppManagerPage() {
       setTokenMap(m => ({ ...m, [id]: res.suite_token }))
       setTimeout(() => setTokenMap(m => { const n = { ...m }; delete n[id]; return n }), 30000)
     } catch (e: any) { setError(e.message) }
+  }
+
+  const resyncTokenHandler = async (appId: number, appName: string) => {
+    showFeedback(appId, 'verifying', 'Syncing token from app…')
+    try {
+      await api.resyncToken(appId)
+      showFeedback(appId, 'ok', 'Token synced — mismatch resolved ✓')
+      load()
+    } catch (e: any) {
+      showFeedback(appId, 'fail', e.message || 'Token sync failed')
+    }
   }
 
   const toggleMode = (app: any) => {
@@ -386,6 +402,9 @@ export default function AppManagerPage() {
           const color      = appColor(app.name)
           const statusColor = STATUS_COLOR[app.health_status] || '#6b7280'
           const isManaged  = app.access_mode === 'managed'
+          const hasMismatch = alerts.some(
+            (a: any) => a.app_id === app.id && a.event_type === 'token_mismatch' && a.status === 'active'
+          )
           const fb         = feedback?.appId === app.id ? feedback : null
           const logs       = auditLogs[app.id] || []
           const logsOpen   = expandedApp === app.id
@@ -410,6 +429,11 @@ export default function AppManagerPage() {
                         {isManaged && app.lock_verified_at && (
                           <span className="text-xs text-green-600/80">lock verified</span>
                         )}
+                        {hasMismatch && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium border bg-red-900/30 text-red-300 border-red-700/30 animate-pulse">
+                            ⚠️ Token Mismatch
+                          </span>
+                        )}
                       </div>
                       {app.description && <p className="text-xs text-gray-500 mt-0.5">{app.description}</p>}
                       <p className="text-xs text-gray-600 mt-1 font-mono truncate">{app.base_url}</p>
@@ -421,8 +445,8 @@ export default function AppManagerPage() {
                           fb.status === 'fail'     ? 'bg-red-900/20 text-red-400 border border-red-800/20' :
                                                      'bg-blue-900/20 text-blue-400 border border-blue-800/20'
                         }`}>
-                          {fb.status === 'ok'       && <CheckCircle size={12} />}
-                          {fb.status === 'fail'     && <AlertCircle size={12} />}
+                          {fb.status === 'ok'       && <CircleCheck size={12} />}
+                          {fb.status === 'fail'     && <CircleAlert size={12} />}
                           {fb.status === 'verifying' && <RefreshCw size={12} className="animate-spin" />}
                           <span>{fb.message}</span>
                         </div>
@@ -459,6 +483,14 @@ export default function AppManagerPage() {
                           className={`p-1.5 rounded-lg transition-colors ${logsOpen ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}>
                           <ChevronDown size={14} className={`transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`} />
                         </button>
+                        {hasMismatch && isAdmin && (
+                          <button
+                            onClick={() => resyncTokenHandler(app.id, app.name)}
+                            title="Re-sync suite token from app"
+                            className="p-1.5 text-red-400 hover:text-red-200 rounded-lg hover:bg-red-900/20 transition-colors">
+                            <RefreshCw size={14} />
+                          </button>
+                        )}
                         <button onClick={() => rotateToken(app.id)} title="Rotate suite token"
                           className="p-1.5 text-gray-400 hover:text-yellow-400 rounded-lg hover:bg-gray-700 transition-colors">
                           <RefreshCw size={14} />
@@ -511,6 +543,9 @@ export default function AppManagerPage() {
           )
         })}
       </div>
+
+      {/* App Alert Log */}
+      <AlertLogSection />
     </div>
   )
 }
