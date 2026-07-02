@@ -444,7 +444,7 @@ async function loadApps() {
       return;
     }
     grid.innerHTML = apps.map(a => `
-      <a class="app-card" href="${esc(a.url)}" target="_blank" rel="noopener" data-app-icon="${esc(a.icon||'generic')}">
+      <a class="app-card" href="${esc(a.url)}" data-app-icon="${esc(a.icon||'generic')}">
         <div class="app-icon">${ICONS[a.icon] || ICONS.generic}</div>
         <div class="app-info">
           <div class="app-name">${esc(a.name)}</div>
