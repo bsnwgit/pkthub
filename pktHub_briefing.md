@@ -18,7 +18,8 @@ pktHub provides:
 - Platform-wide settings, user management, and audit logging
 
 **Status:** Built and deployed. SSO proxy auth complete — all four pktApps open inside
-pktHub without showing their own login screens.
+pktHub without showing their own login screens. Phase 1 + Phase 2 committed to
+`feature/initial-build` on `git@github.com:bsnwgit/pkthub.git`.
 
 ---
 
@@ -180,8 +181,21 @@ app/main.py           — FastAPI app + SPA catch-all
 frontend/src/pages/ProxyShell.tsx  — thin-bar iframe shell component
 DEPLOYMENT.md         — step-by-step deploy + pktApp integration guide
 BUILD_STATUS.md       — current build state and change log
+CLAUDE.md             — project context for Claude (hard rules, SSH, deploy)
+README.md             — project overview
 pktapp_patches/       — server snapshots of every modified pktApp file
+backup.py             — local 2-rotation backup script
 ```
+
+---
+
+## Backup
+
+```
+python "C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub\backup.py"
+```
+
+Backups rotate to: `pktHub_backups\` (backup_1 = most recent, backup_2 = previous)
 
 ---
 

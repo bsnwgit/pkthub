@@ -1,5 +1,5 @@
 # pktHub Build Status
-**Last updated:** 2026-06-30
+**Last updated:** 2026-07-01
 
 ---
 
@@ -9,7 +9,7 @@ pktHub is deployed and running. All four pktApps open inside pktHub without a lo
 
 **Access:** `https://<SERVER_IP>:<PORT_HUB>`
 **Service:** `sudo systemctl status pkthub`
-**Log:** `<INSTALL_DIR>/logs/pkthub.log`
+**Log:** `<INSTALL_DIR>/pkthub/logs/pkthub.log`
 
 See `DEPLOYMENT.md` for full setup instructions and placeholder definitions.
 
@@ -30,10 +30,10 @@ Change immediately after first login. Edit `config.yaml` on the server.
 
 | App      | Default Port | Status |
 |----------|-------------|--------|
-| pktLog   | 8768        | ✓ Opens in pktHub, no login prompt |
-| pktFlow  | 8766        | ✓ Opens in pktHub, no login prompt |
-| pktSNMP  | 8767        | ✓ Opens in pktHub, no login prompt |
-| pktPCAP  | 8765        | ✓ Opens in pktHub, no login prompt |
+| pktLog   | 8768        | SSO complete — opens in pktHub, no login prompt |
+| pktFlow  | 8766        | SSO complete — opens in pktHub, no login prompt |
+| pktSNMP  | 8767        | SSO complete — opens in pktHub, no login prompt |
+| pktPCAP  | 8765        | SSO complete — opens in pktHub, no login prompt |
 
 ---
 
@@ -132,9 +132,13 @@ pktHub/
     pktpcap/config.json
   DEPLOYMENT.md           # full deployment + integration guide
   BUILD_STATUS.md         # this file
+  CLAUDE.md               # project context for Claude
+  README.md               # project overview
   pktHub_briefing.md      # project overview for new chat sessions
   config.example.yaml     # template — copy to config.yaml on server
   requirements.txt
+  deploy.py               # SFTP + remote build deploy script
+  backup.py               # local 2-rotation backup
 ```
 
 ---
@@ -142,5 +146,8 @@ pktHub/
 ## Git Status
 
 Branch: `feature/initial-build`
-Phase 2 changes: deployed to server, local files updated in `pktapp_patches/`.
-Pending: commit Phase 2 changes.
+Remote: `git@github.com:bsnwgit/pkthub.git`
+
+Phase 1 + Phase 2 changes committed.
+Docs pass (README.md, CLAUDE.md, BUILD_STATUS.md, DEPLOYMENT.md, pktHub_briefing.md,
+index.html, backup.py) committed 2026-07-01.

@@ -289,3 +289,19 @@ For any new pktApp added to the suite:
    handled by pktHub's proxy.py — no changes needed in the new app
 4. Set `suite_token` in the app's config (or DB, per the app's storage pattern)
 5. Test with `curl` before testing in the browser
+
+---
+
+## §6 — Backup
+
+Before significant changes, run the local backup script:
+
+```
+python "C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub\backup.py"
+```
+
+This rotates a 2-copy local backup:
+- `pktHub_backups\backup_1` — most recent
+- `pktHub_backups\backup_2` — previous
+
+The script excludes: `.git`, `node_modules`, `__pycache__`, `venv`, `*.pyc`, `*.log`.

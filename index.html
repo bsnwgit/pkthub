@@ -246,7 +246,7 @@ footer {
 /* ARCH DIAGRAM + MODAL */
 .arch-diagram { position:relative; cursor:zoom-in; }
 .arch-diagram::after {
-  content: '⤢  Click to enlarge';
+  content: 'Click to enlarge';
   position:absolute; bottom:12px; right:12px;
   background:rgba(0,0,0,0.6); color:#fff;
   font-size:0.72rem; padding:4px 10px; border-radius:20px;
@@ -262,7 +262,7 @@ footer {
 .modal-inner {
   background:#1e2a3a; border:1px solid #60a5fa;
   border-radius:16px; padding:1.5rem;
-  max-width:95vw; max-height:90vh; overflow:auto;
+  width:1400px; max-width:95vw; max-height:90vh; overflow:auto;
   position:relative; animation:modal-in 0.2s ease;
 }
 @keyframes modal-in {
@@ -591,8 +591,8 @@ footer {
           <li><strong>React frontend</strong> — App Manager, Proxied App Viewer (44px top bar shell), Kiosk Builder, Dashboard, Settings, Users</li>
           <li><strong>SQLite WAL DB</strong> — app registry, users, kiosk layouts (JSON), audit log, notification settings, platform config</li>
           <li><strong>Audit log</strong> — stored in pktHub DB only; no forwarding to pktLog (prevents circular dependency)</li>
-          <li><strong>API versioning</strong> — X-Suite-Version header on all pktHub↔pktAPP calls; version negotiated at registration</li>
-          <li><strong>Systemd service</strong> — /mnt/software/pkthub, port 8760 HTTPS, auto-restart hardened</li>
+          <li><strong>API versioning</strong> — X-Suite-Version header on all pktHub&harr;pktAPP calls; version negotiated at registration</li>
+          <li><strong>Systemd service</strong> — port 8760 HTTPS, auto-restart hardened</li>
         </ul>
       </div>
       <div>
@@ -611,12 +611,12 @@ footer {
       <div class="card">
         <div class="card-label" style="color:var(--text-muted)">Server</div>
         <h3>pkt server · Port 8760</h3>
-        <p>Same server as all pktAPP apps. /mnt/software/pkthub. systemctl pkthub. SQLite WAL at pkthub.db.</p>
+        <p>Same server as all pktAPP apps. Shared infrastructure, isolated systemd services, SQLite WAL at pkthub.db.</p>
       </div>
       <div class="card">
         <div class="card-label" style="color:var(--text-muted)">Deploy Pattern</div>
         <h3>Identical to pktFlow / pktLog</h3>
-        <p>SFTP source → build frontend in Linux /tmp → cp dist to app dir → systemctl restart. deploy_fe.py pattern.</p>
+        <p>SFTP source → build frontend in Linux /tmp → cp dist to app dir → systemctl restart. deploy.py script handles the full cycle.</p>
       </div>
       <div class="card">
         <div class="card-label" style="color:var(--warning)">SSH Note</div>
@@ -651,7 +651,7 @@ footer {
     <text x="188" y="75" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-pcap)" letter-spacing="1.5">PCAP</text>
   </svg>
   <p>pktHub — Unified NOC/SOC Platform · pktSolution</p>
-  <p style="margin-top:6px;font-size:12px;color:var(--text-muted)">Design complete · Build pending</p>
+  <p style="margin-top:6px;font-size:12px;color:var(--text-muted)">Built &amp; deployed · SSO proxy auth complete</p>
 </footer>
 
 <div id="diagram-modal" onclick="if(event.target===this)closeDiagramModal()">
