@@ -1,0 +1,53 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────
+#  pktHub — Docker Compose
+#
+#  Quick start:
+#    cp .env.example .env
+#    # Edit .env and set APP_ADMIN_PASSWORD
+#    docker compose up -d
+#
+#  Data (database, config, SSL certs, logs) persists in the
+#  named volume "pkthub-data" across container updates and reboots.
+# ─────────────────────────────────────────────────────────────
+
+services:
+  pkthub:
+    image: ghcr.io/bsnwgit/pkthub:latest
+    container_name: pkthub
+    restart: unless-stopped
+
+    ports:
+      # HTTP  — change APP_HTTP_PORT in .env to use a different host port
+      - "${APP_HTTP_PORT:-80}:${APP_HTTP_PORT:-80}"
+      # HTTPS — change APP_HTTPS_PORT in .env to use a different host port
+      - "${APP_HTTPS_PORT:-443}:${APP_HTTPS_PORT:-443}"
+
+    volumes:
+      # Persistent data: database, config, SSL certs, logs, backups
+      - pkthub-data:/data
+
+    environment:
+      # ── Required ──────────────────────────────────────────────
+      - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD}
+
+      # ── Optional (defaults shown) ─────────────────────────────
+      - APP_ADMIN_USER=${APP_ADMIN_USER:-admin}
+      - APP_ADMIN_EMAIL=${APP_ADMIN_EMAIL:-admin@localhost}
+      - APP_HTTP_PORT=${APP_HTTP_PORT:-80}
+      - APP_HTTPS_PORT=${APP_HTTPS_PORT:-443}
+
+      # JWT secret — if blank, a random secret is generated on first start
+      # and stored in /data/config.yaml. Set a fixed value to keep sessions
+      # valid across container recreations.
+      - APP_JWT_SECRET=${APP_JWT_SECRET:-}
+
+      # ── Okta SSO (optional) ───────────────────────────────────
+      - OKTA_DOMAIN=${OKTA_DOMAIN:-}
+      - OKTA_CLIENT_ID=${OKTA_CLIENT_ID:-}
+      - OKTA_CLIENT_SECRET=${OKTA_CLIENT_SECRET:-}
+
+volumes:
+  pkthub-data:
+    driver: local
