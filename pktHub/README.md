@@ -2,7 +2,7 @@
 
 **Unified NOC/SOC Management Platform for pktSolution**
 
-pktHub is the central hub and sole management plane for all pktAPP applications — pktFlow, pktSNMP, pktLog, pktPCAP, and future apps. It runs on port **8760** and provides unified authentication, reverse-proxy access to all registered apps, a drag-and-drop NOC builder for wall displays, and platform-wide settings, user management, and audit logging.
+pktHub is the central hub and sole management plane for all pktAPP applications — pktFlow, pktSNMP, pktLog, pktPCAP, and future apps. It provides unified authentication, reverse-proxy access to all registered apps, a drag-and-drop NOC builder for wall displays, and platform-wide settings, user management, and audit logging.
 
 ---
 
@@ -10,22 +10,22 @@ pktHub is the central hub and sole management plane for all pktAPP applications 
 
 1. [Overview](#overview)
 2. [Stack](#stack)
-3. [Installation](#installation)
-4. [Configuration](#configuration)
-5. [First Boot & Initial Setup](#first-boot--initial-setup)
-6. [Users & Roles](#users--roles)
-7. [Registering pktAPP Apps](#registering-pktapp-apps)
-8. [Registration Workflow](#registration-workflow)
-9. [Managed Mode & Token Lockout](#managed-mode--token-lockout)
-10. [Authentication & Session Security](#authentication--session-security)
-11. [Context Viewer](#context-viewer)
-12. [Proxied App Shell](#proxied-app-shell)
-13. [NOC Builder](#noc-builder)
-14. [Settings](#settings)
-15. [API Reference](#api-reference)
-16. [Break-Glass Recovery](#break-glass-recovery)
-17. [Maintenance & Backup](#maintenance--backup)
-18. [Deploy Pattern](#deploy-pattern)
+3. [Docker Deployment](#docker-deployment) ← **Recommended**
+4. [Manual Installation](#manual-installation)
+5. [Configuration](#configuration)
+6. [First Boot & Initial Setup](#first-boot--initial-setup)
+7. [Users & Roles](#users--roles)
+8. [Registering pktAPP Apps](#registering-pktapp-apps)
+9. [Registration Workflow](#registration-workflow)
+10. [Managed Mode & Token Lockout](#managed-mode--token-lockout)
+11. [Authentication & Session Security](#authentication--session-security)
+12. [Context Viewer](#context-viewer)
+13. [Proxied App Shell](#proxied-app-shell)
+14. [NOC Builder](#noc-builder)
+15. [Settings](#settings)
+16. [API Reference](#api-reference)
+17. [Break-Glass Recovery](#break-glass-recovery)
+18. [Maintenance & Backup](#maintenance--backup)
 
 ---
 
@@ -51,29 +51,148 @@ pktHub provides three distinct platform areas through a single unified interface
 | Frontend | React + TypeScript + Vite |
 | Database | SQLite with WAL mode |
 | Authentication | JWT (local) + Okta SAML 2.0 (optional) |
-| Service | systemd (pkthub.service) |
-| Port | 8760 HTTPS |
+| Distribution | Docker (`ghcr.io/bsnwgit/pkthub`) |
+| Service (non-Docker) | systemd (pkthub.service) |
 
 ---
 
-## Installation
+## Docker Deployment
+
+This is the recommended way to run pktHub. A single image serves both HTTP and HTTPS and persists all data (database, config, SSL certs, logs) in a named Docker volume.
+
+### Prerequisites
+
+- Docker Engine 20.10+ and Docker Compose v2
+
+### Quick Start
+
+```bash
+# Pull the image
+docker pull ghcr.io/bsnwgit/pkthub:latest
+
+# Copy the example env file
+cp .env.example .env
+
+# Set your admin password (required)
+nano .env      # set APP_ADMIN_PASSWORD=your_secure_password
+
+# Start
+docker compose up -d
+```
+
+pktHub is now available at:
+- **HTTP**: `http://<host>:80`
+- **HTTPS**: `https://<host>:443` (self-signed cert by default)
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `APP_ADMIN_PASSWORD` | **Yes** | — | Password for the initial admin account |
+| `APP_ADMIN_USER` | No | `admin` | Username for the initial admin account |
+| `APP_ADMIN_EMAIL` | No | `admin@localhost` | Email for the initial admin account |
+| `APP_HTTP_PORT` | No | `80` | Host + container port for HTTP |
+| `APP_HTTPS_PORT` | No | `443` | Host + container port for HTTPS |
+| `APP_JWT_SECRET` | No | auto-generated | JWT signing secret. Set a fixed value to keep sessions valid across container recreations. Generate one with `openssl rand -hex 32`. |
+| `OKTA_DOMAIN` | No | `` | Okta domain for SAML SSO |
+| `OKTA_CLIENT_ID` | No | `` | Okta client ID |
+| `OKTA_CLIENT_SECRET` | No | `` | Okta client secret |
+
+### Persistent Volume
+
+All runtime data is stored in a Docker named volume (`pkthub-data`) mapped to `/data` inside the container:
+
+```
+/data/
+  config.yaml     # Generated from env vars on first start
+  pkthub.db       # SQLite database
+  ssl/
+    cert.pem      # TLS certificate (auto-generated self-signed if absent)
+    key.pem       # TLS private key
+  logs/
+    pkthub-http.log
+    pkthub-https.log
+  backups/        # Database backups from Settings → Maintenance
+```
+
+**Important:** Mount this volume to retain data across container updates and host reboots. Without a volume, all data (including user accounts and registered apps) is lost when the container is recreated.
+
+### Custom TLS Certificate
+
+To use a CA-signed certificate instead of the auto-generated self-signed one, place your cert and key in the volume before first start:
+
+```bash
+# Find the volume mount path on the host
+docker volume inspect pkthub-data
+
+# Copy your cert files (adjust the host path from the inspect output)
+cp your-cert.pem /path/to/volume/ssl/cert.pem
+cp your-key.pem  /path/to/volume/ssl/key.pem
+
+# Restart to pick up the new cert
+docker compose restart
+```
+
+### Changing Ports
+
+Edit `.env`, then recreate the container:
+
+```bash
+# .env
+APP_HTTP_PORT=8080
+APP_HTTPS_PORT=8443
+
+docker compose down
+docker compose up -d
+```
+
+### Updating
+
+```bash
+docker compose pull
+docker compose down
+docker compose up -d
+```
+
+Data on the named volume is preserved across updates.
+
+### Run Without Docker Compose
+
+```bash
+docker run -d \
+  --name pkthub \
+  --restart unless-stopped \
+  -p 80:80 \
+  -p 443:443 \
+  -v pkthub-data:/data \
+  -e APP_ADMIN_PASSWORD=your_secure_password \
+  ghcr.io/bsnwgit/pkthub:latest
+```
+
+---
+
+## Manual Installation
+
+Use this section for bare-metal or VM installs without Docker.
 
 ### Prerequisites
 
 - Python 3.11+
 - Node.js 18+ (frontend build only)
-- A valid TLS certificate and key for the server
+- A user account to run the service (e.g., `appuser`)
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repo-url> /mnt/software/pkthub
-cd /mnt/software/pkthub
+git clone <repo-url> /opt/pkthub
+cd /opt/pkthub
 ```
 
 ### 2. Install Python Dependencies
 
 ```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -109,12 +228,14 @@ systemctl start pkthub
 
 All configuration lives in `config.yaml` at the application root. A fully annotated example is provided in `config.example.yaml`.
 
+> **Docker users:** `config.yaml` is auto-generated from env vars on first start and stored in `/data/config.yaml` on the persistent volume. You do not need to edit it manually.
+
 ### Full Reference
 
 ```yaml
 # Network binding
 host: "0.0.0.0"          # Interface to bind (0.0.0.0 = all)
-port: 8760                # HTTPS port
+port: 8760                # Port (for systemd installs; Docker uses env vars)
 
 # TLS
 https: true
@@ -137,7 +258,7 @@ okta_client_id: ""
 okta_client_secret: ""
 
 # SQLite database
-db_path: "/mnt/software/pkthub/pkthub.db"
+db_path: "/opt/pkthub/pkthub.db"
 
 # App health polling interval (seconds)
 health_poll_interval: 30
@@ -164,13 +285,13 @@ trusted_cidrs: []
 
 ## First Boot & Initial Setup
 
-On first start, pktHub checks whether any users exist in the database. If not, it creates the initial admin account from the values in `config.yaml`.
+On first start, pktHub checks whether any users exist in the database. If not, it creates the initial admin account from `config.yaml` (systemd) or `APP_ADMIN_USER` / `APP_ADMIN_PASSWORD` env vars (Docker).
 
-1. Open `https://<server>:8760` in a browser.
-2. Log in with the `initial_admin_username` and `initial_admin_password` from your config.
+1. Open `https://<host>` (Docker) or `https://<host>:8760` (systemd) in a browser.
+2. Log in with the initial admin credentials.
 3. **Immediately change the password** — Settings → Users → edit admin account.
-4. Generate a new `jwt_secret` value and update `config.yaml`, then restart the service. The default value is insecure.
-5. Configure TLS if you haven't already — the service will refuse to start with `https: true` if the cert or key file is missing.
+4. Generate a new `jwt_secret` value and update your config, then restart. The default value is insecure.
+5. Configure TLS if using a CA-signed certificate — see [Custom TLS Certificate](#custom-tls-certificate) (Docker) or place cert files in the paths set in `config.yaml` (systemd).
 
 ---
 
@@ -209,7 +330,7 @@ Each pktAPP app must be running and reachable from the pktHub server before regi
 
 ### Requirements on the pktAPP Side
 
-Before registering, each pktAPP app must have the following endpoints implemented (Track 2 build items):
+Before registering, each pktAPP app must have the following endpoints implemented:
 
 | Endpoint | Purpose |
 |---|---|
@@ -224,9 +345,11 @@ The app must also support the `X-Suite-Token` header middleware and the `X-Suite
 
 1. On the pktApp, navigate to **Settings → Integrations → pktHub Integration**. Click **Copy Token** to copy the suite token.
 2. In pktHub, navigate to **Settings → App Registry**. Click **Register App**.
-3. Fill in App Name, Base URL, paste the Suite Token, and optionally set Hub Return URL. Click **Register**.
+3. Fill in App Name, Base URL (use the Docker service name or hostname), paste the Suite Token, and optionally set Hub Return URL. Click **Register**.
 
 pktHub validates the token by calling the app's `/api/health` endpoint, then stores it.
+
+> **Docker note:** When pktHub and pktAPP apps run in separate containers, use container names or hostnames as the base URL rather than `localhost`. Ensure containers are on a shared Docker network.
 
 ---
 
@@ -273,6 +396,14 @@ To deregister: **Settings → App Registry → [App] → Deregister**.
 In managed mode the `X-Suite-Token` middleware on the pktAPP side enforces the lockout. The token is a URL-safe random string generated and owned by the pktAPP. It is stored in the pktAPP's SQLite database and does not change on restart. Use the **Regen** button in pktApp Settings → Integrations to generate a new token and invalidate the old one — then re-register in pktHub.
 
 The `X-Suite-Version: 1` header is sent on all pktHub ↔ pktAPP API calls. pktAPP apps advertise their supported versions in the registration payload; pktHub negotiates the highest mutually supported version at registration time.
+
+### Token Mismatch Alert
+
+If pktHub's stored suite token no longer matches the token a pktAPP is actually using, pktHub raises a **Token Mismatch** alert. This prevents silent proxy failures caused by regenerating the pktApp token without re-registering.
+
+- A pulsing **⚠️ Token Mismatch** badge appears on the app card in App Registry.
+- A blocking overlay appears in the Context Viewer to prevent confusion from failed proxied requests.
+- Click the **Re-sync** button (admin only) to automatically fetch the live token from the pktApp and update the registry — no manual copy/paste required.
 
 ---
 
@@ -453,7 +584,7 @@ Settings follow the same two-column layout as pktFlow: sticky 260px sidebar with
 
 ## API Reference
 
-All pktHub API endpoints are under `/api/v1/`. Authentication is via `Authorization: Bearer <jwt>` header.
+All pktHub API endpoints are under `/api/`. Authentication is via `Authorization: Bearer <jwt>` header.
 
 ### Authentication
 
@@ -468,12 +599,13 @@ All pktHub API endpoints are under `/api/v1/`. Authentication is via `Authorizat
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/apps` | List all registered apps |
-| `POST` | `/api/v1/apps/register` | Register a new pktAPP |
-| `DELETE` | `/api/v1/apps/{app_id}` | Deregister an app |
-| `PATCH` | `/api/v1/apps/{app_id}/mode` | Toggle observe/managed mode |
-| `POST` | `/api/v1/apps/{app_id}/rotate-token` | Rotate the suite token |
-| `GET` | `/api/v1/apps/{app_id}/health` | Latest health status |
+| `GET` | `/api/apps` | List all registered apps |
+| `POST` | `/api/apps/register` | Register a new pktAPP |
+| `DELETE` | `/api/apps/{app_id}` | Deregister an app |
+| `PATCH` | `/api/apps/{app_id}/mode` | Toggle observe/managed mode |
+| `POST` | `/api/apps/{app_id}/rotate-token` | Rotate the suite token |
+| `GET` | `/api/apps/{app_id}/health` | Latest health status |
+| `POST` | `/api/apps/{app_id}/resync-token` | Fetch live token from pktApp and update registry |
 
 ### pktAPP Suite Endpoints (on each pktAPP)
 
@@ -482,33 +614,41 @@ All pktHub API endpoints are under `/api/v1/`. Authentication is via `Authorizat
 | `GET` | `/api/suite/token` | Returns the current suite token (generates one if absent) |
 | `POST` | `/api/suite/regenerate` | Generates and stores a new token (invalidates old one) |
 
+### Alerts
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/alerts` | List active alerts |
+| `GET` | `/api/alerts/history` | Alert history with date/type filters |
+| `POST` | `/api/alerts/{id}/ack` | Acknowledge an alert |
+
 ### NOC
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/noc/layouts` | List saved layouts |
-| `POST` | `/api/v1/noc/layouts` | Create a new layout |
-| `PUT` | `/api/v1/noc/layouts/{id}` | Update a layout |
-| `DELETE` | `/api/v1/noc/layouts/{id}` | Delete a layout |
-| `POST` | `/api/v1/noc/layouts/{id}/publish` | Publish and generate display token |
-| `DELETE` | `/api/v1/noc/layouts/{id}/token` | Revoke display token |
-| `GET` | `/api/v1/noc/display/{token}` | Public display endpoint (no auth required) |
+| `GET` | `/api/noc/layouts` | List saved layouts |
+| `POST` | `/api/noc/layouts` | Create a new layout |
+| `PUT` | `/api/noc/layouts/{id}` | Update a layout |
+| `DELETE` | `/api/noc/layouts/{id}` | Delete a layout |
+| `POST` | `/api/noc/layouts/{id}/publish` | Publish and generate display token |
+| `DELETE` | `/api/noc/layouts/{id}/token` | Revoke display token |
+| `GET` | `/api/noc/display/{token}` | Public display endpoint (no auth required) |
 
 ### Users
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/users` | List users (Admin only) |
-| `POST` | `/api/v1/users` | Create user (Admin only) |
-| `PATCH` | `/api/v1/users/{id}` | Update user (Admin only) |
-| `DELETE` | `/api/v1/users/{id}` | Disable user (Admin only) |
+| `GET` | `/api/users` | List users (Admin only) |
+| `POST` | `/api/users` | Create user (Admin only) |
+| `PATCH` | `/api/users/{id}` | Update user (Admin only) |
+| `DELETE` | `/api/users/{id}` | Disable user (Admin only) |
 
 ### Audit Log
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/audit` | Query audit log (Admin = all; Analyst = own sessions) |
-| `GET` | `/api/v1/audit/export` | Export as CSV (Admin only) |
+| `GET` | `/api/audit` | Query audit log (Admin = all; Analyst = own sessions) |
+| `GET` | `/api/audit/export` | Export as CSV (Admin only) |
 
 ### NOC Display (Public)
 
@@ -517,17 +657,11 @@ All pktHub API endpoints are under `/api/v1/`. Authentication is via `Authorizat
 | `GET` | `/display/{token}` | Renders the published NOC display page (no auth required) |
 | `GET` | `/proxy-display/{token}/{app_id}/{path}` | Proxies widget iframe requests using the display token — no user session needed |
 
-### Context Viewer
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/context` | Full-screen single-app viewer page (requires user auth) |
-
 ### Health
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/health` | Service health — stays live even when main app is degraded |
+| `GET` | `/api/health` | Service health — public endpoint |
 
 ### pktHub → pktAPP Protocol Headers
 
@@ -567,17 +701,21 @@ When pktHub comes back online it will detect the deregistration and mark the app
 
 ```bash
 # Manual backup — SQLite WAL safe copy
-sqlite3 /mnt/software/pkthub/pkthub.db ".backup '/mnt/software/pkthub/backups/pkthub-$(date +%Y%m%d).db'"
+sqlite3 /opt/pkthub/pkthub.db ".backup '/opt/pkthub/backups/pkthub-$(date +%Y%m%d).db'"
+
+# Docker
+docker exec pkthub sqlite3 /data/pkthub.db ".backup '/data/backups/pkthub-$(date +%Y%m%d).db'"
 ```
 
-The Settings → Maintenance page also exposes a one-click backup that writes to the `backups/` subdirectory under the application root.
+The Settings → Maintenance page also exposes a one-click backup.
 
 ### Database Vacuum
 
-SQLite databases accumulate free pages over time. Periodic VACUUM reclaims space:
-
 ```bash
-sqlite3 /mnt/software/pkthub/pkthub.db "VACUUM;"
+sqlite3 /opt/pkthub/pkthub.db "VACUUM;"
+
+# Docker
+docker exec pkthub sqlite3 /data/pkthub.db "VACUUM;"
 ```
 
 Run during a low-traffic window. The Settings → Maintenance page includes a Vacuum button.
@@ -585,34 +723,20 @@ Run during a low-traffic window. The Settings → Maintenance page includes a Va
 ### Service Management
 
 ```bash
-systemctl status pkthub      # Check status
-systemctl restart pkthub     # Restart
-journalctl -u pkthub -f      # Follow logs
+# systemd
+systemctl status pkthub
+systemctl restart pkthub
+journalctl -u pkthub -f
+
+# Docker
+docker compose ps
+docker compose restart
+docker compose logs -f pkthub
 ```
 
 ### Audit Log Purge
 
-Audit records older than `audit_retention_days` are purged automatically on a nightly schedule. To force an immediate purge:
-
-```bash
-# Via the Settings → Audit → Purge Now button in the UI
-# Or directly:
-sqlite3 /mnt/software/pkthub/pkthub.db \
-  "DELETE FROM audit_log WHERE created_at < datetime('now', '-90 days');"
-```
-
----
-
-## Deploy Pattern
-
-pktHub uses the same deploy pattern as pktFlow and pktLog:
-
-1. Make changes locally in the project directory.
-2. Build the frontend (`npm run build` in `frontend/`).
-3. SFTP the `frontend/dist/` output and any changed backend files to `/mnt/software/pkthub/` on the server.
-4. `systemctl restart pkthub`
-
-**SSH note:** SentinelOne blocks the system `ssh.exe`. All remote operations must use Python + Paramiko via Desktop Commander's `start_process`. Use `timeout=15, banner_timeout=15` and include `sys.stdout.reconfigure(encoding='utf-8')` at the top of every Paramiko script. One script, one run, no retry loops.
+Audit records older than `audit_retention_days` are purged automatically on a nightly schedule. To force an immediate purge, use **Settings → Audit → Purge Now** in the UI.
 
 ---
 
