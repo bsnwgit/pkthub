@@ -2,12 +2,13 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PktSuiteLockup } from './Logo'
 import {
-  LayoutDashboard, Monitor, Settings, FileText, LogOut
+  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { to: '/context', label: 'Context Viewer', icon: MonitorPlay },
   { to: '/noc', label: 'NOC Builder', icon: Monitor },
   { to: '/audit', label: 'Audit Log', icon: FileText, analystOk: true },
   { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },

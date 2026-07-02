@@ -18,13 +18,14 @@ pktHub is the central hub and sole management plane for all pktAPP applications 
 8. [Registration Workflow](#registration-workflow)
 9. [Managed Mode & Token Lockout](#managed-mode--token-lockout)
 10. [Authentication & Session Security](#authentication--session-security)
-11. [Proxied App Shell](#proxied-app-shell)
-12. [NOC Builder](#noc-builder)
-13. [Settings](#settings)
-14. [API Reference](#api-reference)
-15. [Break-Glass Recovery](#break-glass-recovery)
-16. [Maintenance & Backup](#maintenance--backup)
-17. [Deploy Pattern](#deploy-pattern)
+11. [Context Viewer](#context-viewer)
+12. [Proxied App Shell](#proxied-app-shell)
+13. [NOC Builder](#noc-builder)
+14. [Settings](#settings)
+15. [API Reference](#api-reference)
+16. [Break-Glass Recovery](#break-glass-recovery)
+17. [Maintenance & Backup](#maintenance--backup)
+18. [Deploy Pattern](#deploy-pattern)
 
 ---
 
@@ -36,7 +37,9 @@ pktHub provides three distinct platform areas through a single unified interface
 
 **Managed App Viewer** — Proxied pktAPP UI served inside the pktHub shell. A thin 44px top bar stays persistent across all proxied screens — the app gets the full viewport with its own nav rendering naturally.
 
-**NOC Builder** — Drag-and-drop widget composer for NOC/SOC wall displays. Build layouts from any registered app's widgets. Publish with a signed URL token — no login required on the display monitor.
+**Context Viewer** — Full-screen dedicated viewer for any registered pktAPP, accessible at `/context`. Opens in its own full-viewport view (no pktHub sidebar) with a 44px header and an app-selector dropdown. Useful when you want to focus on a single app without switching contexts.
+
+**NOC Builder** — Drag-and-drop widget composer for NOC/SOC wall displays. Build layouts from any registered app's widgets on a 1920×1080 canvas. Publish with a signed URL token — no login required on the display monitor.
 
 ---
 
@@ -336,6 +339,20 @@ Proxy-scoped tokens (containing a `scope` claim) are **explicitly rejected** in 
 
 ---
 
+## Context Viewer
+
+The Context Viewer is a full-screen dedicated page at `/context` for focusing on a single registered pktAPP without any pktHub sidebar or navigation chrome.
+
+**Layout:**
+- 44px header: pktHub icon · app name (color-coded) · username · **app-selector dropdown** (ChevronDown) · Home icon
+- Below: full-viewport iframe showing the selected app via the standard proxy session mechanism
+
+**Use case:** When you want to use a specific pktAPP tool without the multi-app navigation context — e.g. a secondary monitor showing pktFlow live while working in pktHub on the primary screen.
+
+The Context Viewer creates a short-lived proxy session for each app switch, exactly like the main Proxied App Shell, so the same cookie-based auth applies.
+
+---
+
 ## Proxied App Shell
 
 When a user navigates into a registered pktAPP through pktHub, the interface switches to a thin persistent top bar (44px):
@@ -356,23 +373,34 @@ The NOC Builder is a drag-and-drop grid canvas for composing wall-display dashbo
 
 ### Widget Manifests
 
-At registration, pktHub reads each app's `/api/widgets/manifest` endpoint. The manifest declares:
-- Available widget types and their display names
-- Data schemas and API endpoints the widget pulls from
-- Minimum refresh interval (seconds)
-- Required role to view the widget
+pktHub polls each registered app's `/api/widgets/manifest` endpoint every **60 seconds** (not only at registration). New widgets appear in the builder library automatically within one poll cycle — no restart or re-registration needed.
 
-Widgets are automatically populated into the builder's library panel, grouped by source app. Widget borders are colored in the source app's accent color.
+Each manifest entry declares:
+- `id`, `title`, `description` — identity shown in the library panel
+- `view_path` — the iframe URL pktHub loads for the widget
+- `default_w` / `default_h` / `min_w` / `min_h` — canvas placement hints
+
+Widgets are rendered as server-side HTML pages delivered inside iframes. Each widget auto-reloads on its own 30-second timer. In slide-rotation mode, iframes are force-remounted on every slide change to guarantee fresh data.
+
+Widget borders are colored in the source app's accent color. Current widget catalog:
+
+| App | Count | Widgets |
+|---|---|---|
+| pktFlow | 9 | top_talkers, flow_summary, active_alerts, top_ports, protocol_breakdown, geo_map, recent_flows, network_topology, collector_status |
+| pktLog | 6 | log_stream, error_rate, facility_breakdown, alert_events, log_sources, top_devices |
+| pktSNMP | 6 | device_table, collector_status, trap_events, active_alerts, metrics_overview, metrics_chart |
+| pktPCAP | 3 | capture_feed, recent_captures, protocol_stats |
+| **Total** | **24** | — |
 
 ### Building a Layout
 
 1. Navigate to **NOC Builder**.
 2. Click **New Layout** and give it a name.
-3. Drag widgets from the library panel onto the grid canvas. Resize by dragging corners.
-4. Configure each widget (title, refresh rate override, optional filter parameters).
+3. Drag widgets from the library panel onto the **1920×1080 canvas** (matches full-HD wall monitors exactly). Resize by dragging widget corners or edges.
+4. Use the **zoom controls** (top bar: `−` / `100%` / `+`, range 25%–200%) to scale the canvas view for comfortable editing — zoom does not affect the published display size.
 5. Set display mode:
-   - **Static** — all widgets shown simultaneously, each refreshes at its own interval
-   - **Rotating Slides** — panels cycle with configurable per-slide dwell time
+   - **Static** — all widgets shown simultaneously, each auto-refreshes every 30 s
+   - **Rotating Slides** — panels cycle with configurable per-slide dwell time; iframes remount on each rotation for guaranteed fresh data
 6. Click **Save**.
 
 ### Publishing a NOC
@@ -382,6 +410,15 @@ Widgets are automatically populated into the builder's library panel, grouped by
 3. pktHub generates a signed display URL and a revocable token.
 4. Copy the URL and load it on the wall monitor. No login is required — the display token authenticates all data requests transparently.
 5. Tokens are revocable at any time: **NOC Builder → [Layout] → Revoke Token**.
+
+### NOC Display
+
+The published display URL renders at `/display/{token}` and is designed for wall monitors of any resolution:
+
+- **Scale-to-fit**: the 1920×1080 canvas is scaled uniformly (`scale = min(viewport_width / 1920, viewport_height / 1080)`) so it fills the screen without cropping or scroll bars — identical behaviour to presentation software on any screen size.
+- **Zero-login**: the display token authenticates all widget data requests transparently. No browser login prompt.
+- **Slide rotation**: each widget iframe gets a unique `key` that changes on slide transitions, forcing a full remount and guaranteed fresh data load.
+- **Proxy-display route**: widget iframes use `/proxy-display/{token}/{app_id}/{path}` so the display page works without any user session.
 
 ### Permissions
 
@@ -472,6 +509,19 @@ All pktHub API endpoints are under `/api/v1/`. Authentication is via `Authorizat
 |---|---|---|
 | `GET` | `/api/v1/audit` | Query audit log (Admin = all; Analyst = own sessions) |
 | `GET` | `/api/v1/audit/export` | Export as CSV (Admin only) |
+
+### NOC Display (Public)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/display/{token}` | Renders the published NOC display page (no auth required) |
+| `GET` | `/proxy-display/{token}/{app_id}/{path}` | Proxies widget iframe requests using the display token — no user session needed |
+
+### Context Viewer
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/context` | Full-screen single-app viewer page (requires user auth) |
 
 ### Health
 

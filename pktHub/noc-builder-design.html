@@ -163,7 +163,7 @@ footer {
   <div class="hero-glow"></div>
   <span class="hero-badge">Design Document · July 2026</span>
   <h1>NOC Builder<br><span style="color:var(--app-pcap)">Design Plan</span></h1>
-  <p>Expanding the NOC builder from a stub list into a full widget-based wall display composer — auto-discovery, free-form drag layout, and credential-free public display.</p>
+  <p>Full widget-based wall display composer — auto-discovery via 60-second manifest polling, 1920×1080 free-form drag canvas with zoom controls, scale-to-fit display, and credential-free public display. Core features implemented.</p>
 </section>
 
 <!-- WHAT'S BUILT -->
@@ -199,9 +199,9 @@ footer {
         <p>List / create / delete noc, publish/unpublish toggle, copy display link. Missing: the widget editor that lets users actually add widgets to a noc.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(248,113,113,0.15);color:#f87171">🐛</div>
-        <h3>Known Bug</h3>
-        <p>NOCDisplayPage reads <code>noc.slides</code> — but the backend sends <code>noc.layout</code>. Display always shows "No slides configured." One-line fix.</p>
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">✓</div>
+        <h3>Display Bug Fixed</h3>
+        <p>NOCDisplayPage now reads <code>noc.layout</code> (not <code>noc.slides</code>). Scale-to-fit rendering implemented — the 1920×1080 canvas scales via <code>transform:scale()</code> to fill any screen. Iframes remount on every slide rotation via <code>key</code> prop.</p>
       </div>
     </div>
   </div>
@@ -222,7 +222,7 @@ footer {
       <div class="card" style="text-align:left;border-color:var(--app-pcap-dim)">
         <div class="card-icon" style="background:rgba(167,139,250,0.1);color:#a78bfa">⊹</div>
         <h3 style="color:#a78bfa">Free-Form Drag Arrangement</h3>
-        <p>No grid snapping. Widgets are placed at absolute pixel coordinates <code>(x, y, w, h)</code> on an open canvas. Users drag freely and resize from the corner handle. The display page renders at exactly the same coordinates on the target screen.</p>
+        <p>No grid snapping. Widgets are placed at absolute pixel coordinates <code>(x, y, w, h)</code> on a <strong style="color:var(--text-primary)">1920×1080 reference canvas</strong>. Zoom controls (25%–200%) let you edit at any scale — coordinates are divided by zoom factor so stored positions are always in 1920×1080 space. The display page renders at the same coordinates, scaled to fit the target screen.</p>
       </div>
       <div class="card" style="text-align:left;border-color:var(--app-snmp-dim)">
         <div class="card-icon" style="background:rgba(45,212,191,0.1);color:#2dd4bf">⊞</div>
@@ -253,7 +253,7 @@ footer {
       <div class="pipeline-step">
         <div class="step-num">2</div>
         <div class="step-title">Health check fires</div>
-        <div class="step-desc">pktHub polls <code>/api/health</code> every 60 seconds. It also fetches <code>/api/widgets/manifest</code> on each cycle.</div>
+        <div class="step-desc">pktHub polls <code>/api/widgets/manifest</code> on each registered app every <strong>60 seconds</strong>. 24 widgets currently registered across 4 apps.</div>
       </div>
       <div class="pipeline-step">
         <div class="step-num">3</div>
@@ -268,7 +268,7 @@ footer {
       <div class="pipeline-step">
         <div class="step-num">5</div>
         <div class="step-title">Display renders it</div>
-        <div class="step-desc">NOCDisplayPage loads the widget as an iframe: <code>/proxy/{app_id}{view_path}</code>. The pktApp serves its own widget HTML.</div>
+        <div class="step-desc">NOCDisplayPage loads widgets as iframes. For authenticated sessions: <code>/proxy/{app_id}{view_path}</code>. For public display tokens: <code>/proxy-display/{token}/{app_id}{view_path}</code>. The pktApp serves its own widget HTML via FastAPI routes.</div>
       </div>
     </div>
   </div>
@@ -300,7 +300,7 @@ footer {
 &nbsp;&nbsp;}<br>
 ]
         </div>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Each widget view at <code>view_path</code> is a minimal fullscreen HTML page that auto-refreshes its own data. pktHub proxies it at <code>/proxy/{app_id}{view_path}</code>. The hub has no knowledge of widget internals.</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Each widget view at <code>view_path</code> is a minimal fullscreen HTML page that auto-refreshes its own data via <code>setTimeout(reload, 30000)</code>. For FastAPI apps, <code>view_path</code> includes the <code>/api</code> prefix (e.g. <code>/api/widgets/flow_map</code>). pktHub proxies it at <code>/proxy/{app_id}{view_path}</code>. The hub has no knowledge of widget internals.</p>
       </div>
       <div>
         <h3 style="color:var(--text-primary);font-size:15px;margin-bottom:4px">NOC Layout JSON</h3>
@@ -346,7 +346,7 @@ footer {
       <div class="card" style="border-color:rgba(167,139,250,0.2)">
         <div class="card-icon" style="background:rgba(167,139,250,0.1);color:#a78bfa">⊹</div>
         <h3>Center — Free Canvas</h3>
-        <p>Dot-grid background. Widgets are absolutely positioned and freely draggable. Click to select (highlight border). Resize from bottom-right corner handle. Slide tabs across the top for rotating-mode noc. Drop zone highlights on drag-over. No snapping — pixel-perfect placement.</p>
+        <p>Dot-grid background on a <strong style="color:var(--text-primary)">1920×1080 reference canvas</strong>. Zoom controls (25%–200%) in the top bar scale the canvas via <code>transform:scale(zoom)</code> — coordinate math always divides by zoom factor so stored positions stay in 1920×1080 space. Widgets absolutely positioned, freely draggable, resizable from corner handle. Click to select (highlighted border). Drop zone highlights on drag-over.</p>
       </div>
       <div class="card" style="border-color:rgba(45,212,191,0.2)">
         <div class="card-icon" style="background:rgba(45,212,191,0.1);color:#2dd4bf">⚙</div>
@@ -360,6 +360,7 @@ footer {
         <div><strong style="color:var(--text-primary)">← Back to NOC Displays</strong><br>Returns to NOCBuilderPage list. Prompts to save if unsaved changes exist.</div>
         <div><strong style="color:var(--text-primary)">Slide Tabs</strong><br>For rotating mode: each slide is a separate canvas. Tabs added with + Slide button. Per-slide dwell configured in right panel.</div>
         <div><strong style="color:var(--text-primary)">Display Mode Selector</strong><br>Pill control in top bar: Static / Rotating / Manual. Changes apply to the whole noc. For rotating, dwell defaults to the noc-level <code>dwell_seconds</code> but can be overridden per slide.</div>
+        <div><strong style="color:var(--text-primary)">Zoom Controls</strong><br>25% / 50% / 75% / 100% / 150% / 200% presets in the top bar. Canvas inner div scales via <code>transform:scale(zoom)</code>; outer container stays at 1920×1080 layout footprint. Coordinate math divides by zoom when placing/moving widgets.</div>
         <div><strong style="color:var(--text-primary)">Save Layout</strong><br>Calls <code>PATCH /api/noc/:id</code> with the full <code>layout</code> JSON. No auto-save — explicit save required. Publish/unpublish remains on the NOCBuilderPage card.</div>
       </div>
     </div>
@@ -403,25 +404,25 @@ footer {
         <div class="step-title" style="color:#4ade80">Bug Fix</div>
         <div class="step-desc">Change <code>noc.slides</code> → <code>noc.layout</code> in NOCDisplayPage. Existing noc with layout data will immediately show content.</div>
       </div>
-      <div class="pipeline-step" style="border-color:rgba(251,191,36,0.3)">
-        <div class="step-num" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.3)">2</div>
-        <div class="step-title" style="color:#fbbf24">Widget Manifest Endpoints</div>
-        <div class="step-desc">Add <code>GET /api/widgets/manifest</code> to each pktApp. Verify pktHub health check fetches and stores it in <code>widget_manifest</code> on the app registry row.</div>
+      <div class="pipeline-step" style="border-color:rgba(74,222,128,0.3)">
+        <div class="step-num" style="background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">2</div>
+        <div class="step-title" style="color:#4ade80">Widget Manifest Endpoints ✓</div>
+        <div class="step-desc"><code>GET /api/widgets/manifest</code> implemented on all 4 pktApps. pktHub polls every 60 s, stores in <code>widget_manifest</code>. 24 widgets total: pktFlow (9), pktLog (6), pktSNMP (6), pktPCAP (3).</div>
       </div>
-      <div class="pipeline-step" style="border-color:rgba(251,191,36,0.3)">
-        <div class="step-num" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.3)">3</div>
-        <div class="step-title" style="color:#fbbf24">Widget View Routes</div>
-        <div class="step-desc">Each pktApp adds <code>GET /widgets/{type}</code> — a minimal fullscreen HTML page. Auto-refreshes its own data on a timer. pktHub proxies transparently.</div>
+      <div class="pipeline-step" style="border-color:rgba(74,222,128,0.3)">
+        <div class="step-num" style="background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">3</div>
+        <div class="step-title" style="color:#4ade80">Widget View Routes ✓</div>
+        <div class="step-desc">All 24 widget views implemented across 4 apps. Each returns a fullscreen HTML page at <code>GET /api/widgets/{type}</code> with <code>setTimeout(reload, 30000)</code>. pktHub proxies via <code>/proxy/{app_id}/api/widgets/{type}</code>.</div>
       </div>
       <div class="pipeline-step" style="border-color:rgba(167,139,250,0.3)">
         <div class="step-num" style="background:rgba(167,139,250,0.1);color:#a78bfa;border-color:rgba(167,139,250,0.3)">4</div>
         <div class="step-title" style="color:#a78bfa">NOCEditorPage</div>
         <div class="step-desc">New <code>NOCEditorPage.tsx</code> at <code>/noc/:id/edit</code>. Widget library (left) + free-form drag canvas (center) + config/display-mode panel (right). Saves via PATCH.</div>
       </div>
-      <div class="pipeline-step" style="border-color:rgba(96,165,250,0.3)">
-        <div class="step-num" style="background:rgba(96,165,250,0.1);color:#60a5fa;border-color:rgba(96,165,250,0.3)">5</div>
-        <div class="step-title" style="color:#60a5fa">Display Page Polish</div>
-        <div class="step-desc">NOCDisplayPage reads <code>layout</code>, renders iframes at exact x/y/w/h, adds slide rotation with fade transition and per-slide dwell timer. Full-screen mode.</div>
+      <div class="pipeline-step" style="border-color:rgba(74,222,128,0.3)">
+        <div class="step-num" style="background:rgba(74,222,128,0.1);color:#4ade80;border-color:rgba(74,222,128,0.3)">5</div>
+        <div class="step-title" style="color:#4ade80">Display Page Polish ✓</div>
+        <div class="step-desc">Scale-to-fit: <code>scale = Math.min(vw/1920, vh/1080)</code> applied as <code>transform:scale()</code>. Slide rotation with <code>key=&#123;currentSlide&#125;-&#123;w.id&#125;</code> forces iframe remount on each slide change — guarantees fresh data on wall monitors.</div>
       </div>
       <div class="pipeline-step">
         <div class="step-num">F</div>
@@ -433,10 +434,10 @@ footer {
       <h3 style="color:var(--text-primary);font-size:14px;margin-bottom:16px">Files Touched Per Step</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:var(--text-secondary);font-family:'Courier New',monospace">
         <div><strong style="color:#4ade80">Step 1</strong><br>pktHub/frontend/src/pages/NOCDisplayPage.tsx</div>
-        <div><strong style="color:#fbbf24">Step 2</strong><br>pkt{Flow,Log,SNMP,PCAP}/app/main.py (add /api/widgets/manifest route)<br>pktHub/app/registry.py (health check fetches manifest)</div>
-        <div><strong style="color:#fbbf24">Step 3</strong><br>pkt{Flow,Log,SNMP,PCAP}/frontend/src — add /widgets/{type} page per app</div>
+        <div><strong style="color:#4ade80">Step 2 ✓</strong><br>pkt{Flow,Log,SNMP,PCAP}/app/api/widgets.py — MANIFEST list + /api/widgets/manifest route<br>pktHub polls every 60 s, stores widget_manifest on app registry row</div>
+        <div><strong style="color:#4ade80">Step 3 ✓</strong><br>pkt{Flow,Log,SNMP,PCAP}/app/api/widgets.py — 24 widget view handlers at /api/widgets/{type}</div>
         <div><strong style="color:#a78bfa">Step 4</strong><br>pktHub/frontend/src/pages/NOCEditorPage.tsx (new)<br>pktHub/frontend/src/App.tsx (add route)</div>
-        <div><strong style="color:#60a5fa">Step 5</strong><br>pktHub/frontend/src/pages/NOCDisplayPage.tsx (iframe rendering + rotation)</div>
+        <div><strong style="color:#4ade80">Step 5 ✓</strong><br>pktHub/frontend/src/pages/NOCDisplayPage.tsx — scale-to-fit, iframe remounting via key prop, /proxy-display/{token}/{app_id}{view_path}</div>
       </div>
     </div>
   </div>

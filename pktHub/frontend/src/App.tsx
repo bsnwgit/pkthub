@@ -11,6 +11,7 @@ import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProxyShell from './pages/ProxyShell'
 import NOCDisplayPage from './pages/NOCDisplayPage'
+import ContextViewerPage from './pages/ContextViewerPage'
 import Layout from './components/Layout'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -36,8 +37,9 @@ export default function App() {
           {/* Public NOC display — no auth */}
           <Route path="/display/:token" element={<NOCDisplayPage />} />
 
-          {/* Full-screen editor — no nav shell */}
+          {/* Full-screen pages — no nav shell */}
           <Route path="/noc/:id/edit" element={<RequireAuth><NOCEditorPage /></RequireAuth>} />
+          <Route path="/context" element={<RequireAuth><ContextViewerPage /></RequireAuth>} />
 
           {/* Authenticated app shell */}
           <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
@@ -45,7 +47,6 @@ export default function App() {
             <Route path="apps" element={<AppManagerPage />} />
             <Route path="noc" element={<NOCBuilderPage />} />
             <Route path="audit" element={<AuditPage />} />
-            {/* Users is now under Settings → Users tab */}
             <Route path="users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
             <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
           </Route>
