@@ -308,16 +308,16 @@ footer {
       <div class="stat-label">Managed pktAPPs</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num" style="color:var(--app-snmp)">8760</div>
+      <div class="stat-num" style="color:var(--app-snmp)">24</div>
+      <div class="stat-label">NOC Widgets</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" style="color:var(--app-log)">8760</div>
       <div class="stat-label">HTTPS Port</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num" style="color:var(--app-log)">JWT</div>
+      <div class="stat-num" style="color:var(--app-pcap)">JWT</div>
       <div class="stat-label">Auth Standard</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num" style="color:var(--app-pcap)">WAL</div>
-      <div class="stat-label">SQLite Mode</div>
     </div>
   </div>
 </div>
@@ -342,6 +342,11 @@ footer {
         <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">⊞</div>
         <h3>NOC Builder</h3>
         <p>Drag-and-drop widget composer sourced from all registered pktAPPs. Publish displays to wall monitors with signed, revocable URL tokens — no login required on the display end.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">⊡</div>
+        <h3>Context Viewer</h3>
+        <p>Full-screen dedicated viewer for any registered pktAPP at <code style="font-size:12px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">/context</code>. App-selector dropdown, no pktHub sidebar — ideal for a focused secondary monitor or deep-dive session.</p>
       </div>
       <div class="card">
         <div class="card-icon" style="background:rgba(167,139,250,0.1);color:#a78bfa">🔒</div>
@@ -439,23 +444,28 @@ footer {
     <div class="card-grid">
       <div class="card">
         <div class="card-icon" style="background:rgba(96,165,250,0.1);color:#60a5fa">⊞</div>
-        <h3>Widget Library</h3>
-        <p>Each registered pktAPP exposes <code>/api/widgets/manifest</code> declaring available widgets, data schemas, refresh rates, and required permissions. pktHub reads this at registration time.</p>
+        <h3>Widget Library — 24 widgets</h3>
+        <p>pktHub polls each app's <code>/api/widgets/manifest</code> every <strong>60 seconds</strong>. New widgets appear automatically. Current catalog: pktFlow (9), pktLog (6), pktSNMP (6), pktPCAP (3).</p>
       </div>
       <div class="card">
         <div class="card-icon" style="background:rgba(45,212,191,0.1);color:#2dd4bf">⊡</div>
-        <h3>Grid Canvas</h3>
-        <p>Drag-and-drop widget placement on a resizable grid. Widget borders are colored in their source app's accent color for instant visual attribution across pktAPPs.</p>
+        <h3>1920×1080 Canvas</h3>
+        <p>Drag-and-drop widget placement on a full-HD canvas. Zoom controls (25%–200%) let you edit detail without scrolling. Widget borders are colored in their source app's accent color.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">↻</div>
-        <h3>Display Modes</h3>
-        <p>Per-dashboard choice of static live-refresh or rotating slide mode with configurable dwell time per slide. Designed for large wall monitors that run unattended 24/7.</p>
+        <div class="card-icon" style="background:rgba(74,222,128,0.1);color:#4ade80">↔</div>
+        <h3>Scale-to-Fit Display</h3>
+        <p>The published display page scales the 1920×1080 canvas to fill any screen resolution without cropping — like a presentation. Works on any wall monitor, TV, or kiosk out of the box.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">↻</div>
+        <h3>Slide Rotation</h3>
+        <p>Static live-refresh or rotating slide mode with configurable dwell time. Iframes remount on every slide change for guaranteed fresh data — no stale caches on wall monitors.</p>
       </div>
       <div class="card">
         <div class="card-icon" style="background:rgba(167,139,250,0.1);color:#a78bfa">🔗</div>
-        <h3>Signed Tokens</h3>
-        <p>Published noc get a URL-based signed display token. Revoke from pktHub instantly. No login on the display device. Token rotation handled transparently on refresh.</p>
+        <h3>Signed Display Tokens</h3>
+        <p>Published NOC displays get a URL-based signed token. No login on the display device. Revoke from pktHub instantly. All widget data proxied through <code>/proxy-display/{token}/…</code>.</p>
       </div>
     </div>
   </div>
@@ -515,7 +525,7 @@ footer {
           <!-- NOC display box -->
           <rect x="40" y="350" width="170" height="52" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
           <text x="125" y="372" text-anchor="middle" fill="#94a3b8" font-family="Courier New,monospace" font-size="12" font-weight="700">NOC Display</text>
-          <text x="125" y="390" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="10">Signed URL token · auto-refresh</text>
+          <text x="125" y="383" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="10">Signed URL · scale-to-fit</text><text x="125" y="395" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="9">/proxy-display/{token}/{app}/{path}</text>
           <!-- Auth box -->
           <rect x="430" y="350" width="170" height="52" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
           <text x="515" y="372" text-anchor="middle" fill="#94a3b8" font-family="Courier New,monospace" font-size="12" font-weight="700">Auth</text>
@@ -529,11 +539,11 @@ footer {
         <ul class="arch-list">
           <li class="arch-item">
             <span class="arch-item-dot" style="background:#60a5fa"></span>
-            <div><strong>Reverse Proxy Shell</strong><span>pktHub proxies all traffic to managed pktAPPs. A 44px top bar persists; the pktAPP UI fills the rest of the viewport. No double-nav.</span></div>
+            <div><strong>Reverse Proxy Shell + Context Viewer</strong><span>pktHub proxies all traffic to managed pktAPPs. A 44px top bar persists; the pktAPP UI fills the rest of the viewport. Context Viewer (/context) provides a full-screen single-app focus mode with no sidebar.</span></div>
           </li>
           <li class="arch-item">
             <span class="arch-item-dot" style="background:#2dd4bf"></span>
-            <div><strong>X-Suite-Token Enforcement</strong><span>In managed mode, every request to a pktAPP must carry the X-Suite-Token header. Missing or invalid token returns 403 immediately.</span></div>
+            <div><strong>Widget Manifest Polling</strong><span>pktHub polls each app's <code>/api/widgets/manifest</code> every 60 s. 24 widgets available across 4 apps — pktFlow (9), pktLog (6), pktSNMP (6), pktPCAP (3). New widgets appear in the NOC Builder automatically.</span></div>
           </li>
           <li class="arch-item">
             <span class="arch-item-dot" style="background:#4ade80"></span>
