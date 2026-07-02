@@ -1,686 +1,407 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pktHub — Unified NOC/SOC Platform</title>
-<style>
-:root {
-  /* Backgrounds */
-  --bg-primary:  #080d18;
-  --bg-card:     #0d1525;
-  --bg-surface:  #131e30;
-  --bg-deep:     #050a12;
-  /* Accent — neutral/universal (pktHub is not one-app colored) */
-  --accent:      #e2e8f0;
-  --accent-dim:  #334155;
-  /* Text */
-  --text-primary:   #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted:     #475569;
-  /* Borders */
-  --border:        rgba(255,255,255,0.07);
-  --border-accent: rgba(226,232,240,0.12);
-  /* Semantic */
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --danger:  #f87171;
-  /* Radius scale */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  /* pktHub supplementary app-color tokens */
-  --app-flow:     #60a5fa;
-  --app-flow-dim: #1e3a5f;
-  --app-snmp:     #2dd4bf;
-  --app-snmp-dim: #0d3d38;
-  --app-log:      #4ade80;
-  --app-log-dim:  #14532d;
-  --app-pcap:     #a78bfa;
-  --app-pcap-dim: #3b2d6e;
-}
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pkt — Network Visibility Tools</title>
+  <style>
+    :root {
+      --bg:   #080d18;
+      --card: #0d1525;
+      --surf: #111e30;
+      --text: #f1f5f9;
+      --sec:  #94a3b8;
+      --muted:#475569;
+      --bdr:  rgba(255,255,255,0.07);
+      --flow: #60a5fa; --flow-bg: rgba(96,165,250,0.06);
+      --snmp: #2dd4bf; --snmp-bg: rgba(45,212,191,0.06);
+      --log:  #4ade80; --log-bg:  rgba(74,222,128,0.06);
+      --pcap: #a78bfa; --pcap-bg: rgba(167,139,250,0.06);
+      --hub:  #e2e8f0; --hub-bg:  rgba(226,232,240,0.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--sec);
+      font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; overflow-x: hidden; }
+    a { text-decoration: none; color: inherit; }
 
-/* BASE */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body {
-  background: var(--bg-primary); color: var(--text-secondary);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.6;
-}
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100; height: 60px;
+      background: rgba(8,13,24,0.94); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bdr);
+      padding: 0 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-brand-text { font-family: 'Courier New', monospace; font-size: 1.3rem;
+      font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .nav-apps { display: flex; gap: 6px; }
+    .nav-app { font-size: 12px; font-weight: 700; padding: 4px 10px;
+      border-radius: 6px; border: 1px solid var(--bdr); letter-spacing: 0.5px;
+      transition: border-color .2s, color .2s; }
+    .nav-app.flow { color: var(--flow); }
+    .nav-app.snmp { color: var(--snmp); }
+    .nav-app.log  { color: var(--log);  }
+    .nav-app.pcap { color: var(--pcap); }
+    .nav-app.hub  { color: var(--hub);  }
+    .nav-app.flow:hover { border-color: var(--flow); }
+    .nav-app.snmp:hover { border-color: var(--snmp); }
+    .nav-app.log:hover  { border-color: var(--log);  }
+    .nav-app.pcap:hover { border-color: var(--pcap); }
+    .nav-app.hub:hover  { border-color: var(--hub);  }
 
-/* NAV */
-nav {
-  position: sticky; top: 0; z-index: 100; height: 64px;
-  background: rgba(8,13,24,0.92);
-  backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
-  padding: 0 2rem;
-  display: grid; grid-template-columns: auto 1fr auto; align-items: center;
-}
-.nav-logo { display: flex; align-items: center; }
-.nav-links {
-  display: flex; gap: 28px;
-  justify-content: center; align-items: center;
-}
-.nav-links a {
-  color: var(--text-secondary); text-decoration: none; font-size: 14px; transition: color .2s;
-}
-.nav-links a:hover { color: var(--text-primary); }
-.nav-cta {
-  background: var(--accent-dim); color: var(--text-primary);
-  border: 1px solid var(--border-accent);
-  padding: 8px 18px; border-radius: var(--radius-md);
-  font-size: 13px; font-weight: 600; text-decoration: none; transition: border-color .2s;
-}
-.nav-cta:hover { border-color: var(--accent); }
+    /* HERO */
+    .hero {
+      padding: 80px 2.5rem 72px; text-align: center;
+      border-bottom: 1px solid var(--bdr);
+    }
+    .hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+    .hero-title { font-family: 'Courier New', monospace; font-size: clamp(4rem, 9vw, 8rem);
+      font-weight: 700; color: var(--text); letter-spacing: -3px; line-height: 1;
+      margin-bottom: 20px; }
+    .hero-sub { font-size: 1.05rem; color: var(--sec); max-width: 560px;
+      margin: 0 auto; line-height: 1.75; }
 
-/* HERO */
-.hero {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-  text-align: center; padding: 72px 2rem 64px; overflow: hidden;
-}
-.hero::before {
-  content: ''; position: absolute; inset: 0; z-index: 0;
-  background-image: repeating-linear-gradient(
-    -45deg, transparent, transparent 40px,
-    rgba(255,255,255,0.012) 40px, rgba(255,255,255,0.012) 41px
-  );
-}
-.hero-glow {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  width: 900px; height: 500px; border-radius: 50%; z-index: 0;
-  background: radial-gradient(ellipse,
-    rgba(96,165,250,0.07) 0%,
-    rgba(45,212,191,0.06) 25%,
-    rgba(74,222,128,0.05) 50%,
-    rgba(167,139,250,0.04) 75%,
-    transparent 100%
-  );
-}
-.hero > * { position: relative; z-index: 1; }
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(226,232,240,0.05);
-  border: 1px solid var(--border-accent);
-  border-radius: 20px; padding: 6px 16px;
-  font-size: 13px; color: var(--text-muted); margin-bottom: 28px;
-}
-.hero-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--success); animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
-.hero h1 {
-  font-size: clamp(2.8rem, 6vw, 5rem); font-weight: 800; letter-spacing: -0.03em;
-  line-height: 1.1; margin-bottom: 24px; color: var(--text-primary);
-}
-.hero h1 .c-flow { color: var(--app-flow); }
-.hero h1 .c-snmp { color: var(--app-snmp); }
-.hero h1 .c-log  { color: var(--app-log);  }
-.hero h1 .c-pcap { color: var(--app-pcap); }
-.hero p {
-  font-size: clamp(1rem, 2vw, 1.2rem); color: var(--text-secondary);
-  max-width: 660px; margin: 0 auto 36px;
-}
-.hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.btn-primary {
-  background: var(--accent-dim); color: var(--text-primary);
-  border: 1px solid var(--border-accent);
-  padding: 13px 28px; border-radius: var(--radius-md);
-  font-size: 15px; font-weight: 700; text-decoration: none; transition: border-color .2s;
-}
-.btn-primary:hover { border-color: var(--accent); }
-.btn-secondary {
-  background: transparent; color: var(--text-primary);
-  border: 1px solid var(--border);
-  padding: 13px 28px; border-radius: var(--radius-md);
-  font-size: 15px; text-decoration: none; transition: border-color .2s, color .2s;
-}
-.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    /* HERO OVERLAY */
+    .hero { position: relative; }
+    .hero-overlay {
+      position: absolute; inset: 0;
+      background: rgba(8,13,24,0.88);
+      backdrop-filter: blur(6px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; z-index: 10;
+    }
+    .hero-overlay-text {
+      font-family: 'Courier New', monospace;
+      font-size: clamp(1.6rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #60a5fa, #2dd4bf, #4ade80, #a78bfa, #f1f5f9);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+    }
+    .hero-overlay-sub {
+      font-size: 0.85rem; color: var(--muted);
+      letter-spacing: 3px; text-transform: uppercase;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 0% 50%; }
+      100% { background-position: 300% 50%; }
+    }
 
-/* STATS BAR */
-.stats {
-  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  display: flex; justify-content: center; flex-wrap: wrap;
-}
-.stat { padding: 28px 48px; text-align: center; border-right: 1px solid var(--border); }
-.stat:last-child { border-right: none; }
-.stat-num { font-size: 2rem; font-weight: 800; color: var(--text-primary); }
-.stat-label { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    /* OVERVIEW STRIP */
+    .overview { padding: 56px 2.5rem; border-bottom: 1px solid var(--bdr); }
+    .overview-inner { max-width: 1100px; margin: 0 auto; }
+    .overview-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .ov-card { background: var(--card); border: 1px solid var(--bdr); border-radius: 14px;
+      padding: 22px 18px; transition: border-color .2s, transform .2s; cursor: default; }
+    .ov-card:hover { transform: translateY(-3px); }
+    .ov-card.flow:hover { border-color: var(--flow); }
+    .ov-card.snmp:hover { border-color: var(--snmp); }
+    .ov-card.log:hover  { border-color: var(--log);  }
+    .ov-card.pcap:hover { border-color: var(--pcap); }
+    .ov-card.hub:hover  { border-color: rgba(226,232,240,0.3); }
+    .ov-name { font-family: 'Courier New', monospace; font-size: 1.15rem;
+      font-weight: 700; margin-bottom: 8px; }
+    .ov-cat { font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; margin-bottom: 10px; opacity: 0.7; }
+    .ov-blurb { font-size: 0.78rem; color: var(--muted); line-height: 1.65; }
+    .ov-link { display: inline-block; margin-top: 14px; font-size: 0.75rem;
+      font-weight: 600; opacity: 0.5; transition: opacity .2s; }
+    .ov-card:hover .ov-link { opacity: 1; }
+    @media (max-width: 900px) {
+      .overview-grid { grid-template-columns: repeat(2, 1fr); }
+      .ov-card.hub { grid-column: span 2; }
+    }
+    @media (max-width: 500px) {
+      .overview-grid { grid-template-columns: 1fr; }
+      .ov-card.hub { grid-column: span 1; }
+    }
 
-/* SECTIONS */
-section { padding: 5rem 2rem; }
-.section-inner { max-width: 1100px; margin: 0 auto; }
-.eyebrow {
-  font-size: 0.75rem; font-weight: 700; letter-spacing: 3px;
-  text-transform: uppercase; color: var(--accent); margin-bottom: 1rem;
-}
-h2.section-title {
-  font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
-  letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 14px;
-}
-h2.section-title .c-flow { color: var(--app-flow); }
-h2.section-title .c-snmp { color: var(--app-snmp); }
-h2.section-title .c-log  { color: var(--app-log);  }
-h2.section-title .c-pcap { color: var(--app-pcap); }
-.section-sub { font-size: 1.05rem; color: var(--text-secondary); max-width: 640px; margin-bottom: 48px; }
-.alt-bg { background: var(--bg-card); }
+    /* PRODUCT SECTIONS */
+    .product { padding: 80px 2.5rem; border-bottom: 1px solid var(--bdr); }
+    .product-inner { max-width: 1100px; margin: 0 auto; }
+    .product-header { display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 40px; margin-bottom: 48px;
+      flex-wrap: wrap; }
+    .product-id { flex: 1; min-width: 280px; }
+    .product-tag { display: inline-block; font-size: 10px; font-weight: 800;
+      letter-spacing: 2px; text-transform: uppercase; padding: 4px 10px;
+      border-radius: 4px; margin-bottom: 16px; }
+    .product-name { font-family: 'Courier New', monospace; font-size: 2.8rem;
+      font-weight: 700; line-height: 1; margin-bottom: 12px; }
+    .product-tagline { font-size: 1rem; color: var(--sec); line-height: 1.7;
+      max-width: 480px; }
+    .product-stats { display: flex; gap: 32px; flex-wrap: wrap; padding-top: 8px; }
+    .stat { text-align: center; }
+    .stat-val { font-family: 'Courier New', monospace; font-size: 1.8rem;
+      font-weight: 700; display: block; }
+    .stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 1px; }
+    .product-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px; margin-bottom: 32px; }
+    .tile { background: var(--card); border: 1px solid var(--bdr); border-radius: 12px;
+      padding: 20px; transition: border-color .2s; }
+    .tile:hover { border-color: var(--accent, #fff); }
+    .tile-icon { font-size: 1.4rem; margin-bottom: 10px; }
+    .tile-title { font-size: 0.85rem; font-weight: 600; color: var(--text);
+      margin-bottom: 6px; }
+    .tile-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+    .product-cta a {
+      display: inline-block; padding: 10px 22px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; border: 1px solid;
+      transition: background .2s, color .2s; }
 
-/* CARDS */
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-.card {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 1.75rem 2rem;
-  transition: border-color 0.2s, transform 0.2s;
-}
-.card:hover { transform: translateY(-3px); }
-.card.flow:hover { border-color: var(--app-flow); }
-.card.snmp:hover { border-color: var(--app-snmp); }
-.card.log:hover  { border-color: var(--app-log);  }
-.card.pcap:hover { border-color: var(--app-pcap); }
-.card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
-.card p  { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
-.card .card-label { font-size: 11px; font-weight: 700; letter-spacing: 2px;
-  text-transform: uppercase; margin-bottom: 10px; }
+    /* PER-PRODUCT TINTS */
+    .p-flow  { background: linear-gradient(160deg, #080d18 0%, rgba(96,165,250,0.04) 100%); }
+    .p-snmp  { background: linear-gradient(160deg, #080d18 0%, rgba(45,212,191,0.04) 100%); }
+    .p-log   { background: linear-gradient(160deg, #080d18 0%, rgba(74,222,128,0.04) 100%); }
+    .p-pcap  { background: linear-gradient(160deg, #080d18 0%, rgba(167,139,250,0.04) 100%); }
+    .p-hub   { background: linear-gradient(160deg, #080d18 0%, rgba(226,232,240,0.03) 100%); }
 
-/* PIPELINE */
-.pipeline { display: flex; align-items: stretch; flex-wrap: wrap; margin-bottom: 40px; }
-.pipe-step {
-  flex: 1; min-width: 160px; background: var(--bg-card);
-  border: 1px solid var(--border); padding: 22px 18px;
-}
-.pipe-step + .pipe-step { margin-left: -1px; }
-.pipe-step:first-child { border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
-.pipe-step:last-child  { border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
-.pipe-num {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; margin-bottom: 10px;
-  color: var(--bg-primary);
-}
-.pipe-step h4 { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 5px; }
-.pipe-step p  { font-size: 0.78rem; color: var(--text-secondary); }
+    /* FOOTER */
+    footer { padding: 40px 2.5rem; border-top: 1px solid var(--bdr);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 20px; }
+    .footer-brand { font-family: 'Courier New', monospace; font-size: 1.1rem;
+      font-weight: 700; color: var(--text); }
+    .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+    .footer-links a { font-size: 0.82rem; color: var(--muted);
+      transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
 
-/* ROLE TABLE */
-.table-wrap {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); overflow: hidden;
-}
-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-th {
-  background: var(--bg-card); color: var(--text-muted);
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
-  text-transform: uppercase; padding: 12px 16px;
-  border-bottom: 1px solid var(--border); text-align: left;
-}
-td { padding: 12px 16px; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: rgba(226,232,240,0.04); }
-td:first-child { color: var(--text-primary); font-weight: 500; }
-.yes { color: var(--success) !important; font-weight: 600; }
-.partial { color: var(--text-secondary) !important; }
-.no  { color: var(--text-muted) !important; }
-
-/* ARCH 2-COL */
-.arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
-.arch-list { list-style: none; }
-.arch-list li {
-  padding: 10px 0; border-bottom: 1px solid var(--border);
-  font-size: 0.9rem; color: var(--text-secondary);
-  display: flex; gap: 10px; align-items: flex-start;
-}
-.arch-list li::before { content: '→'; color: var(--accent); flex-shrink: 0; }
-.arch-list li strong { color: var(--text-primary); }
-
-/* COLOR PILLS */
-.color-pills { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
-.color-pill { padding: 9px 18px; border-radius: var(--radius-md); font-size: 13px; font-weight: 700; }
-
-/* FOOTER */
-footer {
-  border-top: 1px solid var(--border); padding: 40px 2rem;
-  text-align: center; color: var(--text-muted); font-size: 13px;
-}
-
-/* ARCH DIAGRAM + MODAL */
-.arch-diagram { position:relative; cursor:zoom-in; }
-.arch-diagram::after {
-  content: 'Click to enlarge';
-  position:absolute; bottom:12px; right:12px;
-  background:rgba(0,0,0,0.6); color:#fff;
-  font-size:0.72rem; padding:4px 10px; border-radius:20px;
-  pointer-events:none; letter-spacing:0.5px;
-  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
-}
-#diagram-modal {
-  display:none; position:fixed; inset:0; z-index:1000;
-  background:rgba(0,0,0,0.92); backdrop-filter:blur(8px);
-  align-items:center; justify-content:center; padding:2rem;
-}
-#diagram-modal.open { display:flex; }
-.modal-inner {
-  background:#1e2a3a; border:1px solid #60a5fa;
-  border-radius:16px; padding:1.5rem;
-  width:1400px; max-width:95vw; max-height:90vh; overflow:auto;
-  position:relative; animation:modal-in 0.2s ease;
-}
-@keyframes modal-in {
-  from{opacity:0;transform:scale(0.95)}
-  to{opacity:1;transform:scale(1)}
-}
-.modal-close {
-  position:absolute; top:12px; right:16px;
-  background:none; border:none; color:#9ca3af;
-  font-size:1.5rem; cursor:pointer; line-height:1;
-}
-.modal-close:hover { color:#fff; }
-#modal-svg-container svg { width:100%; height:auto; display:block; }
-</style>
+    @media (max-width: 700px) {
+      .product-header { flex-direction: column; }
+      .product-stats { gap: 20px; }
+      nav { padding: 0 1.2rem; }
+      .nav-apps { display: none; }
+      .hero { padding: 52px 1.2rem; }
+      .hero-title { letter-spacing: -1px; }
+    }
+  </style>
 </head>
+
 <body>
 
 <nav>
-  <div class="nav-logo">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 258 80" width="129" height="40">
-      <defs><clipPath id="nav-clip"><rect width="258" height="80" rx="14"/></clipPath></defs>
-      <rect width="258" height="80" rx="14" fill="var(--bg-surface)"/>
-      <rect width="84" height="80" fill="var(--bg-deep)" clip-path="url(#nav-clip)"/>
-      <g transform="translate(18,16)">
-        <line x1="24" y1="2" x2="24" y2="46" stroke="var(--accent)" stroke-width="0.75" opacity="0.3"/>
-        <line x1="2" y1="24" x2="46" y2="24" stroke="var(--accent)" stroke-width="0.75" opacity="0.3"/>
-        <path d="M2.5 12h3.5l2.75-7.75 3.5 16 2.75-7.75h3.5" stroke="var(--app-flow)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <rect x="25.5" y="9.5" width="3.5" height="3.5" rx="0.75" fill="var(--app-snmp)"/>
-        <path d="M30.5 7.8 a5 5 0 0 1 0 6.3" stroke="var(--app-snmp)" stroke-width="1.75" stroke-linecap="round" fill="none"/>
-        <path d="M34 5 a9 9 0 0 1 0 11.8" stroke="var(--app-snmp)" stroke-width="1.75" stroke-linecap="round" fill="none"/>
-        <path d="M3.5 30h17M3.5 35.5h14M3.5 41h9.5" stroke="var(--app-log)" stroke-width="1.75" stroke-linecap="round"/>
-        <circle cx="34.5" cy="35.5" r="7" stroke="var(--app-pcap)" stroke-width="1.75" fill="none"/>
-        <path d="M41 42l3.5 3.5" stroke="var(--app-pcap)" stroke-width="1.75" stroke-linecap="round"/>
-      </g>
-      <text x="96" y="51" font-family="Courier New,Courier,monospace" font-size="46" font-weight="500" fill="var(--text-primary)" letter-spacing="-2">pkt</text>
-      <text x="188" y="27" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-flow)" letter-spacing="1.5">FLOW</text>
-      <text x="188" y="43" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-snmp)" letter-spacing="1.5">SNMP</text>
-      <text x="188" y="59" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-log)" letter-spacing="1.5">LOG</text>
-      <text x="188" y="75" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-pcap)" letter-spacing="1.5">PCAP</text>
-    </svg>
+  <div class="nav-brand">
+    <img src="pktSolution-logo.png" alt="pktSolution" style="height:36px;width:auto;">
   </div>
-  <div class="nav-links">
-    <a href="#overview">Overview</a>
-    <a href="#registration">Registration</a>
-    <a href="#roles">Roles</a>
-    <a href="#kiosk">Kiosk</a>
-    <a href="#build">Build Plan</a>
+  <div class="nav-apps">
+    <a class="nav-app flow" href="pktFlow/index.html">pktFlow</a>
+    <a class="nav-app snmp" href="pktSNMP/index.html">pktSNMP</a>
+    <a class="nav-app log"  href="pktLog/index.html">pktLog</a>
+    <a class="nav-app pcap" href="pktPCAP/index.html">pktPCAP</a>
+    <a class="nav-app hub"  href="pktHub/index.html">pktHub</a>
   </div>
-  <div></div>
 </nav>
 
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-glow"></div>
-  <div class="hero-badge"><span class="hero-dot"></span> Central NOC/SOC Management Platform</div>
-  <h1>One hub.<br>
-    <span class="c-flow">Flow.</span>&nbsp;
-    <span class="c-snmp">SNMP.</span>&nbsp;
-    <span class="c-log">Log.</span>&nbsp;
-    <span class="c-pcap">PCAP.</span>
-  </h1>
-  <p>pktHub unifies all pktAPP apps under a single authentication plane, reverse-proxy shell, and drag-and-drop kiosk builder — purpose-built for NOC/SOC wall displays and centralized operations.</p>
-  <div class="hero-actions">
-    <a href="#overview" class="btn-primary">Explore Design</a>
-    <a href="#build" class="btn-secondary">Build Plan</a>
+<section class="hero">
+  <img src="pktSolution-logo.png" alt="pktSolution"
+       style="max-width:420px;width:80%;height:auto;margin:0 auto 8px;display:block;">
+  <div class="hero-overlay">
+    <div class="hero-overlay-text">Release Coming Soon!!!!</div>
+    <div class="hero-overlay-sub">Stay tuned</div>
   </div>
-</div>
+  <p class="hero-sub">Five independent tools built for network engineers who need deep, real-time visibility into what's actually moving across their infrastructure.</p>
+</section>
 
-<!-- STATS -->
-<div class="stats">
-  <div class="stat">
-    <div class="stat-num" style="color:var(--app-flow)">4</div>
-    <div class="stat-label">Managed Apps</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num" style="color:var(--app-snmp)">8760</div>
-    <div class="stat-label">HTTPS Port</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num" style="color:var(--app-log)">3</div>
-    <div class="stat-label">Platform Areas</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num" style="color:var(--app-pcap)">3</div>
-    <div class="stat-label">User Roles</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num">SQLite</div>
-    <div class="stat-label">WAL Storage</div>
-  </div>
-</div>
+<!-- OVERVIEW STRIP -->
+<section class="overview">
+  <div class="overview-inner">
+    <div class="overview-grid">
 
-<!-- OVERVIEW -->
-<section id="overview">
-  <div class="section-inner">
-    <div class="eyebrow">Platform Overview</div>
-    <h2 class="section-title">Three areas. One shell.</h2>
-    <p class="section-sub">pktHub provides three distinct platform areas through a single unified interface — manage apps, operate through them, and build wall displays from their data.</p>
-    <div class="cards">
-      <div class="card flow">
-        <div class="card-label" style="color:var(--app-flow)">App Manager</div>
-        <h3>Register &amp; control</h3>
-        <p>Register and deregister pktAPP apps. Toggle observe vs managed mode. Monitor health, rotate suite-tokens, and manage the app registry from one place.</p>
-      </div>
-      <div class="card snmp">
-        <div class="card-label" style="color:var(--app-snmp)">Managed App Viewer</div>
-        <h3>Proxied access</h3>
-        <p>Proxied pktAPP UI served inside the pktHub shell. A thin 44px top bar stays persistent — the pktAPP app gets the full viewport. No double-nav. No clutter.</p>
-      </div>
-      <div class="card log">
-        <div class="card-label" style="color:var(--app-log)">Kiosk Builder</div>
-        <h3>Wall displays</h3>
-        <p>Drag-and-drop widget composer for NOC/SOC displays. Build layouts from any registered app's widgets. Publish with a signed URL token — no login required on the display monitor.</p>
-      </div>
+      <a class="ov-card flow" href="pktFlow/index.html">
+        <div class="ov-name" style="color:var(--flow);">pktFlow</div>
+        <div class="ov-cat" style="color:var(--flow);">NetFlow · sFlow · IPFIX</div>
+        <div class="ov-blurb">High-performance flow collection and analysis. See who's talking to whom and where bandwidth is going.</div>
+        <span class="ov-link" style="color:var(--flow);">View tool →</span>
+      </a>
+
+      <a class="ov-card snmp" href="pktSNMP/index.html">
+        <div class="ov-name" style="color:var(--snmp);">pktSNMP</div>
+        <div class="ov-cat" style="color:var(--snmp);">SNMP Polling · Traps</div>
+        <div class="ov-blurb">Poll any OID, receive traps, browse MIBs. Device health visibility without a full NMS.</div>
+        <span class="ov-link" style="color:var(--snmp);">View tool →</span>
+      </a>
+
+      <a class="ov-card log" href="pktLog/index.html">
+        <div class="ov-name" style="color:var(--log);">pktLog</div>
+        <div class="ov-cat" style="color:var(--log);">Syslog · Event Collection</div>
+        <div class="ov-blurb">Receive, parse, search, and forward syslog streams from every device on your network.</div>
+        <span class="ov-link" style="color:var(--log);">View tool →</span>
+      </a>
+
+      <a class="ov-card pcap" href="pktPCAP/index.html">
+        <div class="ov-name" style="color:var(--pcap);">pktPCAP</div>
+        <div class="ov-cat" style="color:var(--pcap);">Packet Capture · Analysis</div>
+        <div class="ov-blurb">On-demand packet capture with BPF filtering and in-browser decode. No Wireshark required.</div>
+        <span class="ov-link" style="color:var(--pcap);">View tool →</span>
+      </a>
+
+      <a class="ov-card hub" href="pktHub/index.html">
+        <div class="ov-name" style="color:var(--hub);">pktHub</div>
+        <div class="ov-cat" style="color:var(--hub);">Unified Dashboard</div>
+        <div class="ov-blurb">Single-pane view across all tools. Live feeds, topology, and cross-tool correlation in one place.</div>
+        <span class="ov-link" style="color:var(--hub);">View tool →</span>
+      </a>
+
     </div>
   </div>
 </section>
 
-<!-- REGISTRATION -->
-<section id="registration" class="alt-bg">
-  <div class="section-inner">
-    <div class="eyebrow">Registration &amp; Lockdown</div>
-    <h2 class="section-title">Observe first. <span class="c-log">Lock down when ready.</span></h2>
-    <p class="section-sub">Two-phase registration prevents disruption. Validate everything through pktHub before enabling the token lockout.</p>
-    <div class="pipeline">
-      <div class="pipe-step">
-        <div class="pipe-num" style="background:var(--app-flow)">1</div>
-        <h4>Register</h4>
-        <p>Add pktAPP to pktHub registry. Handshake via /api/suite/register. API version negotiated via X-Suite-Version header.</p>
+<!-- pktFlow -->
+<section class="product p-flow">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--flow-bg);color:var(--flow);">NetFlow / sFlow / IPFIX</span>
+        <div class="product-name" style="color:var(--flow);">pktFlow</div>
+        <p class="product-tagline">A high-performance flow collector and analyzer built to ingest NetFlow, sFlow, and IPFIX at scale. Understand who's talking to whom, what protocols dominate, and where your bandwidth is really going.</p>
       </div>
-      <div class="pipe-step">
-        <div class="pipe-num" style="background:var(--app-snmp)">2</div>
-        <h4>Observe Mode</h4>
-        <p>pktHub monitors and proxies. Direct pktAPP access still works. Operator validates everything before flipping.</p>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num" style="background:var(--app-log)">3</div>
-        <h4>Managed Mode</h4>
-        <p>Suite-token lockout active. Every request to pktAPP must carry X-Suite-Token. No token = 403.</p>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num" style="background:var(--app-pcap)">4</div>
-        <h4>Deregister / Break-Glass</h4>
-        <p>Full clean break. Token removed, direct access restored, pktAPP local users un-dormanted. --emergency-unlock CLI on each pktAPP for when pktHub is unreachable.</p>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--flow);">1M+</span><span class="stat-lbl">Flows/sec</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--flow);">v5/v9</span><span class="stat-lbl">NetFlow</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--flow);">IPFIX</span><span class="stat-lbl">RFC 7011</span></div>
       </div>
     </div>
+    <div class="product-tiles" style="--accent:var(--flow);">
+      <div class="tile"><div class="tile-icon">📡</div><div class="tile-title">Multi-Protocol Ingest</div><div class="tile-desc">Accepts NetFlow v5, v9, sFlow v5, and IPFIX from any vendor — Cisco, Juniper, Palo Alto, and more.</div></div>
+      <div class="tile"><div class="tile-icon">🔍</div><div class="tile-title">Top-N Analysis</div><div class="tile-desc">Instantly surface top talkers, top destinations, top applications, and top ports in real time.</div></div>
+      <div class="tile"><div class="tile-icon">📊</div><div class="tile-title">Bandwidth Trending</div><div class="tile-desc">Track interface utilization and bandwidth consumption over time with exportable time-series data.</div></div>
+      <div class="tile"><div class="tile-icon">⚡</div><div class="tile-title">Low-Latency Pipeline</div><div class="tile-desc">Sub-second flow processing with a non-blocking ingest pipeline designed for high-density environments.</div></div>
+      <div class="tile"><div class="tile-icon">🗺️</div><div class="tile-title">Geo & ASN Mapping</div><div class="tile-desc">Enrich flow records with geographic and autonomous system data for external traffic attribution.</div></div>
+      <div class="tile"><div class="tile-icon">🔔</div><div class="tile-title">Threshold Alerting</div><div class="tile-desc">Define per-interface or per-host thresholds and get alerted the moment utilization spikes.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktFlow/index.html" style="color:var(--flow);border-color:var(--flow-bg);" onmouseover="this.style.background='var(--flow-bg)'" onmouseout="this.style.background='transparent'">Explore pktFlow →</a></div>
   </div>
 </section>
 
-<!-- ROLES -->
-<section id="roles">
-  <div class="section-inner">
-    <div class="eyebrow">Access Control</div>
-    <h2 class="section-title">Role matrix</h2>
-    <p class="section-sub">Three roles — Admin, Analyst, Viewer — apply across all platform areas. pktHub roles map directly to pktAPP roles when proxying.</p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Area</th>
-            <th style="color:var(--app-flow)">Admin</th>
-            <th style="color:var(--app-snmp)">Analyst</th>
-            <th style="color:var(--app-log)">Viewer</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>NOC/SOC Dashboard</td><td class="yes">Full</td><td class="yes">Full</td><td class="yes">View</td></tr>
-          <tr><td>Proxied App Access</td><td class="yes">Maps to Admin</td><td class="yes">Maps to Analyst</td><td class="yes">Maps to Viewer</td></tr>
-          <tr><td>Kiosk Builder</td><td class="yes">Create / Edit / Delete / Publish</td><td class="yes">Create / Edit / Publish own</td><td class="no">—</td></tr>
-          <tr><td>Kiosk Display</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
-          <tr><td>App Registry</td><td class="yes">Register / Deregister / Tokens</td><td class="partial">View only</td><td class="no">—</td></tr>
-          <tr><td>User Management</td><td class="yes">Full</td><td class="no">—</td><td class="no">—</td></tr>
-          <tr><td>Platform Settings</td><td class="yes">Full</td><td class="no">—</td><td class="no">—</td></tr>
-          <tr><td>Auth / Okta Config</td><td class="yes">Full</td><td class="no">—</td><td class="no">—</td></tr>
-          <tr><td>Audit Log</td><td class="yes">Full</td><td class="partial">Own sessions</td><td class="no">—</td></tr>
-          <tr><td>Maintenance / Backup</td><td class="yes">Full</td><td class="no">—</td><td class="no">—</td></tr>
-        </tbody>
-      </table>
+<!-- pktSNMP -->
+<section class="product p-snmp">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--snmp-bg);color:var(--snmp);">SNMP Polling &amp; Traps</span>
+        <div class="product-name" style="color:var(--snmp);">pktSNMP</div>
+        <p class="product-tagline">A purpose-built SNMP manager that polls your network devices on your schedule and captures trap events the moment they fire. Device health at a glance, without the overhead of a full NMS.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--snmp);">v1/2c/3</span><span class="stat-lbl">SNMP</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--snmp);">MIB</span><span class="stat-lbl">Browser</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--snmp);">UDP 162</span><span class="stat-lbl">Trap Port</span></div>
+      </div>
     </div>
+    <div class="product-tiles" style="--accent:var(--snmp);">
+      <div class="tile"><div class="tile-icon">🔄</div><div class="tile-title">Scheduled Polling</div><div class="tile-desc">Poll any OID on any device at configurable intervals — from seconds to hours — with automatic retry logic.</div></div>
+      <div class="tile"><div class="tile-icon">🪤</div><div class="tile-title">Trap Receiver</div><div class="tile-desc">Listen for SNMP traps from your entire device estate and decode them against loaded MIB definitions.</div></div>
+      <div class="tile"><div class="tile-icon">📚</div><div class="tile-title">MIB Management</div><div class="tile-desc">Load, browse, and search standard and vendor-specific MIBs with a built-in OID tree navigator.</div></div>
+      <div class="tile"><div class="tile-icon">📈</div><div class="tile-title">Counter Graphing</div><div class="tile-desc">Plot gauge and counter OIDs as time-series graphs. Visualize CPU, memory, and interface stats side-by-side.</div></div>
+      <div class="tile"><div class="tile-icon">🏷️</div><div class="tile-title">Device Inventory</div><div class="tile-desc">Auto-discover sysDescr, sysName, and sysLocation on first contact. Build a live inventory automatically.</div></div>
+      <div class="tile"><div class="tile-icon">🔐</div><div class="tile-title">SNMPv3 Auth &amp; Priv</div><div class="tile-desc">Full SNMPv3 support with MD5/SHA authentication and DES/AES privacy for secure device polling.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktSNMP/index.html" style="color:var(--snmp);border-color:var(--snmp-bg);" onmouseover="this.style.background='var(--snmp-bg)'" onmouseout="this.style.background='transparent'">Explore pktSNMP →</a></div>
   </div>
 </section>
 
-<!-- KIOSK -->
-<section id="kiosk" class="alt-bg">
-  <div class="section-inner">
-    <div class="eyebrow">Kiosk Builder</div>
-    <h2 class="section-title">Wall displays. <span class="c-log">No login required.</span></h2>
-    <p class="section-sub">Build, publish, and display NOC/SOC dashboards on any monitor without operator credentials sitting on screen.</p>
-    <div class="cards">
-      <div class="card flow">
-        <div class="card-label" style="color:var(--app-flow)">Widget Manifests</div>
-        <h3>Auto-populated library</h3>
-        <p>Each pktAPP exposes /api/widgets/manifest declaring available widgets, data schemas, refresh rates, and required permissions. pktHub reads this at registration and populates the builder library automatically.</p>
+<!-- pktLog -->
+<section class="product p-log">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--log-bg);color:var(--log);">Syslog &amp; Event Collection</span>
+        <div class="product-name" style="color:var(--log);">pktLog</div>
+        <p class="product-tagline">A syslog collector and log aggregator that gives you a single place to receive, parse, search, and act on log streams from any device on your network. Built for volume, without complexity.</p>
       </div>
-      <div class="card snmp">
-        <div class="card-label" style="color:var(--app-snmp)">Drag-and-Drop Composer</div>
-        <h3>Grid canvas</h3>
-        <p>Widget library panel per registered app. Widget borders colored by source app. Arrange freely, save named layouts. Per-dashboard mode: static live-refresh or rotating slides with configurable dwell time.</p>
-      </div>
-      <div class="card log">
-        <div class="card-label" style="color:var(--app-log)">Signed Display Tokens</div>
-        <h3>Publish &amp; display</h3>
-        <p>Published kiosks get a URL-based signed display token. Wall monitor loads once, auto-refreshes, no operator login required. Tokens are revocable from pktHub at any time.</p>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--log);">UDP/TCP</span><span class="stat-lbl">514</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--log);">RFC</span><span class="stat-lbl">3164 / 5424</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--log);">TLS</span><span class="stat-lbl">Syslog</span></div>
       </div>
     </div>
+    <div class="product-tiles" style="--accent:var(--log);">
+      <div class="tile"><div class="tile-icon">📥</div><div class="tile-title">Multi-Transport Ingest</div><div class="tile-desc">Receive syslog over UDP, TCP, and TLS — supporting legacy BSD format and RFC 5424 structured data.</div></div>
+      <div class="tile"><div class="tile-icon">🔎</div><div class="tile-title">Full-Text Search</div><div class="tile-desc">Search across all log messages with fast substring and pattern matching. No indexing lag, no query language to learn.</div></div>
+      <div class="tile"><div class="tile-icon">🧩</div><div class="tile-title">Grok Parsing</div><div class="tile-desc">Extract fields from raw log lines using Grok patterns. Turn unstructured syslog into queryable structured data.</div></div>
+      <div class="tile"><div class="tile-icon">🚦</div><div class="tile-title">Severity Filtering</div><div class="tile-desc">Filter by facility and severity level. Isolate Emergency, Alert, and Critical messages from the noise instantly.</div></div>
+      <div class="tile"><div class="tile-icon">📤</div><div class="tile-title">Log Forwarding</div><div class="tile-desc">Forward filtered or all log streams to SIEM, object storage, or a secondary syslog destination.</div></div>
+      <div class="tile"><div class="tile-icon">📋</div><div class="tile-title">Retention Policies</div><div class="tile-desc">Set per-source or global retention windows. Automatically purge or archive logs beyond the retention period.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktLog/index.html" style="color:var(--log);border-color:var(--log-bg);" onmouseover="this.style.background='var(--log-bg)'" onmouseout="this.style.background='transparent'">Explore pktLog →</a></div>
   </div>
 </section>
 
-<!-- COLOR THEME -->
-<section id="theme">
-  <div class="section-inner">
-    <div class="eyebrow">UI Color System</div>
-    <h2 class="section-title">Context-aware accent</h2>
-    <p class="section-sub">The accent color shifts to match whichever pktAPP app is in scope. Universal pktHub screens use all four simultaneously.</p>
-    <div class="arch-grid">
-      <ul class="arch-list">
-        <li><strong style="color:var(--app-flow)">pktFlow → Blue</strong> — NetFlow analysis context</li>
-        <li><strong style="color:var(--app-snmp)">pktSNMP → Teal</strong> — SNMP monitoring context</li>
-        <li><strong style="color:var(--app-log)">pktLog → Green</strong> — Syslog ingest context</li>
-        <li><strong style="color:var(--app-pcap)">pktPCAP → Purple</strong> — Packet capture context</li>
-        <li><strong>Universal screens</strong> — all four colors simultaneously: quad-gradient headers, multi-color dividers, app registry cards colored per app, kiosk widget borders colored by source</li>
-        <li><strong>Proxied shell top bar</strong> — current app indicator colored in that app's accent. Collapses to 44px when inside a proxied app, full nav on pktHub-native pages</li>
-      </ul>
-      <div>
-        <div class="color-pills">
-          <div class="color-pill" style="background:var(--app-flow-dim);color:var(--app-flow)">FLOW</div>
-          <div class="color-pill" style="background:var(--app-snmp-dim);color:var(--app-snmp)">SNMP</div>
-          <div class="color-pill" style="background:var(--app-log-dim);color:var(--app-log)">LOG</div>
-          <div class="color-pill" style="background:var(--app-pcap-dim);color:var(--app-pcap)">PCAP</div>
-        </div>
-        <div class="card" style="margin-top:20px">
-          <p style="font-size:0.85rem">Settings layout follows the pktFlow admin guide pattern exactly — sticky 260px sidebar with grouped nav sections, doc-section blocks, callout boxes, numbered step cards.</p>
-          <p style="font-size:0.85rem;margin-top:10px;color:var(--text-muted)">Sidebar groups: Platform · Network · Authentication · App Registry · Kiosk · Notifications · Audit &amp; Logging · Maintenance</p>
-        </div>
+<!-- pktPCAP -->
+<section class="product p-pcap">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:var(--pcap-bg);color:var(--pcap);">Packet Capture &amp; Analysis</span>
+        <div class="product-name" style="color:var(--pcap);">pktPCAP</div>
+        <p class="product-tagline">A packet capture tool built for network engineers who need to go deeper than flow data. Trigger captures on demand, filter with BPF, and decode packets right in the browser — no Wireshark install required.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--pcap);">BPF</span><span class="stat-lbl">Filters</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--pcap);">.pcap</span><span class="stat-lbl">Export</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--pcap);">L2–L7</span><span class="stat-lbl">Decode</span></div>
       </div>
     </div>
+    <div class="product-tiles" style="--accent:var(--pcap);">
+      <div class="tile"><div class="tile-icon">🎯</div><div class="tile-title">On-Demand Capture</div><div class="tile-desc">Trigger a packet capture on any monitored interface from the browser — no CLI required.</div></div>
+      <div class="tile"><div class="tile-icon">🔬</div><div class="tile-title">In-Browser Decode</div><div class="tile-desc">Decode Ethernet, IP, TCP, UDP, DNS, HTTP, and dozens more protocols directly in the UI.</div></div>
+      <div class="tile"><div class="tile-icon">🧲</div><div class="tile-title">BPF Filtering</div><div class="tile-desc">Apply Berkeley Packet Filter expressions at capture time. Capture only the traffic you care about.</div></div>
+      <div class="tile"><div class="tile-icon">💾</div><div class="tile-title">PCAP Export</div><div class="tile-desc">Download any capture as a standard .pcap file. Open in Wireshark or any other analysis tool.</div></div>
+      <div class="tile"><div class="tile-icon">🔄</div><div class="tile-title">Stream Reassembly</div><div class="tile-desc">Reassemble TCP streams and follow conversations to reconstruct application-layer payloads.</div></div>
+      <div class="tile"><div class="tile-icon">📂</div><div class="tile-title">Capture Library</div><div class="tile-desc">Store named captures for later review. Tag, annotate, and compare captures across sessions.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktPCAP/index.html" style="color:var(--pcap);border-color:var(--pcap-bg);" onmouseover="this.style.background='var(--pcap-bg)'" onmouseout="this.style.background='transparent'">Explore pktPCAP →</a></div>
   </div>
 </section>
 
-<!-- ARCHITECTURE -->
-<section id="architecture">
-  <div class="section-inner">
-    <div class="eyebrow">Architecture</div>
-    <h2 class="section-title">How it connects</h2>
-    <p class="section-sub">pktHub sits between users and all pktAPP apps. In managed mode every request flows through the suite-token layer — direct access is blocked.</p>
-    <div class="arch-diagram" onclick="openDiagramModal()">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 460" style="width:100%;height:auto;display:block;border-radius:var(--radius-lg);border:1px solid var(--border);">
-        <defs>
-          <linearGradient id="arch-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#0d1525"/>
-            <stop offset="100%" stop-color="#080d18"/>
-          </linearGradient>
-          <marker id="arch-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0,10 3.5,0 7" fill="#e2e8f0"/>
-          </marker>
-          <marker id="arch-arrow-flow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0,10 3.5,0 7" fill="#60a5fa"/>
-          </marker>
-          <marker id="arch-arrow-snmp" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0,10 3.5,0 7" fill="#2dd4bf"/>
-          </marker>
-          <marker id="arch-arrow-log" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0,10 3.5,0 7" fill="#4ade80"/>
-          </marker>
-          <marker id="arch-arrow-pcap" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0,10 3.5,0 7" fill="#a78bfa"/>
-          </marker>
-          <filter id="arch-glow">
-            <feGaussianBlur stdDeviation="3" result="cb"/>
-            <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <rect width="820" height="460" rx="14" fill="url(#arch-bg)"/>
-        <!-- User / Browser box -->
-        <rect x="610" y="30" width="170" height="58" rx="10" fill="#131e30" stroke="rgba(255,255,255,0.07)" stroke-width="1.5"/>
-        <text x="695" y="54" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="600" fill="#f1f5f9">User / Browser</text>
-        <text x="695" y="72" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" fill="#475569">HTTPS / JWT</text>
-        <!-- Arrow: User to pktHub -->
-        <line x1="695" y1="88" x2="500" y2="152" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arch-arrow)"/>
-        <!-- pktHub hub -->
-        <rect x="220" y="148" width="380" height="80" rx="12" fill="#131e30" stroke="#e2e8f0" stroke-width="1.5" filter="url(#arch-glow)"/>
-        <text x="410" y="181" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="15" font-weight="700" fill="#f1f5f9">pktHub</text>
-        <text x="410" y="200" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" fill="#475569">Reverse Proxy · Auth · App Registry · Kiosk Builder</text>
-        <text x="410" y="218" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">Port 8760</text>
-        <!-- Lines to apps -->
-        <line x1="280" y1="228" x2="120" y2="340" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arch-arrow-flow)"/>
-        <text x="178" y="292" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#60a5fa" transform="rotate(-30,178,292)">X-Suite-Token</text>
-        <line x1="340" y1="228" x2="302" y2="340" stroke="#2dd4bf" stroke-width="1.5" marker-end="url(#arch-arrow-snmp)"/>
-        <text x="315" y="288" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#2dd4bf" transform="rotate(-8,315,288)">X-Suite-Token</text>
-        <line x1="480" y1="228" x2="518" y2="340" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arch-arrow-log)"/>
-        <text x="505" y="288" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#4ade80" transform="rotate(8,505,288)">X-Suite-Token</text>
-        <line x1="540" y1="228" x2="698" y2="340" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arch-arrow-pcap)"/>
-        <text x="638" y="291" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#a78bfa" transform="rotate(30,638,291)">X-Suite-Token</text>
-        <!-- App boxes -->
-        <rect x="35" y="340" width="170" height="60" rx="10" fill="#0d1525" stroke="#60a5fa" stroke-width="1.5"/>
-        <text x="120" y="366" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#60a5fa">pktFlow</text>
-        <text x="120" y="384" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">NetFlow · Port 8766</text>
-        <rect x="217" y="340" width="170" height="60" rx="10" fill="#0d1525" stroke="#2dd4bf" stroke-width="1.5"/>
-        <text x="302" y="366" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#2dd4bf">pktSNMP</text>
-        <text x="302" y="384" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">SNMP · Port 8767</text>
-        <rect x="399" y="340" width="170" height="60" rx="10" fill="#0d1525" stroke="#4ade80" stroke-width="1.5"/>
-        <text x="484" y="366" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#4ade80">pktLog</text>
-        <text x="484" y="384" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">Syslog · Port 8768</text>
-        <rect x="581" y="340" width="170" height="60" rx="10" fill="#0d1525" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="666" y="366" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#a78bfa">pktPCAP</text>
-        <text x="666" y="384" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">Packets · Port 8765</text>
-        <!-- Managed mode label -->
-        <rect x="240" y="418" width="340" height="28" rx="6" fill="#050a12" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <text x="410" y="436" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">Managed mode: direct access blocked · suite-token required on all requests</text>
-      </svg>
+<!-- pktHub -->
+<section class="product p-hub">
+  <div class="product-inner">
+    <div class="product-header">
+      <div class="product-id">
+        <span class="product-tag" style="background:rgba(226,232,240,0.06);color:var(--hub);">Unified Dashboard</span>
+        <div class="product-name" style="color:var(--hub);">pktHub</div>
+        <p class="product-tagline">A single-pane-of-glass dashboard that aggregates signals from across your network visibility stack. Not a replacement for the individual tools — a place to watch everything move at once.</p>
+      </div>
+      <div class="product-stats">
+        <div class="stat"><span class="stat-val" style="color:var(--hub);">Live</span><span class="stat-lbl">Feeds</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--hub);">WS</span><span class="stat-lbl">Real-Time</span></div>
+        <div class="stat"><span class="stat-val" style="color:var(--hub);">REST</span><span class="stat-lbl">API</span></div>
+      </div>
     </div>
+    <div class="product-tiles" style="--accent:var(--hub);">
+      <div class="tile"><div class="tile-icon">🖥️</div><div class="tile-title">Live Feeds</div><div class="tile-desc">Watch flow records, trap events, syslog messages, and device state updates arrive in real time.</div></div>
+      <div class="tile"><div class="tile-icon">🌐</div><div class="tile-title">Network Topology</div><div class="tile-desc">Visualize discovered device relationships and active traffic paths across your infrastructure.</div></div>
+      <div class="tile"><div class="tile-icon">🔗</div><div class="tile-title">Cross-Tool Correlation</div><div class="tile-desc">Pivot from a flow anomaly to related syslog events or SNMP traps in a single click.</div></div>
+      <div class="tile"><div class="tile-icon">📊</div><div class="tile-title">Composable Dashboards</div><div class="tile-desc">Build custom dashboard panels from any data source. Arrange widgets to match your NOC workflow.</div></div>
+      <div class="tile"><div class="tile-icon">🔑</div><div class="tile-title">Unified Auth</div><div class="tile-desc">Single sign-on and role-based access control across all connected data sources and views.</div></div>
+      <div class="tile"><div class="tile-icon">📡</div><div class="tile-title">REST &amp; WebSocket API</div><div class="tile-desc">Stream live events or query historical data via documented REST endpoints and WebSocket subscriptions.</div></div>
+    </div>
+    <div class="product-cta"><a href="pktHub/index.html" style="color:var(--hub);border-color:rgba(226,232,240,0.1);" onmouseover="this.style.background='rgba(226,232,240,0.04)'" onmouseout="this.style.background='transparent'">Explore pktHub →</a></div>
   </div>
 </section>
 
-<!-- BUILD PLAN -->
-<section id="build" class="alt-bg">
-  <div class="section-inner">
-    <div class="eyebrow">Build Plan</div>
-    <h2 class="section-title">Two tracks. One rollout.</h2>
-    <p class="section-sub">Track 1 builds pktHub. Track 2 adds the required hooks to each existing pktAPP app.</p>
-    <div class="arch-grid">
-      <div>
-        <h3 style="color:var(--app-flow);font-size:0.95rem;font-weight:700;margin-bottom:16px">Track 1 — pktHub Application</h3>
-        <ul class="arch-list">
-          <li><strong>FastAPI backend</strong> — reverse proxy, JWT auth, Okta/OIDC, app registry API, kiosk builder API</li>
-          <li><strong>React frontend</strong> — App Manager, Proxied App Viewer (44px top bar shell), Kiosk Builder, Dashboard, Settings, Users</li>
-          <li><strong>SQLite WAL DB</strong> — app registry, users, kiosk layouts (JSON), audit log, notification settings, platform config</li>
-          <li><strong>Audit log</strong> — stored in pktHub DB only; no forwarding to pktLog (prevents circular dependency)</li>
-          <li><strong>API versioning</strong> — X-Suite-Version header on all pktHub&harr;pktAPP calls; version negotiated at registration</li>
-          <li><strong>Systemd service</strong> — port 8760 HTTPS, auto-restart hardened</li>
-        </ul>
-      </div>
-      <div>
-        <h3 style="color:var(--app-snmp);font-size:0.95rem;font-weight:700;margin-bottom:16px">Track 2 — Changes to Each pktAPP</h3>
-        <ul class="arch-list">
-          <li><strong>Suite-token middleware</strong> — validates X-Suite-Token header; 403 if invalid in managed mode</li>
-          <li><strong>Break-glass CLI</strong> — --emergency-unlock triggers full deregister; logged and alerted in pktHub</li>
-          <li><strong>/api/widgets/manifest</strong> — declares kiosk widgets, data schemas, refresh rates, permissions</li>
-          <li><strong>Registration endpoints</strong> — /api/suite/register and /api/suite/deregister</li>
-          <li><strong>API versioning</strong> — advertise supported X-Suite-Version at registration</li>
-          <li><strong>Local users dormant</strong> — users table stays in place; fully restored on deregister</li>
-        </ul>
-      </div>
-    </div>
-    <div class="cards" style="margin-top:40px">
-      <div class="card">
-        <div class="card-label" style="color:var(--text-muted)">Server</div>
-        <h3>pkt server · Port 8760</h3>
-        <p>Same server as all pktAPP apps. Shared infrastructure, isolated systemd services, SQLite WAL at pkthub.db.</p>
-      </div>
-      <div class="card">
-        <div class="card-label" style="color:var(--text-muted)">Deploy Pattern</div>
-        <h3>Identical to pktFlow / pktLog</h3>
-        <p>SFTP source → build frontend in Linux /tmp → cp dist to app dir → systemctl restart. deploy.py script handles the full cycle.</p>
-      </div>
-      <div class="card">
-        <div class="card-label" style="color:var(--warning)">SSH Note</div>
-        <h3>Python + Paramiko only</h3>
-        <p>SentinelOne blocks system ssh.exe. All remote ops via Paramiko through Desktop Commander. One script, one run, no retry loops.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER -->
 <footer>
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 258 80" width="129" height="40" style="display:block;margin:0 auto 16px;">
-    <defs><clipPath id="footer-clip"><rect width="258" height="80" rx="14"/></clipPath></defs>
-    <rect width="258" height="80" rx="14" fill="var(--bg-surface)"/>
-    <rect width="84" height="80" fill="var(--bg-deep)" clip-path="url(#footer-clip)"/>
-    <g transform="translate(18,16)">
-      <line x1="24" y1="2" x2="24" y2="46" stroke="var(--accent)" stroke-width="0.75" opacity="0.3"/>
-      <line x1="2" y1="24" x2="46" y2="24" stroke="var(--accent)" stroke-width="0.75" opacity="0.3"/>
-      <path d="M2.5 12h3.5l2.75-7.75 3.5 16 2.75-7.75h3.5" stroke="var(--app-flow)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <rect x="25.5" y="9.5" width="3.5" height="3.5" rx="0.75" fill="var(--app-snmp)"/>
-      <path d="M30.5 7.8 a5 5 0 0 1 0 6.3" stroke="var(--app-snmp)" stroke-width="1.75" stroke-linecap="round" fill="none"/>
-      <path d="M34 5 a9 9 0 0 1 0 11.8" stroke="var(--app-snmp)" stroke-width="1.75" stroke-linecap="round" fill="none"/>
-      <path d="M3.5 30h17M3.5 35.5h14M3.5 41h9.5" stroke="var(--app-log)" stroke-width="1.75" stroke-linecap="round"/>
-      <circle cx="34.5" cy="35.5" r="7" stroke="var(--app-pcap)" stroke-width="1.75" fill="none"/>
-      <path d="M41 42l3.5 3.5" stroke="var(--app-pcap)" stroke-width="1.75" stroke-linecap="round"/>
-    </g>
-    <text x="96" y="51" font-family="Courier New,Courier,monospace" font-size="46" font-weight="500" fill="var(--text-primary)" letter-spacing="-2">pkt</text>
-    <text x="188" y="27" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-flow)" letter-spacing="1.5">FLOW</text>
-    <text x="188" y="43" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-snmp)" letter-spacing="1.5">SNMP</text>
-    <text x="188" y="59" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-log)" letter-spacing="1.5">LOG</text>
-    <text x="188" y="75" font-family="Courier New,Courier,monospace" font-size="13" font-weight="700" fill="var(--app-pcap)" letter-spacing="1.5">PCAP</text>
-  </svg>
-  <p>pktHub — Unified NOC/SOC Platform · pktSolution</p>
-  <p style="margin-top:6px;font-size:12px;color:var(--text-muted)">Built &amp; deployed · SSO proxy auth complete</p>
+  <img src="pktSolution-logo.png" alt="pktSolution" style="height:28px;width:auto;opacity:0.75;">
+  <div class="footer-links">
+    <a href="pktFlow/index.html">pktFlow</a>
+    <a href="pktSNMP/index.html">pktSNMP</a>
+    <a href="pktLog/index.html">pktLog</a>
+    <a href="pktPCAP/index.html">pktPCAP</a>
+    <a href="pktHub/index.html">pktHub</a>
+  </div>
 </footer>
 
-<div id="diagram-modal" onclick="if(event.target===this)closeDiagramModal()">
-  <div class="modal-inner">
-    <button class="modal-close" onclick="closeDiagramModal()">&#x2715;</button>
-    <div id="modal-svg-container"></div>
-  </div>
-</div>
-
-<script>
-function openDiagramModal() {
-  const src = document.querySelector('.arch-diagram svg');
-  const container = document.getElementById('modal-svg-container');
-  container.innerHTML = '';
-  if (src) {
-    const clone = src.cloneNode(true);
-    clone.removeAttribute('style');
-    clone.style.width = '100%';
-    clone.style.height = 'auto';
-    container.appendChild(clone);
-  }
-  document.getElementById('diagram-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-function closeDiagramModal() {
-  document.getElementById('diagram-modal').classList.remove('open');
-  document.body.style.overflow = '';
-}
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDiagramModal(); });
-</script>
 </body>
 </html>

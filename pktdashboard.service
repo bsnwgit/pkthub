@@ -1,0 +1,27 @@
+[Unit]
+Description=pktDashboard — pktsuite landing page
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/mnt/software/pktdashboard
+
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/mnt/software/pktdashboard/venv/bin/python3 -m app.main
+
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+StandardOutput=append:/mnt/software/logs/pktdashboard.log
+StandardError=append:/mnt/software/logs/pktdashboard.log
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pktFlow — Network Flow Intelligence</title>
+  <style>
+    :root {
+      --bg-primary: #111827;
+      --bg-card: #0d1f3d;
+      --bg-surface: #1a2744;
+      --accent: #60a5fa;
+      --accent-dim: #3b82f6;
+      --text-primary: #ffffff;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --border: #1e3a5f;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(17,24,39,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 12px; }
+    .nav-logo img { height: 36px; }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; }
+    .nav-links a:hover { color: var(--text-primary); text-decoration: none; }
+    .nav-cta {
+      background: var(--accent-dim); color: white;
+      padding: 8px 20px; border-radius: 8px; font-size: 0.875rem; font-weight: 600;
+    }
+    .nav-cta:hover { background: var(--accent); text-decoration: none; }
+
+    /* HERO */
+    .hero {
+      min-height: 92vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 6rem 2rem 4rem;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(96,165,250,0.12) 0%, transparent 70%);
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M0 60L60 0' stroke='%231e3a5f' stroke-width='0.5' opacity='0.3'/%3E%3C/svg%3E");
+      opacity: 0.4;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3);
+      padding: 6px 16px; border-radius: 20px;
+      font-size: 0.8rem; color: var(--accent); font-weight: 600; letter-spacing: 0.5px;
+      margin-bottom: 2rem; position: relative;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      font-weight: 800; line-height: 1.15;
+      letter-spacing: -0.02em;
+      max-width: 820px; margin-bottom: 1.5rem; position: relative;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 1.2rem; color: var(--text-secondary);
+      max-width: 600px; margin-bottom: 3rem; position: relative;
+    }
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; position: relative; }
+    .btn-primary {
+      background: var(--accent-dim); color: white;
+      padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover { background: var(--accent); transform: translateY(-1px); text-decoration: none; }
+    .btn-secondary {
+      background: transparent; color: var(--text-primary);
+      padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 1rem;
+      border: 1px solid var(--border); transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+    .hero-stats {
+      display: flex; gap: 3rem; margin-top: 4rem; position: relative;
+      padding-top: 2rem; border-top: 1px solid var(--border);
+    }
+    .stat { text-align: center; }
+    .stat-num { font-size: 2rem; font-weight: 800; color: var(--accent); }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+
+  <style>
+    /* SECTION SHARED */
+    section { padding: 5rem 2rem; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      text-align: center; font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase; color: var(--accent);
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800; margin-bottom: 1rem;
+    }
+    .section-sub {
+      text-align: center; color: var(--text-secondary); font-size: 1.05rem;
+      max-width: 600px; margin: 0 auto 3.5rem;
+    }
+
+    /* FEATURES */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 1rem;
+    }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature-card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; }
+
+    /* DATAFLOW */
+    #how-it-works { background: rgba(13,31,61,0.4); }
+    .diagram-wrap {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; overflow-x: auto;
+    }
+    .diagram-wrap img, .diagram-wrap svg { width: 100%; max-width: 860px; display: block; margin: 0 auto; }
+
+    /* ARCHITECTURE */
+    .arch-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
+      align-items: start;
+    }
+    .arch-text h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 1rem; }
+    .arch-text p { color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .arch-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+    .arch-list li {
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px; font-size: 0.9rem;
+    }
+    .arch-list li span.dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+      flex-shrink: 0; margin-top: 6px;
+    }
+    .arch-diagram {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem; overflow: hidden;
+    }
+
+    /* AUDIENCE CARDS */
+    .audience-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+    }
+    .audience-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem; text-align: center;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .audience-card .aud-icon { font-size: 2.5rem; }
+    .audience-card h3 { font-size: 1.1rem; font-weight: 700; }
+    .audience-card p { color: var(--text-secondary); font-size: 0.875rem; flex: 1; }
+    .audience-card a.btn-dl {
+      display: inline-block; margin-top: auto;
+      background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3);
+      color: var(--accent); padding: 10px 20px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
+    }
+    .audience-card a.btn-dl:hover {
+      background: var(--accent-dim); color: white; border-color: var(--accent-dim);
+      text-decoration: none;
+    }
+
+    /* FOOTER */
+    footer {
+      background: var(--bg-card); border-top: 1px solid var(--border);
+      padding: 3rem 2rem; text-align: center;
+    }
+    footer .foot-logo { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+    footer .foot-logo img { height: 40px; }
+    footer p { color: var(--text-muted); font-size: 0.875rem; }
+    footer .foot-links { display: flex; gap: 2rem; justify-content: center; margin: 1rem 0; }
+    footer .foot-links a { color: var(--text-secondary); font-size: 0.875rem; }
+
+    .arch-diagram { position: relative; }
+
+    @media (max-width: 768px) {
+      .arch-grid { grid-template-columns: 1fr; }
+      .audience-grid { grid-template-columns: 1fr; }
+      .hero-stats { gap: 2rem; }
+      .nav-links { display: none; }
+    }
+  </style>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <a href="../index.html" style="color:var(--text-muted);font-size:0.75rem;font-weight:500;border:1px solid var(--border);border-radius:6px;padding:4px 10px;margin-right:4px;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">&#8592; pktSolution</a>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 158 64" height="38">
+      <defs><clipPath id="cf"><rect width="158" height="64" rx="12"/></clipPath></defs>
+      <rect width="64" height="64" rx="12" fill="#0d1f3d"/>
+      <g transform="translate(8,8) scale(2)">
+        <path d="M3 12h4l3-9 4 18 3-9h4" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="10" cy="3" r="1.5" fill="#60a5fa"/>
+        <circle cx="14" cy="21" r="1.5" fill="#60a5fa"/>
+      </g>
+      <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+      <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">FLOW</text>
+    </svg>
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#documentation">Documentation</a>
+  </div>
+  <a href="user-guide.html" class="nav-cta">Get Started</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">&#9679; Network Flow Intelligence Platform</div>
+  <h1>Full-Stack Visibility Into<br/><span>Every Flow on Your Network</span></h1>
+  <p>pktFlow ingests, normalizes, and stores millions of NetFlow records per day — delivering real-time analytics, intelligent alerting, and interactive visualization through a modern web dashboard.</p>
+  <div class="hero-actions">
+    <a href="user-guide.html" class="btn-primary">User Guide</a>
+    <a href="docs/pktflow-admin-guide.pdf" class="btn-secondary">Admin Guide (PDF)</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">1M+</div><div class="stat-label">Flows / Hour</div></div>
+    <div class="stat"><div class="stat-num">&lt;1s</div><div class="stat-label">Query Response</div></div>
+    <div class="stat"><div class="stat-num">3</div><div class="stat-label">Access Roles</div></div>
+    <div class="stat"><div class="stat-num">2+</div><div class="stat-label">Collector Sites</div></div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <div class="section-label">Platform Capabilities</div>
+    <h2 class="section-title">Everything You Need to Understand Your Network</h2>
+    <p class="section-sub">From raw NetFlow packets to actionable insight — all in one self-hosted platform.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F4CA;</div>
+        <h3>Real-Time Traffic Dashboard</h3>
+        <p>Live traffic charts, top talkers, protocol breakdowns, and per-site throughput — all updating continuously from live NetFlow data.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F50D;</div>
+        <h3>Flow Explorer</h3>
+        <p>Search, filter, and drill into individual flow records by IP, port, protocol, time range, or site. Export results as CSV or JSON.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F5FA;&#xFE0F;</div>
+        <h3>Interactive Topology Map</h3>
+        <p>D3-powered network graph that visualizes device relationships and traffic paths. See which devices are communicating and how.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F6A8;</div>
+        <h3>Intelligent Alert Engine</h3>
+        <p>Rule-based alerting for data gaps, new hosts, rate spikes, and port/protocol anomalies. Configurable thresholds with notification support.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F5C4;&#xFE0F;</div>
+        <h3>High-Performance Storage</h3>
+        <p>ClickHouse columnar database stores billions of flow records with sub-second query performance. Time-series optimized for traffic analytics.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F512;</div>
+        <h3>Role-Based Access Control</h3>
+        <p>Admin, Analyst, and Viewer roles with JWT authentication. Manage users, reset passwords, and audit access from the built-in Users page.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F4E1;</div>
+        <h3>Multi-Site Collection</h3>
+        <p>Receive NetFlow from multiple collector nodes across different network segments. Each flow is tagged with its source site for easy filtering.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x26A1;</div>
+        <h3>Fast Ingest Pipeline</h3>
+        <p>goflow2 decoder paired with Vector for field normalization, enrichment, and batched delivery. Handles sustained 150+ flows/sec per collector.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F4E4;</div>
+        <h3>Data Export</h3>
+        <p>Export any query result to CSV or JSON for use in external tools, compliance reports, or custom analysis workflows.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="section-inner">
+    <div class="section-label">Data Pipeline</div>
+    <h2 class="section-title">From Packet to Insight in Milliseconds</h2>
+    <p class="section-sub">A fully automated, five-stage pipeline takes raw network telemetry and delivers it to your browser in real time.</p>
+    <div class="diagram-wrap">
+      <img src="assets/dataflow-diagram.svg" alt="pktFlow Data Pipeline Diagram"/>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:1rem; margin-top:2rem;">
+      <div style="text-align:center; padding:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+        <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#x1F4F6;</div>
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">1. Emit</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Routers export NetFlow v9 via UDP</div>
+      </div>
+      <div style="text-align:center; padding:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+        <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#x1F9E9;</div>
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">2. Decode</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">goflow2 decodes binary NetFlow to JSON</div>
+      </div>
+      <div style="text-align:center; padding:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+        <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#x2699;&#xFE0F;</div>
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">3. Transform</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Vector enriches fields and batches events</div>
+      </div>
+      <div style="text-align:center; padding:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+        <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#x1F4BE;</div>
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">4. Store</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">pktFlow normalizes and writes to ClickHouse</div>
+      </div>
+      <div style="text-align:center; padding:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;">
+        <div style="font-size:1.5rem; margin-bottom:0.5rem;">&#x1F4BB;</div>
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">5. Visualize</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">React dashboard renders live analytics</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-inner">
+    <div class="arch-grid">
+      <div class="arch-text">
+        <div class="section-label" style="text-align:left;">Technical Foundation</div>
+        <h2>Built for Production.<br/>Designed to Scale.</h2>
+        <p>pktFlow is a fully self-hosted platform with no external dependencies or SaaS subscriptions. All data stays on your infrastructure.</p>
+        <ul class="arch-list">
+          <li><span class="dot"></span><div><strong>FastAPI Backend</strong> — Async Python API server with JWT authentication, role enforcement, and a built-in alert rule engine.</div></li>
+          <li><span class="dot"></span><div><strong>ClickHouse Database</strong> — Columnar, time-series-optimized storage. Queries across billions of rows complete in under a second.</div></li>
+          <li><span class="dot"></span><div><strong>goflow2 + Vector Pipeline</strong> — Battle-tested open-source components for NetFlow decoding, field transformation, and reliable delivery.</div></li>
+          <li><span class="dot"></span><div><strong>React + D3 Frontend</strong> — Modern single-page dashboard with interactive charts, topology graphs, and live data updates.</div></li>
+          <li><span class="dot"></span><div><strong>Role-Based Security</strong> — Admin, Analyst, and Viewer roles with per-endpoint enforcement. Local auth with bcrypt password hashing.</div></li>
+        </ul>
+      </div>
+      <div class="arch-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 520" font-family="'Segoe UI',Arial,sans-serif" style="width:100%;border-radius:8px;">
+          <defs>
+            <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#0d1f3d"/>
+              <stop offset="100%" style="stop-color:#111827"/>
+            </linearGradient>
+            <marker id="arr2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#60a5fa" opacity="0.8"/>
+            </marker>
+            <filter id="glow2"><feGaussianBlur stdDeviation="2.5" result="cb"/><feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <rect width="860" height="520" rx="16" fill="url(#bg2)"/>
+          <rect width="860" height="520" rx="16" fill="none" stroke="#1e3a5f" stroke-width="1.5"/>
+          <!-- Title -->
+          <text x="430" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="white" letter-spacing="1">pktFlow — System Architecture</text>
+          <line x1="290" y1="46" x2="570" y2="46" stroke="#60a5fa" stroke-width="1" opacity="0.4"/>
+          <!-- Zone: Edge Layer -->
+          <rect x="20" y="62" width="200" height="200" rx="10" fill="#0a1628" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="6,3"/>
+          <text x="120" y="80" text-anchor="middle" font-size="10" fill="#4b5563" letter-spacing="1">EDGE LAYER</text>
+          <g transform="translate(36,90)">
+            <rect width="76" height="60" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <circle cx="38" cy="28" r="14" fill="#0a1628" stroke="#60a5fa" stroke-width="1.2" filter="url(#glow2)"/>
+            <path d="M30 28 L46 28 M38 20 L38 36 M32 22 L44 34 M44 22 L32 34" stroke="#60a5fa" stroke-width="1.2" stroke-linecap="round"/>
+            <text x="38" y="52" text-anchor="middle" font-size="9" fill="#9ca3af">Router / Switch</text>
+          </g>
+          <g transform="translate(120,90)">
+            <rect width="76" height="60" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <circle cx="38" cy="28" r="14" fill="#0a1628" stroke="#60a5fa" stroke-width="1.2" filter="url(#glow2)"/>
+            <path d="M30 28 L46 28 M38 20 L38 36 M32 22 L44 34 M44 22 L32 34" stroke="#60a5fa" stroke-width="1.2" stroke-linecap="round"/>
+            <text x="38" y="52" text-anchor="middle" font-size="9" fill="#9ca3af">Router / Switch</text>
+          </g>
+          <text x="120" y="175" text-anchor="middle" font-size="10" fill="#9ca3af">NetFlow v9 Export</text>
+          <text x="120" y="188" text-anchor="middle" font-size="9" fill="#4b5563">Site A &amp; Site B</text>
+          <text x="120" y="205" text-anchor="middle" font-size="9" fill="#4b5563">Multiple Collector Nodes</text>
+          <text x="120" y="218" text-anchor="middle" font-size="9" fill="#4b5563">UDP / Port 2055</text>
+          <text x="120" y="252" text-anchor="middle" font-size="9" fill="#6b7280" letter-spacing="0.5">NetFlow v9 UDP →</text>
+          <!-- Zone: Ingest Layer -->
+          <rect x="232" y="62" width="200" height="200" rx="10" fill="#0a1628" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="6,3"/>
+          <text x="332" y="80" text-anchor="middle" font-size="10" fill="#4b5563" letter-spacing="1">INGEST LAYER</text>
+          <g transform="translate(258,90)">
+            <rect width="148" height="50" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <rect x="8" y="12" width="30" height="14" rx="3" fill="#0a1628" stroke="#60a5fa" stroke-width="1" filter="url(#glow2)"/>
+            <text x="23" y="23" text-anchor="middle" font-size="8" fill="#93c5fd">g2</text>
+            <text x="90" y="24" text-anchor="middle" font-size="9" fill="#9ca3af">goflow2 Decoder</text>
+            <text x="90" y="38" text-anchor="middle" font-size="8" fill="#4b5563">NetFlow v9 → JSON</text>
+          </g>
+          <g transform="translate(258,150)">
+            <rect width="148" height="50" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <rect x="8" y="12" width="30" height="14" rx="3" fill="#0a1628" stroke="#3b82f6" stroke-width="1" filter="url(#glow2)"/>
+            <text x="23" y="23" text-anchor="middle" font-size="8" fill="#93c5fd">VT</text>
+            <text x="90" y="24" text-anchor="middle" font-size="9" fill="#9ca3af">Vector Transform</text>
+            <text x="90" y="38" text-anchor="middle" font-size="8" fill="#4b5563">Enrich · Batch · Ship</text>
+          </g>
+          <text x="332" y="252" text-anchor="middle" font-size="9" fill="#6b7280" letter-spacing="0.5">HTTP POST →</text>
+          <!-- Zone: Application Layer -->
+          <rect x="444" y="62" width="200" height="200" rx="10" fill="#0a1628" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="6,3"/>
+          <text x="544" y="80" text-anchor="middle" font-size="10" fill="#60a5fa" letter-spacing="1">APPLICATION LAYER</text>
+          <g transform="translate(460,90)">
+            <rect width="168" height="46" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="84" y="24" text-anchor="middle" font-size="9" font-weight="600" fill="white">FastAPI Backend</text>
+            <text x="84" y="38" text-anchor="middle" font-size="8" fill="#4b5563">REST API · JWT Auth · Alert Engine</text>
+          </g>
+          <g transform="translate(460,146)">
+            <rect width="168" height="46" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="84" y="24" text-anchor="middle" font-size="9" font-weight="600" fill="white">Ingest Buffer</text>
+            <text x="84" y="38" text-anchor="middle" font-size="8" fill="#4b5563">Normalize · Validate · Flush</text>
+          </g>
+          <text x="544" y="252" text-anchor="middle" font-size="9" fill="#6b7280" letter-spacing="0.5">SQL Queries →</text>
+          <!-- Zone: Storage Layer -->
+          <rect x="656" y="62" width="184" height="200" rx="10" fill="#0a1628" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="6,3"/>
+          <text x="748" y="80" text-anchor="middle" font-size="10" fill="#4b5563" letter-spacing="1">STORAGE LAYER</text>
+          <g transform="translate(680,90)">
+            <ellipse cx="68" cy="20" rx="44" ry="12" fill="#0a1628" stroke="#60a5fa" stroke-width="1.5" filter="url(#glow2)"/>
+            <rect x="24" y="20" width="88" height="48" fill="#0a1628" stroke="#60a5fa" stroke-width="1.5"/>
+            <ellipse cx="68" cy="68" rx="44" ry="12" fill="#0a1628" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="68" y="48" text-anchor="middle" font-size="9" font-weight="600" fill="white">ClickHouse</text>
+            <text x="68" y="61" text-anchor="middle" font-size="8" fill="#4b5563">Columnar DB</text>
+          </g>
+          <text x="748" y="188" text-anchor="middle" font-size="9" fill="#9ca3af">Billions of flow records</text>
+          <text x="748" y="202" text-anchor="middle" font-size="9" fill="#9ca3af">Sub-second queries</text>
+          <text x="748" y="216" text-anchor="middle" font-size="9" fill="#4b5563">Time-series optimized</text>
+          <!-- Zone: Presentation Layer -->
+          <rect x="20" y="290" width="820" height="180" rx="10" fill="#0a1628" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="6,3"/>
+          <text x="430" y="310" text-anchor="middle" font-size="10" fill="#4b5563" letter-spacing="1">PRESENTATION LAYER — React Dashboard</text>
+          <!-- Dashboard panels -->
+          <g transform="translate(36,318)">
+            <rect width="148" height="100" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="74" y="18" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Dashboard</text>
+            <rect x="10" y="26" width="128" height="40" rx="4" fill="#0a1628"/>
+            <polyline points="10,56 30,46 50,52 70,38 90,44 110,34 128,40" stroke="#60a5fa" stroke-width="1.5" fill="none"/>
+            <text x="74" y="82" text-anchor="middle" font-size="8" fill="#4b5563">Live traffic overview</text>
+            <text x="74" y="94" text-anchor="middle" font-size="8" fill="#4b5563">Top talkers · Trends</text>
+          </g>
+          <g transform="translate(202,318)">
+            <rect width="148" height="100" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="74" y="18" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Flow Explorer</text>
+            <rect x="10" y="26" width="128" height="8" rx="2" fill="#0a1628"/>
+            <rect x="10" y="38" width="128" height="8" rx="2" fill="#0a1628"/>
+            <rect x="10" y="50" width="128" height="8" rx="2" fill="#0a1628"/>
+            <rect x="10" y="62" width="80" height="8" rx="2" fill="#0a1628"/>
+            <text x="74" y="82" text-anchor="middle" font-size="8" fill="#4b5563">Searchable flow table</text>
+            <text x="74" y="94" text-anchor="middle" font-size="8" fill="#4b5563">Filter · Sort · Export</text>
+          </g>
+          <g transform="translate(368,318)">
+            <rect width="148" height="100" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="74" y="18" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Topology</text>
+            <circle cx="74" cy="50" r="18" fill="#0a1628" stroke="#60a5fa" stroke-width="1" opacity="0.5"/>
+            <circle cx="40" cy="54" r="8" fill="#0a1628" stroke="#3b82f6" stroke-width="1"/>
+            <circle cx="108" cy="54" r="8" fill="#0a1628" stroke="#3b82f6" stroke-width="1"/>
+            <line x1="48" y1="52" x2="66" y2="48" stroke="#60a5fa" stroke-width="1"/>
+            <line x1="82" y1="48" x2="100" y2="52" stroke="#60a5fa" stroke-width="1"/>
+            <text x="74" y="82" text-anchor="middle" font-size="8" fill="#4b5563">D3 network graph</text>
+            <text x="74" y="94" text-anchor="middle" font-size="8" fill="#4b5563">Visual device map</text>
+          </g>
+          <g transform="translate(534,318)">
+            <rect width="148" height="100" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="74" y="18" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Alerts</text>
+            <rect x="18" y="28" width="112" height="16" rx="4" fill="#451a1a" stroke="#ef4444" stroke-width="1"/>
+            <text x="74" y="40" text-anchor="middle" font-size="8" fill="#fca5a5">⚠ Data Gap Detected</text>
+            <rect x="18" y="50" width="112" height="16" rx="4" fill="#1a2e1a" stroke="#22c55e" stroke-width="1"/>
+            <text x="74" y="62" text-anchor="middle" font-size="8" fill="#86efac">✓ New Host Seen</text>
+            <text x="74" y="82" text-anchor="middle" font-size="8" fill="#4b5563">Real-time rule engine</text>
+            <text x="74" y="94" text-anchor="middle" font-size="8" fill="#4b5563">Configurable thresholds</text>
+          </g>
+          <g transform="translate(700,318)">
+            <rect width="124" height="100" rx="8" fill="#0d1f3d" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="62" y="18" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Settings &amp; Users</text>
+            <rect x="12" y="28" width="100" height="10" rx="3" fill="#0a1628"/>
+            <rect x="12" y="44" width="100" height="10" rx="3" fill="#0a1628"/>
+            <rect x="12" y="60" width="100" height="10" rx="3" fill="#0a1628"/>
+            <text x="62" y="82" text-anchor="middle" font-size="8" fill="#4b5563">Role-based access</text>
+            <text x="62" y="94" text-anchor="middle" font-size="8" fill="#4b5563">Admin · Analyst · Viewer</text>
+          </g>
+          <!-- Connector arrows -->
+          <line x1="544" y1="264" x2="544" y2="290" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr2)" opacity="0.5"/>
+          <line x1="222" y1="162" x2="232" y2="162" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <line x1="434" y1="162" x2="444" y2="162" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <line x1="646" y1="162" x2="656" y2="162" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <!-- Bottom label -->
+          <text x="430" y="508" text-anchor="middle" font-size="10" fill="#4b5563" letter-spacing="0.5">pktFlow Network Intelligence Platform — System Architecture</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOCUMENTATION / AUDIENCE -->
+<section id="documentation" style="background:rgba(13,31,61,0.3);">
+  <div class="section-inner">
+    <div class="section-label">Documentation</div>
+    <h2 class="section-title">Guides for Every Role</h2>
+    <p class="section-sub">Whether you're deploying pktFlow or just reading a traffic report, the right guide is here.</p>
+    <div class="audience-grid">
+      <div class="audience-card">
+        <div class="aud-icon">&#x1F4BC;</div>
+        <h3>General Overview</h3>
+        <p>High-level introduction to pktFlow — what it does, how it fits into your network operations, and what value it delivers to your organization.</p>
+        <a href="docs/pktflow-overview.pdf" class="btn-dl">&#x2B07; Download Overview PDF</a>
+      </div>
+      <div class="audience-card">
+        <div class="aud-icon">&#x1F4CA;</div>
+        <h3>End User / Analyst</h3>
+        <p>Step-by-step guide to using the pktFlow dashboard — navigating pages, exploring flows, reading alerts, and exporting data.</p>
+        <a href="user-guide.html" class="btn-dl">&#x1F4C4; View User Guide</a>
+      </div>
+      <div class="audience-card">
+        <div class="aud-icon">&#x2699;&#xFE0F;</div>
+        <h3>IT Admin / Operator</h3>
+        <p>Full technical documentation for deploying, configuring, and maintaining pktFlow — including collector setup, ClickHouse, and user management.</p>
+        <a href="admin-guide.html" class="btn-dl">&#x1F4C4; View Admin Guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK STRIP -->
+<section style="padding:3rem 2rem; border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="section-inner">
+    <div class="section-label" style="margin-bottom:2rem;">Technology Stack</div>
+    <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:1.5rem;">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">FastAPI (Python)</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">ClickHouse</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">React + TypeScript</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">D3.js</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">goflow2</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">Vector (Datadog)</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">NetFlow v9</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-size:0.875rem;font-weight:600;color:var(--text-secondary);">JWT + bcrypt</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-logo"><img src="assets/logo-lockup.svg" alt="pktFlow"/></div>
+  <div class="foot-links">
+    <a href="index.html">Home</a>
+    <a href="user-guide.html">User Guide</a>
+    <a href="admin-guide.html">Admin Guide</a>
+    <a href="docs/pktflow-overview.pdf">Overview PDF</a>
+  </div>
+  <p>pktFlow &mdash; Network Flow Intelligence Platform &mdash; Self-Hosted &amp; Open Infrastructure</p>
+  <p style="margin-top:0.5rem; font-size:0.75rem; color:var(--text-muted);">Built with FastAPI &bull; ClickHouse &bull; React &bull; goflow2 &bull; Vector</p>
+</footer>
+
+
+
+
+</body>
+</html>

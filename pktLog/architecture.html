@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pktLog — Architecture &amp; Technical Reference</title>
+<style>
+:root {
+  --bg-primary:#0a0f1a;--bg-secondary:#111827;--bg-card:#1a2236;--bg-card-hover:#1e2a40;
+  --green-bright:#4ade80;--green-dark:#071a07;--green-mid:#16a34a;--green-dim:#166534;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --border:#1e293b;--border-green:#166534;--accent-blue:#60a5fa;--accent-orange:#fb923c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6}
+a{color:var(--green-bright);text-decoration:none}a:hover{color:#86efac}
+.dot-grid{background-image:radial-gradient(circle,rgba(74,222,128,0.06) 1px,transparent 1px);background-size:40px 40px}
+nav{position:sticky;top:0;z-index:100;background:rgba(10,15,26,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:2rem;height:60px}
+.nav-links{display:flex;gap:0.25rem;flex:1}
+.nav-links a{padding:0.4rem 0.85rem;border-radius:6px;font-size:0.875rem;color:var(--text-secondary);transition:all 0.2s}
+.nav-links a:hover,.nav-links a.active{background:rgba(74,222,128,0.08);color:var(--green-bright)}
+.nav-badge{margin-left:auto;background:rgba(74,222,128,0.1);border:1px solid var(--border-green);color:var(--green-bright);padding:0.2rem 0.7rem;border-radius:20px;font-size:0.75rem;font-family:'Courier New',monospace}
+section{padding:4rem 2rem}
+.container{max-width:1200px;margin:0 auto}
+.section-label{font-family:'Courier New',monospace;font-size:0.75rem;letter-spacing:3px;color:var(--green-bright);text-transform:uppercase;margin-bottom:0.75rem;opacity:0.8}
+h1{font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-0.03em}
+h2{font-size:clamp(1.5rem,2.5vw,2rem);font-weight:700;letter-spacing:-0.02em;margin-bottom:1.5rem}
+h3{font-size:1.05rem;font-weight:600;margin-bottom:0.5rem}
+.text-green{color:var(--green-bright)}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.75rem;margin-bottom:1.5rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-top:2rem}
+code{font-family:'Courier New',monospace;background:rgba(74,222,128,0.08);border:1px solid var(--border-green);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85em;color:var(--green-bright)}
+pre{background:#060d0f;border:1px solid var(--border-green);border-radius:10px;padding:1.25rem 1.5rem;overflow-x:auto;font-family:'Courier New',monospace;font-size:0.82rem;line-height:1.8;color:var(--text-secondary);margin:1rem 0}
+pre .kw{color:var(--green-bright)}pre .val{color:#86efac}pre .cm{color:var(--text-muted)}
+table{width:100%;border-collapse:collapse;font-size:0.875rem;margin-top:1rem}
+th{text-align:left;padding:0.6rem 0.85rem;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:0.8rem;letter-spacing:0.5px}
+td{padding:0.6rem 0.85rem;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+td:first-child{color:var(--text-primary);font-family:'Courier New',monospace;font-size:0.82rem}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:0.15rem 0.55rem;border-radius:12px;font-size:0.72rem;font-weight:600}
+.badge-get{background:rgba(74,222,128,0.1);color:var(--green-bright);border:1px solid var(--border-green)}
+.badge-post{background:rgba(96,165,250,0.1);color:var(--accent-blue);border:1px solid rgba(96,165,250,0.3)}
+.badge-del{background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3)}
+.pipeline-step{display:flex;align-items:flex-start;gap:1rem;margin-bottom:1.25rem}
+.step-num{width:32px;height:32px;border-radius:50%;background:rgba(74,222,128,0.1);border:1px solid var(--border-green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;font-weight:700;color:var(--green-bright);font-family:'Courier New',monospace}
+.step-body h4{font-size:0.95rem;margin-bottom:0.25rem}
+.step-body p{font-size:0.875rem;color:var(--text-secondary)}
+footer{border-top:1px solid var(--border);padding:2rem 2rem}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.footer-links{display:flex;gap:1.5rem}
+.footer-links a{font-size:0.875rem;color:var(--text-muted)}
+.footer-links a:hover{color:var(--green-bright)}
+</style>
+</head>
+<body class="dot-grid">
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="36">
+        <defs><clipPath id="clog"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#clog)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+    </div>
+    <div class="nav-links">
+      <a href="index.html">Overview</a>
+      <a href="architecture.html" class="active">Architecture</a>
+      <a href="guide-admin.html">Admin Guide</a>
+      <a href="guide-analyst.html">Analyst Guide</a>
+      <a href="guide-viewer.html">Viewer Guide</a>
+    </div>
+    <span class="nav-badge">v1.0</span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section style="padding:5rem 2rem 3rem;background:var(--bg-secondary);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">Technical Reference</div>
+    <h1>System <span class="text-green">Architecture</span></h1>
+    <p style="color:var(--text-secondary);max-width:640px;margin-top:1rem;font-size:1.05rem;">Complete technical breakdown of pktLog: ingest pipeline, storage design, API endpoints, component interactions, and deployment topology.</p>
+  </div>
+</section>
+
+<!-- FULL ARCHITECTURE SVG -->
+<section>
+  <div class="container">
+    <div class="section-label">System Diagram</div>
+    <h2>Full Stack <span class="text-green">Architecture</span></h2>
+    <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Arial,sans-serif" style="width:100%;display:block;border:1px solid #1e293b;border-radius:14px;background:#070d14;margin-top:1.5rem;">
+      <defs>
+        <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#070d14"/><stop offset="100%" stop-color="#0a1020"/></linearGradient>
+        <linearGradient id="serverGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#071a07"/><stop offset="100%" stop-color="#0a2010"/></linearGradient>
+        <linearGradient id="chGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1a0800"/><stop offset="100%" stop-color="#1f0c00"/></linearGradient>
+        <marker id="arG" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#4ade80"/></marker>
+        <marker id="arO" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#fb923c"/></marker>
+        <marker id="arB" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#60a5fa"/></marker>
+        <marker id="arS" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#94a3b8"/></marker>
+        <filter id="glow2"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="drop"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.5"/></filter>
+      </defs>
+      <rect width="1000" height="700" fill="url(#bg2)"/>
+      <!-- dot grid -->
+      <g opacity="0.05" fill="#4ade80">
+        <circle cx="50" cy="50" r="1"/><circle cx="150" cy="50" r="1"/><circle cx="250" cy="50" r="1"/><circle cx="350" cy="50" r="1"/><circle cx="450" cy="50" r="1"/><circle cx="550" cy="50" r="1"/><circle cx="650" cy="50" r="1"/><circle cx="750" cy="50" r="1"/><circle cx="850" cy="50" r="1"/><circle cx="950" cy="50" r="1"/>
+        <circle cx="50" cy="150" r="1"/><circle cx="150" cy="150" r="1"/><circle cx="250" cy="150" r="1"/><circle cx="350" cy="150" r="1"/><circle cx="450" cy="150" r="1"/><circle cx="550" cy="150" r="1"/><circle cx="650" cy="150" r="1"/><circle cx="750" cy="150" r="1"/><circle cx="850" cy="150" r="1"/><circle cx="950" cy="150" r="1"/>
+        <circle cx="50" cy="250" r="1"/><circle cx="150" cy="250" r="1"/><circle cx="250" cy="250" r="1"/><circle cx="350" cy="250" r="1"/><circle cx="450" cy="250" r="1"/><circle cx="550" cy="250" r="1"/><circle cx="650" cy="250" r="1"/><circle cx="750" cy="250" r="1"/><circle cx="850" cy="250" r="1"/><circle cx="950" cy="250" r="1"/>
+        <circle cx="50" cy="350" r="1"/><circle cx="150" cy="350" r="1"/><circle cx="250" cy="350" r="1"/><circle cx="350" cy="350" r="1"/><circle cx="450" cy="350" r="1"/><circle cx="550" cy="350" r="1"/><circle cx="650" cy="350" r="1"/><circle cx="750" cy="350" r="1"/><circle cx="850" cy="350" r="1"/><circle cx="950" cy="350" r="1"/>
+        <circle cx="50" cy="450" r="1"/><circle cx="150" cy="450" r="1"/><circle cx="250" cy="450" r="1"/><circle cx="350" cy="450" r="1"/><circle cx="450" cy="450" r="1"/><circle cx="550" cy="450" r="1"/><circle cx="650" cy="450" r="1"/><circle cx="750" cy="450" r="1"/><circle cx="850" cy="450" r="1"/><circle cx="950" cy="450" r="1"/>
+        <circle cx="50" cy="550" r="1"/><circle cx="150" cy="550" r="1"/><circle cx="250" cy="550" r="1"/><circle cx="350" cy="550" r="1"/><circle cx="450" cy="550" r="1"/><circle cx="550" cy="550" r="1"/><circle cx="650" cy="550" r="1"/><circle cx="750" cy="550" r="1"/><circle cx="850" cy="550" r="1"/><circle cx="950" cy="550" r="1"/>
+        <circle cx="50" cy="650" r="1"/><circle cx="150" cy="650" r="1"/><circle cx="250" cy="650" r="1"/><circle cx="350" cy="650" r="1"/><circle cx="450" cy="650" r="1"/><circle cx="550" cy="650" r="1"/><circle cx="650" cy="650" r="1"/><circle cx="750" cy="650" r="1"/><circle cx="850" cy="650" r="1"/><circle cx="950" cy="650" r="1"/>
+      </g>
+      <!-- HEADER BAR -->
+      <rect x="0" y="0" width="1000" height="62" fill="#0d1f1d" opacity="0.95"/>
+      <line x1="0" y1="62" x2="1000" y2="62" stroke="#166534" stroke-width="1" opacity="0.6"/>
+      <svg x="20" y="9" width="90" height="44" viewBox="0 0 140 64">
+        <defs><clipPath id="ch"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#ch)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+      <text x="500" y="28" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700" letter-spacing="1">System Architecture</text>
+      <text x="500" y="48" text-anchor="middle" fill="#64748b" font-size="10">Syslog Ingest · ClickHouse Storage · FastAPI Backend · React Frontend</text>
+
+      <!-- ── COLUMN A: LOG SOURCES ── -->
+      <text x="130" y="90" text-anchor="middle" fill="#64748b" font-size="8.5" font-weight="700" letter-spacing="2">LOG SOURCES</text>
+      <!-- Network Devices -->
+      <rect x="20" y="100" width="110" height="64" rx="8" fill="#0d1a10" stroke="#166534" stroke-width="1.5" filter="url(#drop)"/>
+      <rect x="20" y="100" width="110" height="18" rx="8" fill="#4ade80" fill-opacity="0.08"/>
+      <text x="75" y="113" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="700">NETWORK DEVICES</text>
+      <text x="75" y="129" text-anchor="middle" fill="#94a3b8" font-size="8">Routers · Switches</text>
+      <text x="75" y="141" text-anchor="middle" fill="#64748b" font-size="7.5">Firewalls · APs</text>
+      <text x="75" y="154" text-anchor="middle" fill="#4ade80" font-size="7">syslog-ng agent</text>
+      <!-- Servers -->
+      <rect x="145" y="100" width="110" height="64" rx="8" fill="#0d1a10" stroke="#166534" stroke-width="1.5" filter="url(#drop)"/>
+      <rect x="145" y="100" width="110" height="18" rx="8" fill="#4ade80" fill-opacity="0.08"/>
+      <text x="200" y="113" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="700">SERVERS</text>
+      <text x="200" y="129" text-anchor="middle" fill="#94a3b8" font-size="8">Linux · Windows</text>
+      <text x="200" y="141" text-anchor="middle" fill="#64748b" font-size="7.5">Web Apps · DBs</text>
+      <text x="200" y="154" text-anchor="middle" fill="#4ade80" font-size="7">syslog-ng agent</text>
+      <!-- Security -->
+      <rect x="20" y="182" width="235" height="50" rx="8" fill="#071014" stroke="#166534" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="30" y="198" fill="#4ade80" font-size="8" font-weight="700" letter-spacing="1">OPTIONAL: REMOTE COLLECTOR HOST</text>
+      <rect x="30" y="204" width="215" height="22" rx="5" fill="#040c06" stroke="#16a34a" stroke-width="0.8"/>
+      <text x="138" y="213" text-anchor="middle" fill="#86efac" font-size="8.5" font-weight="600">syslog-ng</text>
+      <text x="138" y="222" text-anchor="middle" fill="#64748b" font-size="7.5">disk-buffer · forward(tcp) · TLS</text>
+
+      <!-- Arrow: sources → server -->
+      <line x1="255" y1="210" x2="305" y2="235" stroke="#4ade80" stroke-width="2" marker-end="url(#arG)" opacity="0.9"/>
+      <rect x="257" y="196" width="58" height="20" rx="3" fill="#070d14"/>
+      <text x="286" y="204" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="600">UDP / TCP</text>
+      <text x="286" y="213" text-anchor="middle" fill="#64748b" font-size="7">RFC 3164/5424</text>
+
+      <!-- ── CENTER: pktLog SERVER ── -->
+      <rect x="295" y="70" width="420" height="520" rx="16" fill="url(#serverGrad)" stroke="#166534" stroke-width="2.5" filter="url(#glow2)"/>
+      <rect x="295" y="70" width="420" height="40" rx="16" fill="#4ade80" fill-opacity="0.07"/>
+      <text x="435" y="87" fill="#4ade80" font-size="9" font-weight="700" letter-spacing="1">pktLog SERVER  ·  HTTPS :8768  ·  Syslog :8761 (UDP+TCP)</text>
+      <text x="435" y="102" fill="#64748b" font-size="8">FastAPI · Python venv · systemd · Amazon Linux 2023 compatible</text>
+
+      <!-- Ingest Engine -->
+      <rect x="310" y="120" width="390" height="105" rx="10" fill="#040c08" stroke="#16a34a" stroke-width="1.2"/>
+      <text x="505" y="138" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="700" letter-spacing="1">INGEST ENGINE</text>
+      <rect x="320" y="148" width="112" height="32" rx="6" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="376" y="162" text-anchor="middle" fill="#4ade80" font-size="8.5" font-weight="600">Syslog Parser</text>
+      <text x="376" y="173" text-anchor="middle" fill="#64748b" font-size="7.5">RFC 3164 + RFC 5424</text>
+      <rect x="442" y="148" width="112" height="32" rx="6" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="498" y="162" text-anchor="middle" fill="#4ade80" font-size="8.5" font-weight="600">Normalizer</text>
+      <text x="498" y="173" text-anchor="middle" fill="#64748b" font-size="7.5">Enrich · Validate · 17 fields</text>
+      <rect x="564" y="148" width="126" height="32" rx="6" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="627" y="162" text-anchor="middle" fill="#4ade80" font-size="8.5" font-weight="600">Batch Writer</text>
+      <text x="627" y="173" text-anchor="middle" fill="#64748b" font-size="7.5">ClickHouse + Journal fallback</text>
+      <!-- ingest → storage arrow -->
+      <line x1="627" y1="180" x2="720" y2="200" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arO)" opacity="0.7"/>
+
+      <!-- FastAPI Layer -->
+      <rect x="310" y="240" width="390" height="90" rx="10" fill="#040c08" stroke="#16a34a" stroke-width="1.2"/>
+      <text x="505" y="258" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="700" letter-spacing="1">FastAPI APPLICATION LAYER</text>
+      <rect x="320" y="266" width="116" height="26" rx="5" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="378" y="283" text-anchor="middle" fill="#4ade80" font-size="8">Auth · JWT · RBAC</text>
+      <rect x="444" y="266" width="116" height="26" rx="5" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="502" y="283" text-anchor="middle" fill="#4ade80" font-size="8">Syslog API Endpoints</text>
+      <rect x="568" y="266" width="122" height="26" rx="5" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="629" y="283" text-anchor="middle" fill="#4ade80" font-size="8">Alert Engine</text>
+      <!-- internal arrow ingest→app -->
+      <line x1="505" y1="225" x2="505" y2="240" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arG)" opacity="0.5"/>
+
+      <!-- React Frontend -->
+      <rect x="310" y="350" width="390" height="80" rx="10" fill="#040c08" stroke="#16a34a" stroke-width="1.2"/>
+      <text x="505" y="368" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="700" letter-spacing="1">REACT DASHBOARD  ·  TypeScript + Vite</text>
+      <rect x="320" y="378" width="86" height="22" rx="4" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="363" y="392" text-anchor="middle" fill="#4ade80" font-size="7.5">Dashboard</text>
+      <rect x="414" y="378" width="86" height="22" rx="4" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="457" y="392" text-anchor="middle" fill="#4ade80" font-size="7.5">Log Explorer</text>
+      <rect x="508" y="378" width="86" height="22" rx="4" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="551" y="392" text-anchor="middle" fill="#4ade80" font-size="7.5">Alerts</text>
+      <rect x="602" y="378" width="88" height="22" rx="4" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="646" y="392" text-anchor="middle" fill="#4ade80" font-size="7.5">Settings · Users</text>
+      <!-- app→react arrow -->
+      <line x1="505" y1="330" x2="505" y2="350" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arG)" opacity="0.5"/>
+
+      <!-- systemd badge -->
+      <rect x="310" y="448" width="390" height="36" rx="8" fill="#030906" stroke="#166534" stroke-width="0.8"/>
+      <text x="505" y="462" text-anchor="middle" fill="#4ade80" font-size="8.5" font-weight="600">systemd: pktlog.service</text>
+      <text x="505" y="476" text-anchor="middle" fill="#64748b" font-size="7.5">venv · config.yaml · HTTPS auto-detect · single worker</text>
+
+      <!-- SQLite inside server -->
+      <rect x="310" y="498" width="390" height="44" rx="8" fill="#090e18" stroke="#374151" stroke-width="1"/>
+      <text x="505" y="515" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">SQLite  ·  pktlog.db</text>
+      <text x="505" y="530" text-anchor="middle" fill="#64748b" font-size="7.5">users · settings · alert_rules · alert_events · collector_registry</text>
+
+      <!-- App → SQLite arrow -->
+      <line x1="505" y1="444" x2="505" y2="498" stroke="#64748b" stroke-width="1.2" marker-end="url(#arS)" opacity="0.5"/>
+
+      <!-- ── RIGHT: ClickHouse ── -->
+      <text x="840" y="90" text-anchor="middle" fill="#64748b" font-size="8.5" font-weight="700" letter-spacing="2">STORAGE</text>
+      <rect x="730" y="100" width="245" height="130" rx="12" fill="url(#chGrad)" stroke="#fb923c" stroke-width="1.8" filter="url(#drop)"/>
+      <rect x="730" y="100" width="245" height="28" rx="12" fill="#fb923c" fill-opacity="0.1"/>
+      <text x="853" y="118" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="700">ClickHouse</text>
+      <text x="853" y="133" text-anchor="middle" fill="#64748b" font-size="8">Columnar OLAP · High-volume time-series</text>
+      <rect x="742" y="143" width="221" height="28" rx="5" fill="#110600" stroke="#ea580c" stroke-width="0.8"/>
+      <text x="853" y="155" text-anchor="middle" fill="#fb923c" font-size="8.5" font-weight="600">pktlog.syslog_events</text>
+      <text x="853" y="165" text-anchor="middle" fill="#64748b" font-size="7.5">17 columns · MergeTree · configurable TTL</text>
+      <rect x="742" y="178" width="221" height="44" rx="5" fill="#110600" stroke="#ea580c" stroke-width="0.8"/>
+      <text x="853" y="194" text-anchor="middle" fill="#94a3b8" font-size="7.5">timestamp · host · severity · facility</text>
+      <text x="853" y="205" text-anchor="middle" fill="#94a3b8" font-size="7.5">program · pid · message · raw_message</text>
+      <text x="853" y="215" text-anchor="middle" fill="#64748b" font-size="7">+ 9 additional normalized fields</text>
+
+      <!-- ── CLIENTS ── -->
+      <rect x="730" y="480" width="245" height="110" rx="12" fill="#051020" stroke="#60a5fa" stroke-width="1.8" filter="url(#drop)"/>
+      <rect x="730" y="480" width="245" height="28" rx="12" fill="#60a5fa" fill-opacity="0.08"/>
+      <text x="853" y="498" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">BROWSER CLIENTS</text>
+      <text x="853" y="512" text-anchor="middle" fill="#64748b" font-size="8">HTTPS · Role-Based Access · JWT</text>
+      <rect x="742" y="522" width="68" height="22" rx="4" fill="#0a1828" stroke="#7c3aed" stroke-width="0.8"/>
+      <text x="776" y="536" text-anchor="middle" fill="#c084fc" font-size="8.5">Admin</text>
+      <rect x="818" y="522" width="68" height="22" rx="4" fill="#0a1828" stroke="#1d4ed8" stroke-width="0.8"/>
+      <text x="852" y="536" text-anchor="middle" fill="#60a5fa" font-size="8.5">Analyst</text>
+      <rect x="894" y="522" width="71" height="22" rx="4" fill="#040c06" stroke="#166534" stroke-width="0.8"/>
+      <text x="930" y="536" text-anchor="middle" fill="#4ade80" font-size="8.5">Viewer</text>
+      <text x="853" y="562" text-anchor="middle" fill="#64748b" font-size="7.5">Three distinct permission levels enforced server-side</text>
+      <text x="853" y="574" text-anchor="middle" fill="#64748b" font-size="7.5">All write operations require Admin or Analyst role</text>
+
+      <!-- Arrow: Server → Browser (REST) -->
+      <line x1="715" y1="430" x2="760" y2="480" stroke="#60a5fa" stroke-width="1.8" stroke-dasharray="5,3" marker-end="url(#arB)" opacity="0.8"/>
+      <rect x="716" y="447" width="62" height="18" rx="3" fill="#070d14"/>
+      <text x="747" y="456" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="600">REST API</text>
+      <text x="747" y="462" text-anchor="middle" fill="#64748b" font-size="7">HTTPS / JWT</text>
+
+      <!-- Arrow: ClickHouse query response -->
+      <line x1="730" y1="155" x2="715" y2="285" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arO)" opacity="0.5"/>
+
+      <!-- LEGEND -->
+      <rect x="20" y="620" width="260" height="64" rx="8" fill="#0d1117" stroke="#1e293b" stroke-width="1"/>
+      <text x="35" y="638" fill="#64748b" font-size="8" font-weight="700" letter-spacing="1.5">LEGEND</text>
+      <line x1="35" y1="650" x2="60" y2="650" stroke="#4ade80" stroke-width="1.5"/>
+      <text x="66" y="654" fill="#94a3b8" font-size="7.5">Syslog ingest (UDP/TCP)</text>
+      <line x1="35" y1="666" x2="60" y2="666" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="66" y="670" fill="#94a3b8" font-size="7.5">ClickHouse write</text>
+      <line x1="145" y1="650" x2="170" y2="650" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="5,2"/>
+      <text x="176" y="654" fill="#94a3b8" font-size="7.5">REST API (HTTPS)</text>
+      <line x1="145" y1="666" x2="170" y2="666" stroke="#94a3b8" stroke-width="1.2"/>
+      <text x="176" y="670" fill="#94a3b8" font-size="7.5">SQLite (internal)</text>
+    </svg>
+  </div>
+</section>
+
+<!-- INGEST PIPELINE -->
+<section style="background:var(--bg-secondary);border-top:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">Ingest Pipeline</div>
+    <h2>How a syslog message <span class="text-green">becomes data.</span></h2>
+    <p style="color:var(--text-secondary);margin-bottom:2.5rem;max-width:640px;">Every syslog event follows a deterministic pipeline from raw bytes to a structured ClickHouse record in under 100ms.</p>
+    <div class="pipeline-step">
+      <div class="step-num">01</div>
+      <div class="step-body">
+        <h4>Receive — UDP or TCP, port 8761</h4>
+        <p>pktLog binds dual sockets on the ingest port. UDP datagrams are received in a single read loop; TCP connections accept a stream of newline-delimited messages. Both paths feed the same parser queue.</p>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">02</div>
+      <div class="step-body">
+        <h4>Parse — RFC 3164 and RFC 5424</h4>
+        <p>The parser auto-detects format by inspecting the first byte. RFC 5424 messages begin with a PRI+version header; RFC 3164 messages use the legacy BSD format. Both are decoded into a common intermediate structure: <code>priority</code>, <code>facility</code>, <code>severity</code>, <code>timestamp</code>, <code>hostname</code>, <code>app_name</code>, <code>pid</code>, and <code>message</code>.</p>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">03</div>
+      <div class="step-body">
+        <h4>Normalize — Enrich and validate</h4>
+        <p>The normalizer maps numeric priority to human-readable severity and facility strings, fills in missing fields with defaults, and applies site/group/collector enrichment based on the sending IP address and the collector registry. A <code>received_at</code> server timestamp is always added.</p>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">04</div>
+      <div class="step-body">
+        <h4>Batch — In-memory buffer with configurable flush interval</h4>
+        <p>Normalized records accumulate in an in-memory batch buffer. When the flush interval elapses (default: 5 seconds) or the maximum batch size is reached, the buffer is flushed to ClickHouse as a single bulk INSERT, minimizing round-trip overhead.</p>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">05</div>
+      <div class="step-body">
+        <h4>Write — ClickHouse with journal fallback</h4>
+        <p>The batch is written to <code>pktlog.syslog_events</code>. If ClickHouse is unreachable, the batch is written to the local ingest journal on disk. The journal replays automatically when ClickHouse becomes available again — no events are lost during brief storage outages.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STORAGE DESIGN -->
+<section>
+  <div class="container">
+    <div class="section-label">Storage Design</div>
+    <h2>ClickHouse schema — <span class="text-green">syslog_events</span></h2>
+    <p style="color:var(--text-secondary);margin-bottom:1.5rem;max-width:640px;">The core event table stores one row per syslog message. MergeTree engine provides fast range scans and efficient TTL-based retention.</p>
+    <div class="card">
+      <pre><span class="kw">CREATE TABLE</span> pktlog.syslog_events (
+    <span class="val">received_at</span>    DateTime,           <span class="cm">-- server-side ingest timestamp</span>
+    <span class="val">event_time</span>     DateTime,           <span class="cm">-- parsed message timestamp</span>
+    <span class="val">host</span>           String,             <span class="cm">-- source hostname / IP</span>
+    <span class="val">severity</span>       LowCardinality(String), <span class="cm">-- emergency..debug</span>
+    <span class="val">facility</span>       LowCardinality(String), <span class="cm">-- kern, auth, daemon...</span>
+    <span class="val">priority</span>       UInt8,              <span class="cm">-- raw PRI value (0-191)</span>
+    <span class="val">program</span>        String,             <span class="cm">-- app_name / process name</span>
+    <span class="val">pid</span>            String,             <span class="cm">-- process ID (string for compat)</span>
+    <span class="val">message</span>        String,             <span class="cm">-- parsed message body</span>
+    <span class="val">raw_message</span>    String,             <span class="cm">-- original unmodified syslog line</span>
+    <span class="val">collector_ip</span>   String,             <span class="cm">-- IP of the sending collector</span>
+    <span class="val">collector_name</span> String,             <span class="cm">-- name from collector registry</span>
+    <span class="val">site</span>           LowCardinality(String), <span class="cm">-- site label from registry</span>
+    <span class="val">group_name</span>     LowCardinality(String), <span class="cm">-- org/group from registry</span>
+    <span class="val">msg_id</span>         String,             <span class="cm">-- RFC 5424 MSGID (if present)</span>
+    <span class="val">structured_data</span> String,            <span class="cm">-- RFC 5424 SD element (if present)</span>
+    <span class="val">ingest_id</span>      UUID DEFAULT generateUUIDv4() <span class="cm">-- unique event ID</span>
+) ENGINE = MergeTree()
+  PARTITION BY toYYYYMM(received_at)
+  ORDER BY (received_at, host, severity)
+  TTL received_at + INTERVAL <span class="val">90</span> DAY;</pre>
+    </div>
+    <div class="card-grid">
+      <div class="card">
+        <h3 style="color:var(--accent-orange);">Why ClickHouse?</h3>
+        <p style="color:var(--text-secondary);font-size:0.9rem;">Columnar storage means querying <code>severity</code> across 100M rows reads only that column — not the full row. Aggregation queries like <code>GROUP BY host, severity</code> execute 10–100× faster than row-based databases at scale.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--green-bright);">Retention Policy</h3>
+        <p style="color:var(--text-secondary);font-size:0.9rem;">The MergeTree TTL clause automatically purges events older than the configured retention window (default 90 days). Retention is adjustable in Settings → Ingest without requiring schema changes.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent-blue);">SQLite — App Config</h3>
+        <p style="color:var(--text-secondary);font-size:0.9rem;">Non-event data lives in SQLite: user accounts, hashed passwords, JWT config, alert rules, alert events, collector registry, and all application settings. Small and transactional — exactly the right tool.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- API REFERENCE -->
+<section style="background:var(--bg-secondary);border-top:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">API Reference</div>
+    <h2>REST <span class="text-green">Endpoints</span></h2>
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">Ingest</h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/ingest/syslog</code></td><td>Bearer token</td><td>Accept JSON array of normalized syslog records from collector agents</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/ingest/stats</code></td><td>JWT</td><td>Buffer stats: buffered, total_received, total_flushed, last_flush, journal_size</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">Syslog Query</h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/syslog/search</code></td><td>Paginated full-text search with filters: host, severity, facility, program, time range, keyword</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/syslog/stats</code></td><td>Aggregate counts by severity and facility for a time range</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/syslog/timeseries</code></td><td>Event volume per time bucket for charting (interval configurable)</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/syslog/export</code></td><td>Download filtered results as CSV or JSON (Analyst+ only)</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/syslog/top-hosts</code></td><td>Top N hosts by event count for a time window</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">Alerts &amp; System</h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/alerts/rules</code></td><td>JWT</td><td>List configured alert rules</td></tr>
+        <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/alerts/rules</code></td><td>Admin JWT</td><td>Create an alert rule</td></tr>
+        <tr><td><span class="badge badge-del">DEL</span></td><td><code>/api/alerts/rules/{id}</code></td><td>Admin JWT</td><td>Delete an alert rule</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/alerts/events</code></td><td>JWT</td><td>List fired alert events with status</td></tr>
+        <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/health</code></td><td>None</td><td>Service health check — returns 200 when operational</td></tr>
+        <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/system/restart</code></td><td>Admin JWT</td><td>Restart the pktlog systemd service</td></tr>
+        <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/system/backup</code></td><td>Admin JWT</td><td>Trigger a local backup (2-revision rotation)</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- DIRECTORY STRUCTURE -->
+<section>
+  <div class="container">
+    <div class="section-label">Repository Layout</div>
+    <h2>Project <span class="text-green">Structure</span></h2>
+    <div class="card">
+      <pre><span class="kw">pktlog/</span>
+├── <span class="val">app/</span>
+│   ├── <span class="val">api/</span>
+│   │   ├── ingest.py         <span class="cm"># UDP+TCP syslog listener, ingest endpoint</span>
+│   │   ├── syslog.py         <span class="cm"># /api/syslog/* search, stats, timeseries, export</span>
+│   │   ├── alerts.py         <span class="cm"># Alert rules + event CRUD</span>
+│   │   ├── auth.py           <span class="cm"># Login, token refresh</span>
+│   │   ├── settings.py       <span class="cm"># App settings CRUD</span>
+│   │   ├── users.py          <span class="cm"># User management (Admin only)</span>
+│   │   └── system.py         <span class="cm"># Health, restart, SSL, backup, cleanup</span>
+│   ├── <span class="val">ingest/</span>
+│   │   ├── listener.py       <span class="cm"># Dual UDP+TCP socket listener</span>
+│   │   ├── parser.py         <span class="cm"># RFC 3164 / RFC 5424 syslog parser</span>
+│   │   ├── normalizer.py     <span class="cm"># Enrich, validate, 17-field output</span>
+│   │   └── buffer.py         <span class="cm"># Batch buffer + journal fallback</span>
+│   ├── <span class="val">alerts/</span>
+│   │   ├── engine.py         <span class="cm"># Alert evaluation loop (all rule types)</span>
+│   │   └── cleanup.py        <span class="cm"># Alert event retention purge</span>
+│   ├── <span class="val">storage/</span>
+│   │   └── clickhouse.py     <span class="cm"># ClickHouse backend (MergeTree)</span>
+│   ├── config.py             <span class="cm"># YAML + env settings loader</span>
+│   ├── database.py           <span class="cm"># SQLite init + migrations</span>
+│   └── main.py               <span class="cm"># App factory, lifespan, router registration</span>
+├── <span class="val">frontend/src/</span>
+│   ├── pages/                <span class="cm"># Dashboard, LogExplorer, Alerts, Settings, Users</span>
+│   ├── components/           <span class="cm"># Layout, shared UI components</span>
+│   └── api/client.ts         <span class="cm"># Typed API client</span>
+├── clickhouse/schema.sql     <span class="cm"># syslog_events table + indexes</span>
+├── <span class="val">ingest_journal/</span>           <span class="cm"># Fallback journal files (auto-created)</span>
+├── config.yaml               <span class="cm"># Runtime configuration</span>
+├── pktlog.service            <span class="cm"># systemd unit file</span>
+└── requirements.txt</pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="28">
+        <defs><clipPath id="clogf2"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#clogf2)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+      <span style="color:var(--text-muted);font-size:0.85rem;">pktLog Architecture Reference · v1.0</span>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Overview</a><a href="guide-admin.html">Admin</a><a href="guide-analyst.html">Analyst</a><a href="guide-viewer.html">Viewer</a>
+    </div>
+  </div>
+</footer>
+</body></html>

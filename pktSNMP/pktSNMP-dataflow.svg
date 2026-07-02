@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="800" height="480">
+  <defs>
+    <marker id="arr-teal" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2dd4bf"/></marker>
+    <marker id="arr-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#60a5fa"/></marker>
+    <marker id="arr-gold" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#fbbf24"/></marker>
+    <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#4ade80"/></marker>
+    <marker id="arr-white" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e2e8f0"/></marker>
+    <marker id="arr-slate" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#94a3b8"/></marker>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0L0 0 0 40" fill="none" stroke="#0f1e35" stroke-width="0.5"/></pattern>
+  </defs>
+  <rect width="800" height="480" fill="#080d18"/>
+  <rect width="800" height="480" fill="url(#grid)"/>
+  <!-- Title -->
+  <text x="400" y="36" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="20" font-weight="600" fill="#f1f5f9">pktSNMP Data Flow</text>
+  <text x="400" y="54" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="12" fill="#475569">Collection pipeline, storage, API, and integration</text>
+  <line x1="20" y1="66" x2="780" y2="66" stroke="#1e3a5f" stroke-width="1"/>
+  <!-- ── LEFT COLUMN: Data Sources ── -->
+  <text x="96" y="86" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#475569">DATA SOURCES</text>
+  <!-- Routers -->
+  <rect x="16" y="92" width="160" height="52" rx="6" fill="#0d1525" stroke="#2dd4bf" stroke-width="1.5"/>
+  <text x="96" y="114" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="12" font-weight="600" fill="#2dd4bf">Routers</text>
+  <text x="96" y="130" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">Core and edge devices</text>
+  <text x="96" y="140" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#475569">OIDs / MIBs / sysUpTime</text>
+  <!-- Switches -->
+  <rect x="16" y="155" width="160" height="52" rx="6" fill="#0d1525" stroke="#2dd4bf" stroke-width="1.5"/>
+  <text x="96" y="177" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="12" font-weight="600" fill="#2dd4bf">Switches</text>
+  <text x="96" y="193" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">Access and distribution</text>
+  <text x="96" y="203" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#475569">ifInOctets / ifOutOctets</text>
+  <!-- Other NEs -->
+  <rect x="16" y="218" width="160" height="52" rx="6" fill="#0d1525" stroke="#2dd4bf" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <text x="96" y="240" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="12" font-weight="500" fill="#2dd4bf" opacity="0.7">Other NEs</text>
+  <text x="96" y="256" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">Firewalls, APs, UPS</text>
+  <text x="96" y="266" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#334155">SNMPv2c / SNMPv3</text>
+  <!-- Protocol box -->
+  <rect x="16" y="282" width="160" height="50" rx="6" fill="#080d18" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="96" y="300" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">Transport</text>
+  <text x="96" y="315" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#60a5fa">Poll: GET  UDP 161</text>
+  <text x="96" y="328" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#fbbf24">Trap: ingest UDP 162</text>
+  <!-- Arrows: devices -> collector -->
+  <line x1="178" y1="118" x2="226" y2="195" stroke="#2dd4bf" stroke-width="1.5" marker-end="url(#arr-teal)"/>
+  <line x1="178" y1="181" x2="226" y2="205" stroke="#2dd4bf" stroke-width="1.5" marker-end="url(#arr-teal)"/>
+  <line x1="178" y1="244" x2="226" y2="218" stroke="#2dd4bf" stroke-width="1.5" marker-end="url(#arr-teal)" stroke-dasharray="4,3"/>
+  <!-- ── CENTER: pktSNMP application container ── -->
+  <text x="392" y="86" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#475569">pktSNMP APPLICATION</text>
+  <rect x="228" y="92" width="324" height="310" rx="10" fill="#0d1525" stroke="#2dd4bf" stroke-width="2"/>
+  <rect x="228" y="92" width="324" height="5" rx="3" fill="#2dd4bf"/>
+  <text x="390" y="116" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="15" font-weight="700" fill="#2dd4bf">pktSNMP</text>
+  <!-- SNMP Collector -->
+  <rect x="244" y="126" width="148" height="58" rx="6" fill="#080d18" stroke="#2dd4bf" stroke-width="1.2"/>
+  <text x="318" y="147" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" font-weight="600" fill="#2dd4bf">SNMP Collector</text>
+  <text x="318" y="163" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#94a3b8">Poll scheduler</text>
+  <text x="318" y="176" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#94a3b8">Trap listener / MIB parser</text>
+  <!-- DuckDB -->
+  <rect x="244" y="198" width="138" height="56" rx="6" fill="#080d18" stroke="#60a5fa" stroke-width="1.2"/>
+  <text x="313" y="218" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" font-weight="600" fill="#60a5fa">DuckDB</text>
+  <text x="313" y="234" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#94a3b8">Time-series metrics</text>
+  <text x="313" y="248" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#475569">ifInOctets, sysUpTime...</text>
+  <!-- SQLite -->
+  <rect x="398" y="198" width="138" height="56" rx="6" fill="#080d18" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="467" y="218" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" font-weight="600" fill="#fbbf24">SQLite</text>
+  <text x="467" y="234" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#94a3b8">Device config and alerts</text>
+  <text x="467" y="248" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#475569">community, thresholds...</text>
+  <!-- Collector -> DuckDB -->
+  <line x1="313" y1="186" x2="313" y2="196" stroke="#60a5fa" stroke-width="1.2" marker-end="url(#arr-blue)"/>
+  <text x="324" y="194" font-family="Segoe UI,system-ui,sans-serif" font-size="8" fill="#60a5fa">metrics</text>
+  <!-- Collector -> SQLite -->
+  <line x1="390" y1="165" x2="460" y2="196" stroke="#fbbf24" stroke-width="1.2" marker-end="url(#arr-gold)"/>
+  <text x="442" y="182" font-family="Segoe UI,system-ui,sans-serif" font-size="8" fill="#fbbf24">config</text>
+  <!-- FastAPI -->
+  <rect x="290" y="270" width="200" height="56" rx="6" fill="#080d18" stroke="#4ade80" stroke-width="1.2"/>
+  <text x="390" y="291" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" font-weight="600" fill="#4ade80">FastAPI  (Web API)</text>
+  <text x="390" y="307" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#94a3b8">REST endpoints / WebSocket</text>
+  <text x="390" y="320" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#475569">/api/v1/devices /metrics /alerts</text>
+  <!-- DuckDB -> API -->
+  <line x1="313" y1="256" x2="355" y2="268" stroke="#4ade80" stroke-width="1.2" marker-end="url(#arr-green)"/>
+  <!-- SQLite -> API -->
+  <line x1="467" y1="256" x2="425" y2="268" stroke="#4ade80" stroke-width="1.2" marker-end="url(#arr-green)"/>
+  <!-- React Frontend -->
+  <rect x="244" y="340" width="292" height="48" rx="6" fill="#080d18" stroke="#2dd4bf" stroke-width="1.2"/>
+  <text x="390" y="360" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="11" font-weight="600" fill="#2dd4bf">React Frontend</text>
+  <text x="390" y="378" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#94a3b8">Dashboard / Charts / Alert manager / Device list</text>
+  <!-- API -> Frontend -->
+  <line x1="390" y1="328" x2="390" y2="338" stroke="#2dd4bf" stroke-width="1.2" marker-end="url(#arr-teal)"/>
+  <text x="402" y="336" font-family="Segoe UI,system-ui,sans-serif" font-size="8" fill="#2dd4bf">REST JSON</text>
+  <!-- ── RIGHT COLUMN: Integration ── -->
+  <text x="680" y="86" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#475569">INTEGRATION / ACCESS</text>
+  <!-- pktHub Proxy -->
+  <rect x="562" y="92" width="210" height="84" rx="8" fill="#0d1525" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="562" y="92" width="210" height="4" rx="2" fill="#e2e8f0"/>
+  <text x="667" y="116" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">pktHub Proxy</text>
+  <text x="667" y="134" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">Routes authenticated requests</text>
+  <rect x="576" y="143" width="182" height="22" rx="4" fill="#080d18" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="667" y="158" text-anchor="middle" font-family="Courier New,monospace" font-size="9" fill="#60a5fa">X-Suite-Token validation</text>
+  <text x="667" y="171" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#475569">/proxy/{pktsnmp-id}/</text>
+  <!-- Browser / Users -->
+  <rect x="562" y="238" width="210" height="62" rx="8" fill="#0d1525" stroke="#94a3b8" stroke-width="1.2"/>
+  <text x="667" y="260" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="600" fill="#94a3b8">Browser / Users</text>
+  <text x="667" y="278" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#475569">Dashboard access</text>
+  <text x="667" y="292" text-anchor="middle" font-family="Courier New,monospace" font-size="9" fill="#94a3b8">via pktHub or direct HTTPS</text>
+  <!-- pktHub -> pktSNMP API arrow -->
+  <line x1="560" y1="143" x2="492" y2="295" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-white)"/>
+  <text x="545" y="218" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="8" fill="#94a3b8" transform="rotate(-62,545,218)">proxy</text>
+  <!-- pktHub -> Browser -->
+  <line x1="667" y1="178" x2="667" y2="236" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr-slate)"/>
+  <text x="678" y="210" font-family="Segoe UI,system-ui,sans-serif" font-size="9" fill="#475569">HTTPS</text>
+  <!-- React Frontend -> Browser direct -->
+  <line x1="538" y1="364" x2="562" y2="290" stroke="#2dd4bf" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-teal)"/>
+  <text x="568" y="338" font-family="Segoe UI,system-ui,sans-serif" font-size="8" fill="#2dd4bf">direct</text>
+  <!-- ── Legend strip ── -->
+  <rect x="16" y="416" width="768" height="36" rx="6" fill="#0d1525" stroke="#1e3a5f" stroke-width="1"/>
+  <line x1="30" y1="434" x2="58" y2="434" stroke="#2dd4bf" stroke-width="1.5"/>
+  <text x="64" y="438" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">SNMP poll/trap</text>
+  <line x1="160" y1="434" x2="188" y2="434" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="194" y="438" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">Time-series (DuckDB)</text>
+  <line x1="308" y1="434" x2="336" y2="434" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="342" y="438" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">Config/alerts (SQLite)</text>
+  <line x1="458" y1="434" x2="486" y2="434" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="492" y="438" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">REST API</text>
+  <line x1="555" y1="434" x2="583" y2="434" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="589" y="438" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">pktHub proxy (auth)</text>
+  <line x1="690" y1="434" x2="718" y2="434" stroke="#2dd4bf" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <text x="724" y="438" font-family="Segoe UI,system-ui,sans-serif" font-size="10" fill="#94a3b8">Direct browser</text>
+</svg>

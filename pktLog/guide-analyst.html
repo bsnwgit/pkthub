@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pktLog — Analyst Guide</title>
+<style>
+:root{--bg-primary:#0a0f1a;--bg-secondary:#111827;--bg-card:#1a2236;--green-bright:#4ade80;--green-dark:#071a07;--green-dim:#166534;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;--border:#1e293b;--border-green:#166534;--accent:#60a5fa;--accent-border:rgba(96,165,250,0.3);}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7}
+a{color:var(--green-bright);text-decoration:none}a:hover{color:#86efac}
+.dot-grid{background-image:radial-gradient(circle,rgba(74,222,128,0.05) 1px,transparent 1px);background-size:40px 40px}
+nav{position:sticky;top:0;z-index:100;background:rgba(10,15,26,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:2rem;height:60px}
+.nav-links{display:flex;gap:0.25rem;flex:1}
+.nav-links a{padding:0.4rem 0.85rem;border-radius:6px;font-size:0.875rem;color:var(--text-secondary);transition:all 0.2s}
+.nav-links a:hover,.nav-links a.active{background:rgba(74,222,128,0.08);color:var(--green-bright)}
+.nav-badge{margin-left:auto;background:rgba(96,165,250,0.1);border:1px solid var(--accent-border);color:var(--accent);padding:0.2rem 0.75rem;border-radius:20px;font-size:0.75rem;font-family:'Courier New',monospace}
+.container{max-width:1100px;margin:0 auto}
+section{padding:3.5rem 2rem}
+.section-label{font-family:'Courier New',monospace;font-size:0.75rem;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem;opacity:0.8}
+h1{font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-0.03em}
+h2{font-size:1.6rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:1.25rem;margin-top:2.5rem}
+h2:first-of-type{margin-top:0}
+h3{font-size:1.05rem;font-weight:600;margin-bottom:0.5rem}
+p{color:var(--text-secondary);margin-bottom:0.75rem}
+.text-accent{color:var(--accent)}
+code{font-family:'Courier New',monospace;background:rgba(74,222,128,0.08);border:1px solid var(--border-green);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85em;color:var(--green-bright)}
+.guide-layout{display:grid;grid-template-columns:220px 1fr;gap:3rem;align-items:start}
+.sidebar{position:sticky;top:80px}
+.sidebar-nav{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:0.85rem}
+.sidebar-nav h4{color:var(--text-muted);font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;font-family:'Courier New',monospace;padding:0.25rem 0.5rem;margin-bottom:0.25rem}
+.sidebar-nav a{display:block;padding:0.35rem 0.5rem;border-radius:5px;color:var(--text-secondary);transition:all 0.15s}
+.sidebar-nav a:hover{background:rgba(96,165,250,0.07);color:var(--accent)}
+.sidebar-nav .divider{height:1px;background:var(--border);margin:0.5rem 0}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.75rem;margin-bottom:1.5rem}
+.card-accent{border-color:var(--accent-border);background:rgba(96,165,250,0.03)}
+.tip{background:rgba(74,222,128,0.05);border:1px solid var(--border-green);border-radius:8px;padding:1rem 1.25rem;margin:1rem 0;font-size:0.875rem;color:var(--text-secondary)}
+.tip::before{content:'💡 ';font-size:0.9rem}
+table{width:100%;border-collapse:collapse;font-size:0.875rem;margin-top:0.75rem}
+th{text-align:left;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:0.8rem}
+td{padding:0.5rem 0.75rem;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+td:first-child{color:var(--text-primary);font-family:'Courier New',monospace;font-size:0.82rem}
+tr:last-child td{border-bottom:none}
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1rem}
+.filter-chip{background:#0d1520;border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;font-size:0.875rem}
+.filter-chip .label{font-family:'Courier New',monospace;font-size:0.8rem;color:var(--accent);margin-bottom:0.25rem}
+.filter-chip p{font-size:0.82rem;margin:0;color:var(--text-muted)}
+footer{border-top:1px solid var(--border);padding:2rem;margin-top:2rem}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.footer-links{display:flex;gap:1.5rem}
+.footer-links a{font-size:0.875rem;color:var(--text-muted)}
+.footer-links a:hover{color:var(--green-bright)}
+@media(max-width:768px){.guide-layout{grid-template-columns:1fr}.sidebar{position:static}}
+</style>
+</head>
+<body class="dot-grid">
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="36">
+        <defs><clipPath id="cl"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#cl)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+    </div>
+    <div class="nav-links">
+      <a href="index.html">Overview</a><a href="architecture.html">Architecture</a>
+      <a href="guide-admin.html">Admin Guide</a>
+      <a href="guide-analyst.html" class="active">Analyst Guide</a><a href="guide-viewer.html">Viewer Guide</a>
+    </div>
+    <span class="nav-badge">ANALYST</span>
+  </div>
+</nav>
+
+<section style="padding:4rem 2rem 2rem;background:linear-gradient(135deg,#050e1a 0%,#0a0f1a 100%);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">User Guide</div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+      <span style="display:inline-block;padding:0.35rem 1rem;border-radius:20px;font-size:0.85rem;font-weight:600;background:rgba(96,165,250,0.1);color:var(--accent);border:1px solid var(--accent-border);font-family:'Courier New',monospace;">ANALYST</span>
+    </div>
+    <h1>Analyst <span class="text-accent">Guide</span></h1>
+    <p style="max-width:600px;font-size:1.05rem;margin-top:0.75rem;">For security analysts, SOC staff, and IT engineers who use pktLog to investigate events, review alerts, and extract evidence from syslog data.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="guide-layout">
+      <aside class="sidebar">
+        <div class="sidebar-nav">
+          <h4>Analyst Guide</h4>
+          <a href="#overview">Overview</a>
+          <a href="#dashboard">Dashboard</a>
+          <a href="#log-explorer">Log Explorer</a>
+          <a href="#search">Search &amp; Filters</a>
+          <a href="#export">Export Data</a>
+          <a href="#alerts">Alert Review</a>
+          <a href="#workflows">Common Workflows</a>
+          <div class="divider"></div>
+          <a href="guide-admin.html">→ Admin Guide</a>
+          <a href="guide-viewer.html">→ Viewer Guide</a>
+        </div>
+      </aside>
+
+      <main>
+        <div id="overview">
+          <h2>Analyst Overview</h2>
+          <div class="card card-accent">
+            <p>The <strong>Analyst</strong> role provides read access to all log data plus the ability to search, filter, export, and acknowledge alerts. Analysts cannot modify platform configuration or manage users, but have full access to everything needed for incident investigation and compliance review.</p>
+          </div>
+        </div>
+
+        <div id="dashboard">
+          <h2>Dashboard</h2>
+          <p>The Dashboard is your starting point. It shows the live state of the syslog platform at a glance.</p>
+          <div class="card">
+            <h3>Dashboard Widgets</h3>
+            <table>
+              <tr><th>Widget</th><th>What It Shows</th></tr>
+              <tr><td>Events/sec</td><td>Current ingest rate — live counter of events arriving per second across all collectors</td></tr>
+              <tr><td>Events Today</td><td>Total events ingested since midnight (local server time)</td></tr>
+              <tr><td>Severity Breakdown</td><td>Donut chart showing distribution of severity levels (emergency → debug) for the selected time window</td></tr>
+              <tr><td>Volume Timeseries</td><td>Line chart of event volume per time bucket — spot volume spikes instantly</td></tr>
+              <tr><td>Top Hosts</td><td>Ranked list of the most active log sources by event count</td></tr>
+              <tr><td>Active Alerts</td><td>Count of currently open alert events requiring attention</td></tr>
+              <tr><td>Collector Status</td><td>Last-seen timestamps for all registered collectors — green = recent, yellow/red = delayed or silent</td></tr>
+            </table>
+          </div>
+          <div class="tip">Use the time-range selector at the top of the dashboard to change the analysis window. All widgets update simultaneously.</div>
+        </div>
+
+        <div id="log-explorer">
+          <h2>Log Explorer</h2>
+          <p>The Log Explorer (<strong>Logs</strong> in the navigation) is your primary tool for searching and investigating syslog events. It provides paginated access to all stored events with rich filtering.</p>
+          <div class="card">
+            <h3>Log Table Columns</h3>
+            <table>
+              <tr><th>Column</th><th>Description</th></tr>
+              <tr><td>Timestamp</td><td>Event time (parsed from the syslog message, not server arrival time)</td></tr>
+              <tr><td>Received At</td><td>Server-side arrival timestamp — useful when device clocks are unreliable</td></tr>
+              <tr><td>Host</td><td>Source device hostname or IP</td></tr>
+              <tr><td>Severity</td><td>Color-coded badge: Emergency (red) → Debug (gray)</td></tr>
+              <tr><td>Facility</td><td>Syslog facility (kern, auth, daemon, local0–local7, etc.)</td></tr>
+              <tr><td>Program</td><td>Application or process name (e.g. sshd, kernel, nginx)</td></tr>
+              <tr><td>Message</td><td>Full message body — click a row to expand and view structured fields</td></tr>
+              <tr><td>Site / Collector</td><td>Enrichment from the collector registry (if registered)</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Row Detail View</h3>
+            <p>Click any log row to expand it. The detail panel shows all 17 normalized fields including <code>raw_message</code> (the original unmodified syslog line), <code>pid</code>, <code>msg_id</code>, and any RFC 5424 structured data elements.</p>
+          </div>
+        </div>
+
+        <div id="search">
+          <h2>Search &amp; Filters</h2>
+          <p>The filter bar at the top of the Log Explorer lets you narrow results precisely. Filters are additive (AND logic).</p>
+          <div class="filter-grid">
+            <div class="filter-chip"><div class="label">Time Range</div><p>Last 15m, 1h, 6h, 24h, 7d, or custom start/end datetime</p></div>
+            <div class="filter-chip"><div class="label">Host</div><p>Exact match or wildcard (e.g. <code>fw-*</code>, <code>10.0.*</code>)</p></div>
+            <div class="filter-chip"><div class="label">Severity</div><p>One or more severity levels via multi-select (e.g. emergency + critical + error)</p></div>
+            <div class="filter-chip"><div class="label">Facility</div><p>Syslog facility (auth, kern, daemon, local0–local7, etc.)</p></div>
+            <div class="filter-chip"><div class="label">Program</div><p>Application name (e.g. sshd, nginx, cron)</p></div>
+            <div class="filter-chip"><div class="label">Site</div><p>Filter to events from a specific site (from collector registry)</p></div>
+            <div class="filter-chip"><div class="label">Keyword Search</div><p>Full-text search within the <code>message</code> field. Supports regex.</p></div>
+            <div class="filter-chip"><div class="label">Collector</div><p>Filter to events from a specific registered collector IP or name</p></div>
+          </div>
+          <div class="tip">Combine <strong>Severity: error+critical+emergency</strong> with a <strong>short time window</strong> to quickly surface all high-priority events during an incident.</div>
+        </div>
+
+        <div id="export">
+          <h2>Export Data</h2>
+          <p>Analysts can export filtered log results to CSV or JSON for use in external tools, incident reports, or compliance evidence packages.</p>
+          <div class="card">
+            <h3>How to Export</h3>
+            <p>Apply your desired filters in the Log Explorer, then click the <strong>Export</strong> button in the toolbar. Choose CSV (for spreadsheet analysis) or JSON (for programmatic processing). The export includes all currently filtered results up to the configured export limit.</p>
+          </div>
+          <div class="card">
+            <h3>Export Fields</h3>
+            <p>Exports include all 17 normalized fields: <code>received_at</code>, <code>event_time</code>, <code>host</code>, <code>severity</code>, <code>facility</code>, <code>priority</code>, <code>program</code>, <code>pid</code>, <code>message</code>, <code>raw_message</code>, <code>collector_ip</code>, <code>collector_name</code>, <code>site</code>, <code>group_name</code>, <code>msg_id</code>, <code>structured_data</code>, <code>ingest_id</code>.</p>
+          </div>
+        </div>
+
+        <div id="alerts">
+          <h2>Alert Review</h2>
+          <p>Navigate to <strong>Alerts → Events</strong> to see all fired alert events. Analysts can review and acknowledge alerts.</p>
+          <div class="card">
+            <h3>Alert Event States</h3>
+            <table>
+              <tr><th>State</th><th>Meaning</th><th>Analyst Action</th></tr>
+              <tr><td>Open</td><td>Alert has fired and has not been reviewed</td><td>Investigate and acknowledge or resolve</td></tr>
+              <tr><td>Acknowledged</td><td>Alert has been noted by an analyst — investigation in progress</td><td>Resolve when condition is cleared</td></tr>
+              <tr><td>Resolved</td><td>Alert condition has been cleared or investigated to completion</td><td>No action needed</td></tr>
+            </table>
+          </div>
+          <div class="tip">Click an alert event to see the detail panel, which shows the triggering rule, the time window that fired it, and a link to search the Log Explorer for the relevant events.</div>
+        </div>
+
+        <div id="workflows">
+          <h2>Common Investigation Workflows</h2>
+          <div class="card">
+            <h3>Investigating a Security Event</h3>
+            <p>1. Open the <strong>Log Explorer</strong> and set the time range to the suspected incident window.<br>
+            2. Filter by <strong>Severity: error + critical + emergency</strong>.<br>
+            3. Add a <strong>Host</strong> filter if you know the affected device.<br>
+            4. Use <strong>Keyword Search</strong> to narrow by event type (e.g. "denied", "failed", "authentication").<br>
+            5. Expand relevant rows to view all structured fields and the raw syslog message.<br>
+            6. <strong>Export</strong> the filtered results as CSV or JSON for your incident report.</p>
+          </div>
+          <div class="card">
+            <h3>Checking a Specific Device</h3>
+            <p>Set <strong>Host</strong> to the device name or IP, select a <strong>24h</strong> window, and leave other filters open. Review the volume timeseries at the top of the results for anomalous spikes, then drill down into the specific time bucket of interest.</p>
+          </div>
+          <div class="card">
+            <h3>Compliance Evidence Collection</h3>
+            <p>Filter by <strong>Facility: auth</strong> and <strong>Program: sshd</strong> (or your authentication daemon) for a defined time range. Export as CSV with all fields. The <code>raw_message</code> field provides the original unmodified syslog line for audit-trail purposes.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="28">
+        <defs><clipPath id="clf"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#clf)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+      <span style="color:var(--text-muted);font-size:0.85rem;">pktLog Analyst Guide · v1.0</span>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="guide-admin.html">Admin</a><a href="guide-viewer.html">Viewer</a>
+    </div>
+  </div>
+</footer>
+</body></html>

@@ -1,23 +1,53 @@
-# Python
+﻿# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 venv/
 .venv/
 *.egg-info/
 
-# Config (contains secrets)
-config.yaml
+# Node / frontend builds
+node_modules/
+dist/
+.next/
+build/
+*.tsbuildinfo
 
-# Frontend build
-frontend/node_modules/
-frontend/dist/
-
-# DB
+# Databases & secrets
 *.db
 *.db-wal
 *.db-shm
+.env
+*.pem
+secrets/
 
-# Misc
+# Archives & generated
+*.zip
+*.tar.gz
+
+# OS
 .DS_Store
-*.log
+Thumbs.db
+desktop.ini
+ 
+# SSL certs/keys  
+ssl/  
+*.crt  
+*.key  
+ 
+# DuckDB databases  
+*.duckdb  
+*.duckdb.wal  
+*.duckdb.wal  
+ 
+# Backup and old builds  
+*.bak  
+dist_backup/  
+dist_old/  
+ 
+# Runtime data  
+data/  
+config.yaml  
+pkt-capture  
+*.pfx 

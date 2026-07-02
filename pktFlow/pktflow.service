@@ -1,0 +1,34 @@
+[Unit]
+Description=pktFlow NetFlow Visualization Platform
+Documentation=https://github.com/vynedental/pktflow
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/mnt/software/pktflow
+
+Environment=PKTFLOW_CONFIG=/mnt/software/pktflow/config.yaml
+
+# DuckDB requires single worker (one write connection allowed)
+ExecStart=/mnt/software/pktflow/venv/bin/uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port 8080 \
+    --workers 1 \
+    --log-level info \
+    --no-access-log
+
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=5
+
+StandardOutput=append:/mnt/software/logs/pktflow.log
+StandardError=append:/mnt/software/logs/pktflow.log
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
