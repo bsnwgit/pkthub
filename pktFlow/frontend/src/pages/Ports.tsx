@@ -13,6 +13,7 @@ import {
   AreaChart, Area,
 } from 'recharts'
 import { api, ProtocolStat, PortStat, DeviceSummary, FlowRecord } from '../api/client'
+import { useNavigate } from 'react-router-dom'
 import { useAutoRefresh } from '../store/autoRefresh'
 import { protoLabel } from '../utils/protocols'
 
@@ -292,6 +293,7 @@ function TrafficTimelinePanel({
 // ── Port Inventory Table ───────────────────────────────────────────────────────
 
 function PortInventoryTable({ window, sampler_ip, site }: { window: string; sampler_ip?: string; site?: string }) {
+  const navigate = useNavigate()
   const [data, setData] = useState<PortStat[]>([])
   type PortSortKey = 'port' | 'proto_name' | 'service_name' | 'bytes' | 'packets' | 'flow_count' | 'pct_bytes'
   const [sortKey, setSortKey] = useState<PortSortKey>('bytes')
@@ -391,8 +393,7 @@ function PortInventoryTable({ window, sampler_ip, site }: { window: string; samp
                     <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
                       <a
                         href={`/explorer?dst_port=${row.port}&protocol=${row.protocol}&window=${window}${sampler_ip ? `&sampler=${encodeURIComponent(sampler_ip)}` : ''}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={e => { e.preventDefault(); navigate(`/explorer?dst_port=${row.port}&protocol=${row.protocol}&window=${window}${sampler_ip ? `&sampler=${encodeURIComponent(sampler_ip)}` : ''}`) }}
                         className="text-blue-400 hover:text-blue-300 transition-colors"
                         title="View in Flow Explorer"
                       >
@@ -468,6 +469,17 @@ export function PortsTabContent({ sampler_ip, window }: { sampler_ip: string; wi
 
 // ── Main Ports page ────────────────────────────────────────────────────────────
 
+
+// When embedded in pktHub Context Viewer, post a navigation message to the parent
+// so pktHub opens the correct /proxy/{appId}/path in a new tab instead of
+// following the bare href (which would hit pktHub router and show the dashboard).
+function pktOpen(path: string): void {
+  if (window !== window.top) {
+    window.parent.postMessage({ type: 'PKT_NAVIGATE', path }, '*')
+  } else {
+    window.open(path, '_blank', 'noopener')
+  }
+}
 export default function Ports() {
   const [window, setWindow] = useState('24h')
   const [samplerFilter, setSamplerFilter] = useState('')

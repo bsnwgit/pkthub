@@ -80,6 +80,8 @@ export const api = {
     request<any>('/apps/direct-access/bulk', { method: 'POST', body: JSON.stringify({ locked }) }),
   getAppAccessLog: (id: number) =>
     request<any[]>(`/apps/${id}/access-log`),
+  resyncToken: (id: number) =>
+    request<any>(`/apps/${id}/resync-token`, { method: 'POST' }),
 
   // Users
   listUsers: () => request<any[]>('/users'),
@@ -164,6 +166,23 @@ export const api = {
     })
   },
   deleteSsl: () => request('/ssl/', { method: 'DELETE' }),
+
+  // App Alert Log
+  listAlerts: () => request<any[]>('/alerts'),
+  ackAlert: (id: number) => request<any>(`/alerts/${id}/ack`, { method: 'POST' }),
+  alertHistory: (params?: {
+    app_id?: number; event_type?: string; status?: string;
+    start?: string; end?: string; limit?: number
+  }) => {
+    const q = new URLSearchParams()
+    if (params?.app_id !== undefined) q.set('app_id',     String(params.app_id))
+    if (params?.event_type)           q.set('event_type', params.event_type)
+    if (params?.status)               q.set('status',     params.status)
+    if (params?.start)                q.set('start',      params.start)
+    if (params?.end)                  q.set('end',        params.end)
+    if (params?.limit)                q.set('limit',      String(params.limit))
+    return request<any[]>(`/alerts/history?${q}`)
+  },
 
   // Alert Rules
   listAlertRules: () => request<any[]>('/alert-rules'),

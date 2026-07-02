@@ -51,3 +51,11 @@ data/
 config.yaml  
 pkt-capture  
 *.pfx 
+
+# Temporary helper/deploy scripts (Claude-generated, not part of source)
+_*.py
+pktHub/venv
+pktSNMP/*.bak_*
+pktLog/*.bak_*
+pktFlow/*.bak_*
+pktPCAP/*.bak_*

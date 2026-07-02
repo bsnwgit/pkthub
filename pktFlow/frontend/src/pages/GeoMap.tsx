@@ -17,6 +17,7 @@
  *   other   → blue    (#60a5fa)
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import * as d3 from 'd3'
@@ -54,8 +55,22 @@ function fmtNum(n: number) {
   return n >= 1_000 ? `${(n / 1000).toFixed(1)}K` : String(n)
 }
 
+
+// ── Iframe-aware navigation ────────────────────────────────────────────────
+// When pktFlow is embedded in pktHub's Context Viewer, relative window.open()
+// calls resolve against pktHub's origin. Instead, post a message to the parent
+// so pktHub can open the correct proxy URL in a new tab.
+function pktOpen(path: string): void {
+  if (window !== window.top) {
+    window.parent.postMessage({ type: 'PKT_NAVIGATE', path }, '*')
+  } else {
+    window.open(path, '_blank', 'noopener')
+  }
+}
+
 // ── LeafletGeoMap — core map component ────────────────────────────────────
 function LeafletGeoMap({ geoData }: { geoData: GeoDataResponse }) {
+  const navigate = useNavigate()
   const divRef    = useRef<HTMLDivElement>(null)
   const mapRef    = useRef<L.Map | null>(null)
   const markersRef = useRef<L.CircleMarker[]>([])
@@ -179,7 +194,7 @@ function LeafletGeoMap({ geoData }: { geoData: GeoDataResponse }) {
           { direction: 'top', offset: L.point(0, -r - 4), className: 'pf-geo-tooltip', opacity: 1 }
         )
         .on('click', () => {
-          window.open(`/explorer?src_ip=${loc.ip}`, '_blank', 'noopener')
+          navigate(`/explorer?src_ip=${loc.ip}`)
         })
         .addTo(map)
 
@@ -248,10 +263,7 @@ function LeafletGeoMap({ geoData }: { geoData: GeoDataResponse }) {
             d3.select(vis).attr('opacity', 0.6).attr('stroke-width', baseW)
           })
           .on('click', () => {
-            window.open(
-              `/explorer?src_ip=${arc.src_ip}&dst_ip=${arc.dst_ip}`,
-              '_blank', 'noopener'
-            )
+            navigate(`/explorer?src_ip=${arc.src_ip}&dst_ip=${arc.dst_ip}`)
           })
           .append('title')
             .text(
@@ -477,6 +489,7 @@ const WINDOWS = ['1h', '6h', '24h', '7d', '30d']
 
 // ── GeoPage — full nav page at /geo ────────────────────────────────────────
 export function GeoPage() {
+  const navigate = useNavigate()
   const [timeWindow,   setTimeWindow]   = useState('1h')
   const [geoData,      setGeoData]      = useState<GeoDataResponse | null>(null)
   const [loading,      setLoading]      = useState(true)
@@ -501,7 +514,7 @@ export function GeoPage() {
       sessionStorage.setItem('pf_pop_token', tok)
       sessionStorage.setItem('pf_pop_role',  role)
     }
-    window.open(`/geomap?window=${timeWindow}`, '_blank', 'noopener')
+    navigate(`/geomap?window=${timeWindow}`)
   }
 
   const hasData = geoData && geoData.locations.length > 0
@@ -569,6 +582,7 @@ export function GeoPage() {
 
 // ── GeoMapCard — inline card for Analytics ────────────────────────────────
 export function GeoMapCard({ timeWindow }: { timeWindow: string }) {
+  const navigate = useNavigate()
   const [geoData, setGeoData] = useState<GeoDataResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(false)
@@ -590,7 +604,7 @@ export function GeoMapCard({ timeWindow }: { timeWindow: string }) {
       sessionStorage.setItem('pf_pop_token', tok)
       sessionStorage.setItem('pf_pop_role',  role)
     }
-    window.open(`/geomap?window=${timeWindow}`, '_blank', 'noopener')
+    navigate(`/geomap?window=${timeWindow}`)
   }
 
   const hasData = geoData && geoData.locations.length > 0
