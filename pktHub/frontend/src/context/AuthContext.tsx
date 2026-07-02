@@ -24,6 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Public display pages don't need auth — skip the check entirely so
+    // an expired/missing token doesn't redirect a kiosk viewer to /login.
+    if (window.location.pathname.startsWith('/display/')) {
+      setLoading(false)
+      return
+    }
+
     const token = localStorage.getItem('pkthub_token')
     if (token) {
       setMemoryToken(token)
@@ -41,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Poll session every 60 s — if the server returns 401, client.ts
     // clears the token and redirects to /login automatically.
     const interval = setInterval(() => {
+      if (window.location.pathname.startsWith('/display/')) return
       if (localStorage.getItem('pkthub_token')) {
         api.me().catch(() => {}) // 401 handled in client.ts
       }
