@@ -25,6 +25,8 @@ from app.api import (
     system as system_router,
 )
 from app.api import logs as logs_router
+from app.api import suite as suite_router
+from app.api import widgets as widgets_router
 
 settings = get_settings()
 log = logging.getLogger("pktsnmp")
@@ -129,6 +131,8 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["settin
 app.include_router(system_router.router,   prefix="/api/system",   tags=["system"])
 app.include_router(alerts_router.router,   prefix="/api/alerts",   tags=["alerts"])
 app.include_router(logs_router.router,     prefix="/api/logs",     tags=["logs"])
+app.include_router(suite_router.router,   prefix="/api/suite",   tags=["suite"])
+app.include_router(widgets_router.router, prefix="/api",         tags=["widgets"])
 
 # ── Health check ──────────────────────────────────────────────────────────────
 

@@ -20,6 +20,10 @@ from app.ingest.buffer import IngestBuffer
 # ── Routers ───────────────────────────────────────────────────────────────────
 from app.api import ingest, flows, devices, alerts, settings as settings_router, auth, users, ai, system as system_router, ws as ws_router
 from app.api import logs as logs_router
+from app.api import suite as suite_router
+from app.api import vpn_mappings as vpn_mappings_router
+from app.api import geo_config    as geo_config_router
+from app.api import widgets       as widgets_router
 
 settings = get_settings()
 log = logging.getLogger("pktflow")
@@ -139,6 +143,10 @@ app.include_router(ai.router,              prefix="/api/ai",       tags=["ai"])
 app.include_router(system_router.router,   prefix="/api/system",   tags=["system"])
 app.include_router(logs_router.router,     prefix="/api/logs",     tags=["logs"])
 app.include_router(ws_router.router,       prefix="/api",          tags=["ws"])
+app.include_router(suite_router.router,         prefix="/api/suite",         tags=["suite"])
+app.include_router(vpn_mappings_router.router,  prefix="/api/vpn-mappings",  tags=["vpn-mappings"])
+app.include_router(geo_config_router.router,    prefix="/api/geo-config",    tags=["geo-config"])
+app.include_router(widgets_router.router,       prefix="/api",               tags=["widgets"])
 
 # ── Health check ──────────────────────────────────────────────────────────────
 
