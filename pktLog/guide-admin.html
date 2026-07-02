@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pktLog — Administrator Guide</title>
+<style>
+:root{--bg-primary:#0a0f1a;--bg-secondary:#111827;--bg-card:#1a2236;--green-bright:#4ade80;--green-dark:#071a07;--green-dim:#166534;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;--border:#1e293b;--border-green:#166534;--accent:#c084fc;--accent-border:rgba(168,85,247,0.3);}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7}
+a{color:var(--green-bright);text-decoration:none}a:hover{color:#86efac}
+.dot-grid{background-image:radial-gradient(circle,rgba(74,222,128,0.05) 1px,transparent 1px);background-size:40px 40px}
+nav{position:sticky;top:0;z-index:100;background:rgba(10,15,26,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:2rem;height:60px}
+.nav-links{display:flex;gap:0.25rem;flex:1}
+.nav-links a{padding:0.4rem 0.85rem;border-radius:6px;font-size:0.875rem;color:var(--text-secondary);transition:all 0.2s}
+.nav-links a:hover,.nav-links a.active{background:rgba(74,222,128,0.08);color:var(--green-bright)}
+.nav-badge{margin-left:auto;background:rgba(168,85,247,0.12);border:1px solid var(--accent-border);color:var(--accent);padding:0.2rem 0.75rem;border-radius:20px;font-size:0.75rem;font-family:'Courier New',monospace}
+.container{max-width:1100px;margin:0 auto}
+section{padding:3.5rem 2rem}
+.section-label{font-family:'Courier New',monospace;font-size:0.75rem;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem;opacity:0.8}
+h1{font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-0.03em}
+h2{font-size:1.6rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:1.25rem;margin-top:2.5rem}
+h2:first-of-type{margin-top:0}
+h3{font-size:1.05rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-primary)}
+p{color:var(--text-secondary);margin-bottom:0.75rem}
+.text-accent{color:var(--accent)}
+code{font-family:'Courier New',monospace;background:rgba(74,222,128,0.08);border:1px solid var(--border-green);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85em;color:var(--green-bright)}
+.guide-layout{display:grid;grid-template-columns:220px 1fr;gap:3rem;align-items:start}
+.sidebar{position:sticky;top:80px}
+.sidebar-nav{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:0.85rem}
+.sidebar-nav h4{color:var(--text-muted);font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;font-family:'Courier New',monospace;padding:0.25rem 0.5rem;margin-bottom:0.25rem}
+.sidebar-nav a{display:block;padding:0.35rem 0.5rem;border-radius:5px;color:var(--text-secondary);transition:all 0.15s}
+.sidebar-nav a:hover{background:rgba(192,132,252,0.07);color:var(--accent)}
+.sidebar-nav .divider{height:1px;background:var(--border);margin:0.5rem 0}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.75rem;margin-bottom:1.5rem}
+.card-accent{border-color:var(--accent-border);background:rgba(168,85,247,0.04)}
+.step-list{list-style:none;counter-reset:steps}
+.step-list li{counter-increment:steps;padding-left:2.5rem;position:relative;margin-bottom:1rem;color:var(--text-secondary)}
+.step-list li::before{content:counter(steps);position:absolute;left:0;top:0;width:24px;height:24px;background:rgba(168,85,247,0.12);border:1px solid var(--accent-border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:var(--accent);font-family:'Courier New',monospace;text-align:center;line-height:24px}
+.step-list li strong{color:var(--text-primary)}
+.tip{background:rgba(74,222,128,0.05);border:1px solid var(--border-green);border-radius:8px;padding:1rem 1.25rem;margin:1rem 0;font-size:0.875rem;color:var(--text-secondary)}
+.tip::before{content:'💡 ';font-size:0.9rem}
+.warn{background:rgba(251,146,60,0.05);border:1px solid rgba(251,146,60,0.2);border-radius:8px;padding:1rem 1.25rem;margin:1rem 0;font-size:0.875rem;color:var(--text-secondary)}
+.warn::before{content:'⚠️ ';font-size:0.9rem}
+table{width:100%;border-collapse:collapse;font-size:0.875rem;margin-top:0.75rem}
+th{text-align:left;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:0.8rem}
+td{padding:0.5rem 0.75rem;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+td:first-child{color:var(--text-primary);font-family:'Courier New',monospace;font-size:0.82rem}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:0.15rem 0.55rem;border-radius:10px;font-size:0.72rem;font-weight:600;font-family:'Courier New',monospace}
+.badge-admin{background:rgba(168,85,247,0.12);color:var(--accent);border:1px solid var(--accent-border)}
+footer{border-top:1px solid var(--border);padding:2rem;margin-top:2rem}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.footer-links{display:flex;gap:1.5rem}
+.footer-links a{font-size:0.875rem;color:var(--text-muted)}
+.footer-links a:hover{color:var(--green-bright)}
+@media(max-width:768px){.guide-layout{grid-template-columns:1fr}.sidebar{position:static}}
+</style>
+</head>
+<body class="dot-grid">
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="36">
+        <defs><clipPath id="cl"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#cl)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+    </div>
+    <div class="nav-links">
+      <a href="index.html">Overview</a><a href="architecture.html">Architecture</a>
+      <a href="guide-admin.html" class="active">Admin Guide</a>
+      <a href="guide-analyst.html">Analyst Guide</a><a href="guide-viewer.html">Viewer Guide</a>
+    </div>
+    <span class="nav-badge">ADMIN</span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section style="padding:4rem 2rem 2rem;background:linear-gradient(135deg,#0d0a1a 0%,#0a0f1a 100%);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">User Guide</div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+      <span class="badge badge-admin" style="font-size:0.85rem;padding:0.35rem 1rem;">ADMINISTRATOR</span>
+    </div>
+    <h1>Admin <span class="text-accent">Guide</span></h1>
+    <p style="max-width:600px;font-size:1.05rem;margin-top:0.75rem;">Complete reference for platform administrators. Covers user management, ingest configuration, alert rules, system maintenance, and security settings.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="guide-layout">
+      <!-- SIDEBAR NAV -->
+      <aside class="sidebar">
+        <div class="sidebar-nav">
+          <h4>Admin Guide</h4>
+          <a href="#overview">Overview</a>
+          <a href="#users">User Management</a>
+          <a href="#ingest">Ingest Configuration</a>
+          <a href="#collectors">Collector Registry</a>
+          <a href="#alerts">Alert Rules</a>
+          <a href="#settings">Platform Settings</a>
+          <a href="#system">System Maintenance</a>
+          <a href="#security">Security</a>
+          <div class="divider"></div>
+          <a href="guide-analyst.html">→ Analyst Guide</a>
+          <a href="guide-viewer.html">→ Viewer Guide</a>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main>
+
+        <!-- OVERVIEW -->
+        <div id="overview">
+          <h2>Administrator Overview</h2>
+          <div class="card card-accent">
+            <p>The <strong>Admin</strong> role has unrestricted access to all features in pktLog. Administrators are responsible for the health of the platform, the security of user accounts, and the correctness of ingest configuration.</p>
+            <p style="margin-bottom:0;">Admin accounts should be limited to personnel who require configuration and user management rights. Operational log review tasks should use the Analyst role.</p>
+          </div>
+          <table>
+            <tr><th>Capability</th><th>Admin</th><th>Analyst</th><th>Viewer</th></tr>
+            <tr><td>View dashboard &amp; logs</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Search &amp; filter logs</td><td>✅</td><td>✅</td><td>Read only</td></tr>
+            <tr><td>Export data (CSV/JSON)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+            <tr><td>View and ACK alerts</td><td>✅</td><td>✅</td><td>View only</td></tr>
+            <tr><td>Manage alert rules</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Create / manage users</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Configure ingest settings</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Manage collector registry</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Restart service / backup</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Upload SSL certificates</td><td>✅</td><td>❌</td><td>❌</td></tr>
+          </table>
+        </div>
+
+        <!-- USER MANAGEMENT -->
+        <div id="users">
+          <h2>User Management</h2>
+          <p>Navigate to <strong>Settings → Users</strong> to manage all user accounts. The admin who installs the platform has the initial admin account; additional users are created here.</p>
+          <div class="card">
+            <h3>Creating a User</h3>
+            <ol class="step-list">
+              <li><strong>Open Settings → Users</strong> in the top navigation.</li>
+              <li><strong>Click "New User"</strong> to open the creation form.</li>
+              <li><strong>Enter username and email</strong> — usernames must be unique and lowercase.</li>
+              <li><strong>Set a temporary password</strong> — the user should change this on first login.</li>
+              <li><strong>Assign a role:</strong> Admin, Analyst, or Viewer. Choose the least-privilege role that fits the user's responsibilities.</li>
+              <li><strong>Click Create.</strong> The user can log in immediately.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h3>Role Assignment Guide</h3>
+            <table>
+              <tr><th>Role</th><th>Intended For</th><th>Access Level</th></tr>
+              <tr><td><span class="badge badge-admin">admin</span></td><td>IT administrators, platform owners</td><td>Full — all features, configuration, user management</td></tr>
+              <tr><td><span class="badge" style="background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);">analyst</span></td><td>SOC analysts, security engineers, IT staff</td><td>Read + search + export + alert review</td></tr>
+              <tr><td><span class="badge" style="background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid #166534;">viewer</span></td><td>Operations staff, management</td><td>Read-only dashboard and log browsing</td></tr>
+            </table>
+          </div>
+          <div class="tip">Disable accounts rather than deleting them to preserve audit history. The active/inactive toggle is on each user's row in the Users table.</div>
+        </div>
+
+        <!-- INGEST -->
+        <div id="ingest">
+          <h2>Ingest Configuration</h2>
+          <p>Navigate to <strong>Settings → Ingest</strong> to control how pktLog receives syslog data.</p>
+          <div class="card">
+            <h3>Ingest Settings</h3>
+            <table>
+              <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+              <tr><td>Ingest Port</td><td>8761</td><td>UDP and TCP port for incoming syslog. Changing this requires a service restart.</td></tr>
+              <tr><td>UDP Enabled</td><td>On</td><td>Accept syslog over UDP. Most devices use UDP by default.</td></tr>
+              <tr><td>TCP Enabled</td><td>On</td><td>Accept syslog over TCP for reliable delivery from syslog-ng collectors.</td></tr>
+              <tr><td>Buffer Flush Interval</td><td>5 seconds</td><td>How often to batch-write buffered events to ClickHouse. Lower = more real-time, higher disk I/O.</td></tr>
+              <tr><td>Buffer Max Size</td><td>10,000 records</td><td>Force a flush if this many events accumulate before the interval elapses.</td></tr>
+              <tr><td>Event Retention</td><td>90 days</td><td>ClickHouse TTL for syslog_events. Applied on next ClickHouse merge cycle after change.</td></tr>
+              <tr><td>Journal Max Size</td><td>500 MB</td><td>Maximum disk space for the fallback ingest journal. Oldest files are rotated when the cap is reached.</td></tr>
+            </table>
+          </div>
+          <div class="warn">Changing the ingest port requires restarting pktLog AND reconfiguring all syslog-ng collectors to forward to the new port. Coordinate changes during a maintenance window.</div>
+        </div>
+
+        <!-- COLLECTORS -->
+        <div id="collectors">
+          <h2>Collector Registry</h2>
+          <p>The collector registry maps sending IPs to human-readable names, sites, and groups. This enrichment is applied at normalize time — every event from a registered collector receives the correct <code>collector_name</code>, <code>site</code>, and <code>group_name</code> fields.</p>
+          <div class="card">
+            <h3>Adding a Collector</h3>
+            <p>Navigate to <strong>Settings → Collectors</strong> and click "Add Collector". Enter the sending IP address, a display name, the site label, and an optional group name. Save — enrichment applies to all subsequent events from that IP.</p>
+          </div>
+          <div class="card">
+            <h3>Unknown Collectors</h3>
+            <p>Any IP sending syslog that is not in the registry appears in the <strong>Unknown Collectors</strong> panel. Options:</p>
+            <ul style="list-style:none;margin-top:0.5rem;">
+              <li style="padding:0.25rem 0;color:var(--text-secondary);padding-left:1.25rem;position:relative;"><span style="position:absolute;left:0;color:var(--green-bright);">→</span> <strong style="color:var(--text-primary);">Register it</strong> — click the IP to open the registration form. Future events will be enriched.</li>
+              <li style="padding:0.25rem 0;color:var(--text-secondary);padding-left:1.25rem;position:relative;"><span style="position:absolute;left:0;color:var(--green-bright);">→</span> <strong style="color:var(--text-primary);">Dismiss it</strong> — suppresses alerts about this source without adding it to the registry. Useful for known-good sources that don't need enrichment.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Collector Health Monitoring</h3>
+            <p>The Dashboard shows last-seen timestamps for all registered collectors. A collector that has not sent events within its configured silence threshold will generate a <code>collector_silence</code> alert if that rule is enabled.</p>
+          </div>
+        </div>
+
+        <!-- ALERTS -->
+        <div id="alerts">
+          <h2>Alert Rules</h2>
+          <p>Navigate to <strong>Alerts → Rules</strong> to create and manage alert rules. Rules are evaluated by the alert engine on a configurable interval.</p>
+          <div class="card">
+            <h3>Available Rule Types</h3>
+            <table>
+              <tr><th>Type</th><th>What It Detects</th><th>Key Parameters</th></tr>
+              <tr><td>severity_threshold</td><td>Events at or above a severity level exceed a count in a time window</td><td>Severity, count, window (minutes)</td></tr>
+              <tr><td>collector_silence</td><td>A registered collector stops sending events for a defined period</td><td>Collector name, silence duration</td></tr>
+              <tr><td>new_collector</td><td>An unrecognized IP sends syslog for the first time</td><td>None — fires on any unknown source</td></tr>
+              <tr><td>rate_spike</td><td>Current event rate exceeds the rolling baseline by a multiplier</td><td>Multiplier (e.g. 3×), baseline window (days)</td></tr>
+              <tr><td>keyword_match</td><td>A regex pattern appears in the message field within a window</td><td>Regex pattern, window, minimum count</td></tr>
+              <tr><td>host_pattern</td><td>Events from a specific host or host pattern exceed a threshold</td><td>Host regex, severity, count, window</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Alert Lifecycle</h3>
+            <p>When an alert rule fires, an event is created in the <strong>Alerts → Events</strong> view. Analysts and admins can acknowledge events (marks them reviewed without closing) or resolve them (marks them closed). Resolved events are retained for the configured retention period then purged.</p>
+          </div>
+          <div class="tip">Start with <code>new_collector</code> and <code>collector_silence</code> rules to ensure your ingest pipeline is healthy before adding content-based rules.</div>
+        </div>
+
+        <!-- PLATFORM SETTINGS -->
+        <div id="settings">
+          <h2>Platform Settings</h2>
+          <div class="card">
+            <h3>Settings → General</h3>
+            <table>
+              <tr><th>Setting</th><th>Description</th></tr>
+              <tr><td>Base URL</td><td>Public-facing URL (e.g. <code>https://log.internal</code>). Used for token generation and SAML callback if SSO is configured.</td></tr>
+              <tr><td>Local Auth</td><td>Enable or disable username/password login. Disable if SSO is the sole authentication method.</td></tr>
+              <tr><td>Token Lifetime</td><td>JWT expiry in minutes. Default 480 (8 hours). Shorter values increase security at the cost of more frequent re-authentication.</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Settings → SSL / TLS</h3>
+            <p>pktLog auto-detects SSL on startup. To enable HTTPS, go to <strong>Settings → Integrations → SSL/TLS</strong> and upload either a PFX/P12 bundle or a PEM certificate + private key pair. A service restart is required to apply the new certificate. The restart button is in <strong>Settings → System</strong>.</p>
+          </div>
+          <div class="card">
+            <h3>Settings → Storage</h3>
+            <p>The storage backend defaults to ClickHouse. The <strong>Manual Cleanup</strong> button triggers an immediate TTL purge outside of ClickHouse's automatic merge schedule — use this after dramatically shortening retention to reclaim disk space promptly.</p>
+          </div>
+        </div>
+
+        <!-- SYSTEM MAINTENANCE -->
+        <div id="system">
+          <h2>System Maintenance</h2>
+          <div class="card">
+            <h3>Restarting the Service</h3>
+            <p>Navigate to <strong>Settings → System → Restart Service</strong>. The UI will show a loading state while the service restarts (~5 seconds). After restart, connected collectors will automatically reconnect and resume sending events.</p>
+          </div>
+          <div class="card">
+            <h3>Backup</h3>
+            <p>pktLog maintains a 2-revision rotating backup of all application data. Click <strong>Settings → System → Backup</strong> to trigger an immediate backup. The backup includes the SQLite database (users, settings, alert rules) and configuration. ClickHouse data is not included in this backup — use ClickHouse-native backup for event data.</p>
+          </div>
+          <div class="card">
+            <h3>Emergency Password Reset</h3>
+            <p>If an admin account is locked out, the password can be reset directly in the SQLite database via the server CLI. Contact your server administrator and use the <code>bcrypt</code> reset procedure documented in the deployment runbook.</p>
+          </div>
+          <div class="warn">Always run a backup before performing upgrades, schema changes, or significant configuration modifications.</div>
+        </div>
+
+        <!-- SECURITY -->
+        <div id="security">
+          <h2>Security Guidance</h2>
+          <div class="card">
+            <h3>Hardening Checklist</h3>
+            <ol class="step-list">
+              <li><strong>Change the default secret key</strong> in <code>config.yaml</code> before first production login. Use a cryptographically random 32-byte hex string.</li>
+              <li><strong>Enable HTTPS</strong> before exposing the interface to any network. Upload a valid certificate via Settings → SSL/TLS.</li>
+              <li><strong>Restrict CORS origins</strong> in config to your dashboard's actual hostname.</li>
+              <li><strong>Limit Admin accounts</strong> to only those who need platform configuration rights. Operational staff should be Analyst or Viewer.</li>
+              <li><strong>Set a short token lifetime</strong> (120–240 minutes) for environments with sensitive log data.</li>
+              <li><strong>Restrict the ingest port (8761)</strong> at the firewall to only your collector host IPs — it should not be publicly accessible.</li>
+              <li><strong>Rotate the JWT secret key</strong> periodically. This invalidates all active sessions, requiring users to re-authenticate.</li>
+            </ol>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="28">
+        <defs><clipPath id="clf"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#clf)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+      <span style="color:var(--text-muted);font-size:0.85rem;">pktLog Administrator Guide · v1.0</span>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="guide-analyst.html">Analyst</a><a href="guide-viewer.html">Viewer</a>
+    </div>
+  </div>
+</footer>
+</body></html>

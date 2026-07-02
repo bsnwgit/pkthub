@@ -1,154 +1,143 @@
-"""
-pktHub deploy script
-Uploads source to pkt server, builds frontend, restarts service.
-Run: python deploy.py
-"""
-import paramiko
-import sys
 import os
-import stat
 import time
-
-sys.stdout.reconfigure(encoding='utf-8')
+import yaml
+import paramiko
 
 HOST = "172.23.80.5"
 USER = "ec2-user"
-KEY_PATH = r"C:\Users\robert.barnett\.ssh\VyneCorpNetInfra.pem"
-LOCAL_ROOT = r"C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub"
-REMOTE_ROOT = "/mnt/software/pkthub"
+KEY  = r"C:\Users\robert.barnett\.ssh\VyneCorpNetInfra.pem"
 
-SKIP_PATTERNS = {".git", "node_modules", "__pycache__", ".pyc", "dist", "*.db", "config.yaml", "pkthub_briefing.md"}
+PROJECT = r"C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktDashboard"
+REMOTE  = "/mnt/software/pktdashboard"
 
-def should_skip(path: str) -> bool:
-    name = os.path.basename(path)
-    for p in SKIP_PATTERNS:
-        if p.startswith("*."):
-            if name.endswith(p[1:]):
-                return True
-        elif name == p:
-            return True
-    return False
+SVC_PASSWORD = "Pkt@Dash2026"
 
-def connect():
-    key = paramiko.RSAKey.from_private_key_file(KEY_PATH)
+# Read local config.yaml to pick up SSL settings
+_cfg_path = os.path.join(PROJECT, "config.yaml")
+with open(_cfg_path) as _f:
+    _cfg = yaml.safe_load(_f) or {}
+SSL_ENABLED = bool(_cfg.get("ssl_enabled", False))
+SSL_CERT    = _cfg.get("ssl_cert", "").strip()
+SSL_KEY     = _cfg.get("ssl_key", "").strip()
+
+
+def ssh_connect():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(HOST, username=USER, pkey=key, timeout=15, banner_timeout=15)
+    client.connect(HOST, username=USER, key_filename=KEY, timeout=15)
     return client
 
-def run(client, cmd, label=""):
-    if label:
-        print(f"  >> {label}")
-    _, stdout, stderr = client.exec_command(cmd, timeout=120)
+
+def run(client, cmd):
+    print("  $ " + cmd)
+    _, stdout, stderr = client.exec_command(cmd)
     out = stdout.read().decode("utf-8", errors="replace").strip()
     err = stderr.read().decode("utf-8", errors="replace").strip()
     if out:
-        for line in out.splitlines():
-            print(f"     {line}")
+        print("    " + out.encode("ascii", errors="replace").decode())
     if err:
-        for line in err.splitlines():
-            print(f"  !! {line}")
+        print("    ERR: " + err.encode("ascii", errors="replace").decode())
     return out
 
-def sftp_upload(sftp, local_dir, remote_dir):
-    """Recursively upload local_dir to remote_dir."""
-    if not os.path.exists(local_dir):
-        print(f"  !! SKIPPED (not found): {local_dir}")
-        return
-    for root, dirs, files in os.walk(local_dir):
-        # Filter dirs in-place
-        dirs[:] = [d for d in dirs if not should_skip(os.path.join(root, d))]
-        rel = os.path.relpath(root, local_dir).replace("\\", "/")
-        remote_path = f"{remote_dir}/{rel}".replace("//", "/").rstrip("/.")
-        if rel == ".":
-            remote_path = remote_dir
-        # Ensure remote directory exists
-        try:
-            sftp.stat(remote_path)
-        except FileNotFoundError:
-            sftp.mkdir(remote_path)
-        for fname in files:
-            if should_skip(fname):
-                continue
-            local_file = os.path.join(root, fname)
-            remote_file = f"{remote_path}/{fname}"
-            sftp.put(local_file, remote_file)
-            print(f"  + {remote_file}")
+
+def sftp_upload_dir(sftp, local_dir, remote_dir):
+    try:
+        sftp.mkdir(remote_dir)
+    except OSError:
+        pass
+    for item in os.listdir(local_dir):
+        lp = os.path.join(local_dir, item)
+        rp = remote_dir + "/" + item
+        if os.path.isdir(lp):
+            sftp_upload_dir(sftp, lp, rp)
+        else:
+            print("  upload: " + item + " -> " + rp)
+            sftp.put(lp, rp)
+
 
 def main():
-    print("=" * 60)
-    print("pktHub Deploy")
-    print("=" * 60)
-    print(f"  Source: {LOCAL_ROOT}")
+    print("=== pktDashboard Deploy ===")
 
-    print("\n[1] Connecting…")
-    client = connect()
-    sftp = client.open_sftp()
-    print("    Connected.")
+    client = ssh_connect()
+    sftp   = client.open_sftp()
 
-    # Ensure target dirs exist
-    print("\n[2] Creating remote directories…")
-    for d in [REMOTE_ROOT, f"{REMOTE_ROOT}/app", f"{REMOTE_ROOT}/frontend", f"{REMOTE_ROOT}/logs"]:
-        try:
-            sftp.stat(d)
-        except FileNotFoundError:
-            sftp.mkdir(d)
-    print("    OK.")
+    # 1. Create pktFlow service account
+    print("\n[1/5] Creating pktFlow service account...")
+    lines = [
+        "import sys, sqlite3, bcrypt",
+        "DB = '/mnt/software/pktflow/pktflow.db'",
+        "hashed = bcrypt.hashpw(b'" + SVC_PASSWORD + "', bcrypt.gensalt()).decode()",
+        "conn = sqlite3.connect(DB)",
+        "try:",
+        "    row = conn.execute(\"SELECT id FROM users WHERE username='pktdashboard'\").fetchone()",
+        "    if row:",
+        "        print('Service account already exists')",
+        "    else:",
+        "        conn.execute('INSERT INTO users (username, email, hashed_password, role, is_active) VALUES (?,?,?,?,?)',",
+        "            ('pktdashboard','pktdashboard@internal',hashed,'viewer',1))",
+        "        conn.commit()",
+        "        print('Service account created')",
+        "except Exception as e:",
+        "    print('ERROR:', e); sys.exit(1)",
+        "finally:",
+        "    conn.close()",
+    ]
+    script = "\n".join(lines)
+    with sftp.open("/tmp/_pktd_setup.py", "w") as f:
+        f.write(script)
+    run(client, "/mnt/software/pktflow/venv/bin/python3 /tmp/_pktd_setup.py")
+    run(client, "rm /tmp/_pktd_setup.py")
 
-    # Upload backend
-    print("\n[3] Uploading backend (app/)…")
-    sftp_upload(sftp, os.path.join(LOCAL_ROOT, "app"), f"{REMOTE_ROOT}/app")
+    # 2. Create directories
+    print("\n[2/5] Creating remote directories...")
+    run(client, "mkdir -p " + REMOTE + "/app " + REMOTE + "/frontend " + REMOTE + "/logos /mnt/software/logs")
 
-    # Upload root-level Python/config files
-    print("\n[4] Uploading root files…")
-    for fname in ["requirements.txt", "config.example.yaml", "pkthub.service"]:
-        local = os.path.join(LOCAL_ROOT, fname)
-        if os.path.exists(local):
-            sftp.put(local, f"{REMOTE_ROOT}/{fname}")
-            print(f"  + {fname}")
+    # 3. Upload files
+    print("\n[3/5] Uploading files...")
+    sftp_upload_dir(sftp, os.path.join(PROJECT, "app"),      REMOTE + "/app")
+    sftp_upload_dir(sftp, os.path.join(PROJECT, "frontend"), REMOTE + "/frontend")
+    sftp_upload_dir(sftp, os.path.join(PROJECT, "logos"),    REMOTE + "/logos")
+    for fname in ["requirements.txt", "config.yaml"]:
+        sftp.put(os.path.join(PROJECT, fname), REMOTE + "/" + fname)
+        print("  upload: " + fname)
 
-    # Upload frontend source
-    print("\n[5] Uploading frontend source…")
-    sftp_upload(sftp, os.path.join(LOCAL_ROOT, "frontend"), f"{REMOTE_ROOT}/frontend")
+    # 4. Python venv
+    print("\n[4/5] Setting up venv...")
+    run(client, "python3 -m venv " + REMOTE + "/venv")
+    run(client, REMOTE + "/venv/bin/pip install --quiet --upgrade pip")
+    run(client, REMOTE + "/venv/bin/pip install --quiet -r " + REMOTE + "/requirements.txt")
+
+    # 5. SSL certs (optional)
+    if SSL_ENABLED:
+        print("\n[5/6] Uploading SSL cert and key...")
+        if not SSL_CERT or not os.path.isfile(SSL_CERT):
+            raise FileNotFoundError("ssl_cert not found locally: " + SSL_CERT)
+        if not SSL_KEY or not os.path.isfile(SSL_KEY):
+            raise FileNotFoundError("ssl_key not found locally: " + SSL_KEY)
+        run(client, "mkdir -p " + REMOTE + "/tls && chmod 700 " + REMOTE + "/tls")
+        sftp.put(SSL_CERT, REMOTE + "/tls/cert.pem")
+        print("  upload: cert.pem")
+        sftp.put(SSL_KEY, REMOTE + "/tls/key.pem")
+        print("  upload: key.pem")
+        run(client, "chmod 600 " + REMOTE + "/tls/key.pem")
+    else:
+        print("\n[5/6] SSL disabled — skipping cert upload")
+
+    # 6. systemd
+    print("\n[6/6] Installing systemd service...")
+    sftp.put(os.path.join(PROJECT, "pktdashboard.service"), "/tmp/pktdashboard.service")
+    run(client, "sudo cp /tmp/pktdashboard.service /etc/systemd/system/pktdashboard.service")
+    run(client, "sudo systemctl daemon-reload")
+    run(client, "sudo systemctl enable pktdashboard")
+    run(client, "sudo systemctl restart pktdashboard")
+    time.sleep(4)
+    run(client, "sudo systemctl status pktdashboard --no-pager -l")
 
     sftp.close()
-
-    # Install pip deps
-    print("\n[6] Installing Python dependencies…")
-    run(client,
-        f"cd {REMOTE_ROOT} && pip3 install -r requirements.txt -q --user",
-        "pip install")
-
-    # Build frontend in /tmp (avoids disk space issues in app dir)
-    print("\n[7] Building frontend (npm install + vite build)…")
-    build_cmd = (
-        f"cd /tmp && rm -rf pkthub_build && cp -r {REMOTE_ROOT}/frontend pkthub_build && "
-        f"cd pkthub_build && npm install --silent && npm run build && "
-        f"rm -rf {REMOTE_ROOT}/frontend/dist && "
-        f"cp -r dist {REMOTE_ROOT}/frontend/dist"
-    )
-    run(client, build_cmd, "build")
-
-    # Install/reload systemd service
-    print("\n[8] Installing systemd service…")
-    run(client,
-        f"sudo cp {REMOTE_ROOT}/pkthub.service /etc/systemd/system/pkthub.service && sudo systemctl daemon-reload",
-        "systemctl daemon-reload")
-
-    # Create config from example if not present
-    run(client,
-        f"test -f {REMOTE_ROOT}/config.yaml || cp {REMOTE_ROOT}/config.example.yaml {REMOTE_ROOT}/config.yaml",
-        "ensure config.yaml")
-
-    # Restart service
-    print("\n[9] Restarting pktHub service…")
-    run(client, "sudo systemctl restart pkthub", "restart")
-    time.sleep(3)
-    run(client, "sudo systemctl is-active pkthub", "is-active check")
-    run(client, "sudo systemctl status pkthub --no-pager -l | head -30", "status")
-
     client.close()
-    print("\n[DONE] pktHub deployed. https://172.23.80.5:8760")
+    scheme = "https" if SSL_ENABLED else "http"
+    print("\n==> Deploy complete: " + scheme + "://172.23.80.5:8760")
+
 
 if __name__ == "__main__":
     main()

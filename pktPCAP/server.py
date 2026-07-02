@@ -1,0 +1,1234 @@
+#!/usr/bin/env python3
+"""
+pktPCAP -- standalone web service
+Run: python server.py
+"""
+
+import json, logging, os, sys, webbrowser, threading, time, secrets, re as _re, socket, datetime
+from pathlib import Path
+from flask import Flask, request, jsonify, send_from_directory, render_template, Response, session, redirect
+
+from db import init_db, get_db, load_db_config, save_db_config, hash_password, check_password, Database
+
+# ── Optional SAML support ─────────────────────────────────────────────────────
+try:
+    from onelogin.saml2.auth import OneLogin_Saml2_Auth
+    from onelogin.saml2.settings import OneLogin_Saml2_Settings
+    _SAML_AVAILABLE = True
+except ImportError:
+    _SAML_AVAILABLE = False
+
+log = logging.getLogger("pktpcap.server")
+_log_handler = None  # set at startup
+
+BASE = Path(__file__).parent
+
+# -- Live Feed Sessions --------------------------------------------------------
+
+class FeedSession:
+    """Buffers a live pcapng stream pushed from a remote tshark/Wireshark host."""
+    MAX_BYTES = 200 * 1024 * 1024  # 200 MB per session
+
+    def __init__(self, name, remote_addr):
+        self.name           = name
+        self.remote_addr    = remote_addr
+        self.created_at     = time.time()
+        self.last_seen      = time.time()
+        self.connected      = False
+        self._lock          = threading.Lock()
+        self._buf           = bytearray()
+        self.bytes_received = 0
+        self.truncated      = False
+
+    def append(self, data):
+        with self._lock:
+            self.last_seen       = time.time()
+            self.bytes_received += len(data)
+            remaining = self.MAX_BYTES - len(self._buf)
+            if remaining > 0:
+                self._buf.extend(data[:remaining])
+                if len(data) > remaining:
+                    self.truncated = True
+            else:
+                self.truncated = True
+
+    def get_bytes(self):
+        with self._lock:
+            return bytes(self._buf)
+
+    def clear(self):
+        with self._lock:
+            self._buf           = bytearray()
+            self.bytes_received = 0
+            self.truncated      = False
+
+    def to_dict(self):
+        with self._lock:
+            return {
+                "name":           self.name,
+                "remote_addr":    self.remote_addr,
+                "connected":      self.connected,
+                "created_at":     self.created_at,
+                "last_seen":      self.last_seen,
+                "bytes_buffered": len(self._buf),
+                "bytes_received": self.bytes_received,
+                "duration":       self.last_seen - self.created_at,
+                "truncated":      self.truncated,
+            }
+
+_feed_sessions = {}
+_feed_sessions_lock = threading.Lock()
+
+def _get_or_create_feed(name, remote_addr):
+    with _feed_sessions_lock:
+        if name not in _feed_sessions:
+            _feed_sessions[name] = FeedSession(name, remote_addr)
+        return _feed_sessions[name]
+
+
+def _ensure_suite_token():
+    """Generate a suite token if one is not already set."""
+    import sqlite3 as _sq_st, secrets as _sec_st
+    _db_path = load_db_config().get("db_path", "pktpcap.db")
+    if not os.path.isabs(_db_path):
+        _db_path = str(BASE / _db_path)
+    _conn = _sq_st.connect(_db_path)
+    _row = _conn.execute("SELECT value FROM settings WHERE key='suite_token'").fetchone()
+    if not _row or not (_row[0] or "").strip():
+        _new = _sec_st.token_urlsafe(32)
+        _conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('suite_token',?)", (_new,))
+        _conn.commit()
+        log.info("Generated suite_token for pktHub integration")
+    _conn.close()
+
+def _ensure_feed_token():
+    db  = get_db()
+    cfg = db.get_all_settings()
+    if not cfg.get("feed_token"):
+        db.set_many_settings({"feed_token": secrets.token_urlsafe(32)})
+
+def _check_feed_auth():
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return False
+    token = auth[7:].strip()
+    return bool(token) and token == load_config().get("feed_token", "")
+
+def _get_server_ip():
+    """Return the machine's primary LAN IP (non-loopback)."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def _update_lock_heartbeat():
+    """Update lock_heartbeat_at in SQLite (called on each valid hub request)."""
+    import sqlite3 as _sq
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('lock_heartbeat_at', datetime('now'))")
+        _conn.commit()
+        _conn.close()
+    except Exception:
+        pass
+
+
+# -- Flask app -----------------------------------------------------------------
+
+app = Flask(__name__, static_folder="static", template_folder="templates")
+
+def load_config():
+    return get_db().get_all_settings()
+
+def save_config(cfg):
+    get_db().set_many_settings(cfg)
+
+# ── Session secret key ────────────────────────────────────────────────────────
+
+def _ensure_secret_key():
+    db  = get_db()
+    key = db.get_setting("flask_secret_key")
+    if not key:
+        key = secrets.token_hex(32)
+        db.set_setting("flask_secret_key", key)
+    app.secret_key = key
+
+# ── Auth middleware ───────────────────────────────────────────────────────────
+
+_AUTH_PUBLIC      = {"/login", "/api/login", "/api/logout", "/api/health"}
+_AUTH_PUBLIC_PFX  = ("/static/", "/api/auth/saml", "/api/feed/", "/api/suite/")
+
+@app.route("/api/health")
+def api_health():
+    """Public health endpoint — no auth required. Called by pktHub to check status."""
+    import sqlite3 as _sq
+    _locked = False; _rurl = ""
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _row = _conn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        _locked = bool(_row and _row[0] == "true")
+        _rrow = _conn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+        _rurl = _rrow[0] if _rrow and _rrow[0] else ""
+        _suite_tk = request.headers.get("X-Suite-Token", "")
+        if _suite_tk:
+            _st_row = _conn.execute("SELECT value FROM settings WHERE key='suite_token'").fetchone()
+            _raw_hb_tok = _st_row[0] if _st_row and _st_row[0] else ""
+            try:
+                import json as _json_hb
+                _stored_hb_tok = _json_hb.loads(_raw_hb_tok) if _raw_hb_tok else ""
+            except Exception:
+                _stored_hb_tok = _raw_hb_tok
+            if _stored_hb_tok and _suite_tk == _stored_hb_tok:
+                _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('lock_heartbeat_at', datetime('now'))")
+                _conn.commit()
+        _conn.close()
+    except Exception:
+        pass
+    return jsonify({"status": "ok", "app": "pktpcap", "version": "0.1.0",
+                    "direct_ui_locked": _locked, "hub_redirect_url": _rurl}), 200
+
+
+@app.before_request
+def require_login():
+    path = request.path
+    if path in _AUTH_PUBLIC or any(path.startswith(p) for p in _AUTH_PUBLIC_PFX):
+        return None
+
+    cfg = load_config()
+    # Both auth methods off → open access (prevents lockout)
+    if not cfg.get("local_auth_enabled", True) and not cfg.get("okta_saml_enabled", False):
+        return None
+
+    # ── pktHub suite-token auth ─────────────────────────────────────────
+    # X-Suite-Token is sent by pktHub proxy on every proxied request.
+    # Validate it and establish a Flask session so normal auth checks pass.
+    _suite_tk = request.headers.get("X-Suite-Token", "")
+    if _suite_tk:
+        _st_cfg = load_config()
+        _expected = _st_cfg.get("suite_token", "")
+        if _expected and _suite_tk == _expected:
+            _update_lock_heartbeat()
+            _hub_user = request.headers.get("X-Suite-User", "hub_user")
+            _hub_role = request.headers.get("X-Suite-Role", "viewer")
+            session["user_id"] = _hub_user
+            session["role"] = "admin" if _hub_role == "admin" else "viewer"
+            session["login_time"] = time.time()
+            return None
+
+
+    # ── Direct access lock ──────────────────────────────────────────────────
+    import sqlite3 as _sq
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _lconn = _sq.connect(_db_path)
+        _lrow = _lconn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        if _lrow and _lrow[0] == "true":
+            _lhrow = _lconn.execute("SELECT value FROM settings WHERE key='lock_heartbeat_at'").fetchone()
+            _lexpired = True
+            if _lhrow and _lhrow[0]:
+                import datetime as _ldta
+                try:
+                    _llast = _ldta.datetime.fromisoformat(str(_lhrow[0]).replace(" ", "T"))
+                    _lexpired = (_ldta.datetime.now() - _llast).total_seconds() > 300
+                except Exception:
+                    pass
+            if _lexpired:
+                _lconn.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES ('direct_ui_locked', 'false')")
+                _lconn.commit()
+            else:
+                _lrrow = _lconn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+                _lrurl = _lrrow[0] if _lrrow and _lrrow[0] else ""
+                _lconn.close()
+                if _lrurl:
+                    return redirect(_lrurl, 302)
+        _lconn.close()
+    except Exception:
+        pass
+    # ────────────────────────────────────────────────────────────────────────
+
+    uid = session.get("user_id")
+    if not uid:
+        if path.startswith("/api/"):
+            return jsonify({"error": "Unauthorized", "login_url": "/login"}), 401
+        return redirect("/login")
+
+    timeout = int(cfg.get("session_timeout_minutes", 480)) * 60
+    if time.time() - float(session.get("login_time", 0)) > timeout:
+        session.clear()
+        if path.startswith("/api/"):
+            return jsonify({"error": "Session expired", "login_url": "/login"}), 401
+        return redirect("/login?error=session_expired")
+
+    session["login_time"] = time.time()
+
+# -- Routes --------------------------------------------------------------------
+
+@app.route("/")
+def index():
+    resp = send_from_directory(BASE / "static", "index.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+@app.route("/settings")
+def settings_page():
+    if session.get("role") != "admin":
+        return redirect("/")
+    cfg = load_config()
+    return render_template("settings.html", app_name=cfg.get("app_name", "pktPCAP"))
+
+# -- Auth: login / logout / SAML -----------------------------------------------
+
+@app.route("/login")
+def login_page():
+    if session.get("user_id"):
+        return redirect("/")
+    cfg = load_config()
+    saml_enabled       = bool(cfg.get("okta_saml_enabled") and cfg.get("okta_sso_url"))
+    local_auth_enabled = bool(cfg.get("local_auth_enabled", True))
+    error_map = {
+        "session_expired": "Your session has expired. Please sign in again.",
+        "user_not_found":  "User not found. Contact your administrator.",
+        "account_disabled":"Your account is disabled. Contact your administrator.",
+        "saml_auth_failed":"Okta authentication failed. Please try again.",
+    }
+    raw_err = request.args.get("error", "")
+    error   = error_map.get(raw_err, raw_err.replace("_", " ") if raw_err else "")
+    return render_template("login.html",
+                           app_name=cfg.get("app_name", "pktPCAP"),
+                           saml_enabled=saml_enabled,
+                           local_auth_enabled=local_auth_enabled,
+                           error=error)
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    body     = request.get_json(force=True)
+    username = (body.get("username") or "").strip()
+    password = body.get("password") or ""
+    cfg = load_config()
+    if not cfg.get("local_auth_enabled", True):
+        return jsonify({"ok": False, "error": "Local authentication is disabled"}), 403
+    if not username or not password:
+        return jsonify({"ok": False, "error": "Username and password required"}), 400
+    db   = get_db()
+    user = db.get_user_by_username(username)
+    if not user or not check_password(password, user.get("password_hash", "")):
+        return jsonify({"ok": False, "error": "Invalid username or password"}), 401
+    if (user.get("status") or "active") != "active":
+        return jsonify({"ok": False, "error": "Account is disabled"}), 403
+    session.permanent = True
+    session["user_id"]    = user["id"]
+    session["username"]   = user["username"]
+    session["role"]       = user["role"]
+    session["login_time"] = time.time()
+    db.update_user(user["id"], {"last_login": datetime.datetime.utcnow().isoformat()})
+    return jsonify({"ok": True, "role": user["role"]})
+
+@app.route("/api/logout", methods=["POST", "GET"])
+def api_logout():
+    session.clear()
+    return redirect("/login")
+
+@app.route("/api/auth/current-user")
+def api_current_user():
+    if not session.get("user_id"):
+        return jsonify({"authenticated": False}), 401
+    return jsonify({
+        "authenticated": True,
+        "id":       session["user_id"],
+        "username": session.get("username"),
+        "role":     session.get("role"),
+    })
+
+# -- SAML helpers --------------------------------------------------------------
+
+def _build_saml_settings():
+    cfg  = load_config()
+    base = request.url_root.rstrip("/")
+    ssl  = bool(cfg.get("ssl_enabled"))
+    return {
+        "strict": ssl,
+        "debug":  False,
+        "sp": {
+            "entityId": cfg.get("okta_sp_entity_id") or f"{base}/api/auth/saml/metadata",
+            "assertionConsumerService": {
+                "url":     f"{base}/api/auth/saml/callback",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+            },
+            "singleLogoutService": {
+                "url":     f"{base}/api/auth/saml/slo",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+            },
+            "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+            "x509cert":  cfg.get("okta_sp_cert", ""),
+            "privateKey": cfg.get("okta_sp_key", ""),
+        },
+        "idp": {
+            "entityId": cfg.get("okta_entity_id", ""),
+            "singleSignOnService": {
+                "url":     cfg.get("okta_sso_url", ""),
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+            },
+            "singleLogoutService": {
+                "url":     cfg.get("okta_sso_url", ""),
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+            },
+            "x509cert": cfg.get("okta_cert", ""),
+        },
+    }
+
+def _init_saml_auth():
+    req = {
+        "https":       "on" if request.is_secure else "off",
+        "http_host":   request.host,
+        "server_port": request.environ.get("SERVER_PORT", "443" if request.is_secure else "80"),
+        "script_name": request.path,
+        "get_data":    request.args.to_dict(),
+        "post_data":   request.form.to_dict(),
+        "query_string": request.query_string.decode("utf-8"),
+    }
+    return OneLogin_Saml2_Auth(req, _build_saml_settings())
+
+@app.route("/api/auth/saml/login")
+def saml_login():
+    if not _SAML_AVAILABLE:
+        return "SAML library not installed on this server", 500
+    cfg = load_config()
+    if not cfg.get("okta_saml_enabled"):
+        return "SAML SSO is not enabled", 400
+    auth = _init_saml_auth()
+    return redirect(auth.login())
+
+@app.route("/api/auth/saml/callback", methods=["POST"])
+def saml_callback():
+    if not _SAML_AVAILABLE:
+        return "SAML library not installed", 500
+    auth = _init_saml_auth()
+    auth.process_response()
+    errors = auth.get_errors()
+    if errors:
+        log.error("SAML errors: %s — %s", errors, auth.get_last_error_reason())
+        return redirect("/login?error=saml_auth_failed")
+    if not auth.is_authenticated():
+        return redirect("/login?error=saml_auth_failed")
+    name_id    = auth.get_nameid()   # Okta sends email as NameID
+    attributes = auth.get_attributes()
+    log.warning("SAML login NameID=%s attributes=%s", name_id, attributes)
+
+    # Extract role from Okta attributes (checks common attribute names)
+    _VALID_ROLES = {"admin", "analyst", "viewer"}
+    okta_role = None
+    for attr_key in ("role", "Role", "userRole", "pktpcap_role", "appRole"):
+        val = attributes.get(attr_key)
+        if val:
+            candidate = (val[0] if isinstance(val, list) else val).lower().strip()
+            if candidate in _VALID_ROLES:
+                okta_role = candidate
+                break
+
+    db   = get_db()
+    user = db.get_user_by_email(name_id) or db.get_user_by_username(name_id)
+    if not user:
+        # Auto-provision on first SAML login — default admin since Okta access = trusted
+        role = okta_role or "admin"
+        email    = name_id if "@" in name_id else ""
+        username = email.split("@")[0] if email else name_id
+        base = username; suffix = 0
+        while db.get_user_by_username(username):
+            suffix += 1; username = f"{base}{suffix}"
+        log.info("SAML auto-provision: user=%s email=%s role=%s", username, email, role)
+        db.create_user(username=username, email=email, role=role, password_hash="")
+        user = db.get_user_by_email(name_id) or db.get_user_by_username(username)
+        if not user:
+            log.error("SAML auto-provision failed for %s", name_id)
+            return redirect("/login?error=provision_failed")
+    else:
+        # Sync role from Okta on every login if Okta sends one
+        if okta_role and user.get("role") != okta_role:
+            log.info("SAML role sync: user=%s %s -> %s", user["username"], user.get("role"), okta_role)
+            db.update_user(user["id"], {"role": okta_role})
+            user = db.get_user_by_email(name_id) or db.get_user_by_username(user["username"])
+
+    if (user.get("status") or "active") != "active":
+        return redirect("/login?error=account_disabled")
+    session.permanent = True
+    session["user_id"]    = user["id"]
+    session["username"]   = user["username"]
+    session["role"]       = user["role"]
+    session["login_time"] = time.time()
+    db.update_user(user["id"], {"last_login": datetime.datetime.utcnow().isoformat()})
+    return redirect("/")
+
+@app.route("/api/auth/saml/metadata")
+def saml_metadata():
+    if not _SAML_AVAILABLE:
+        return "SAML library not installed", 500
+    settings = OneLogin_Saml2_Settings(_build_saml_settings(), sp_validation_only=True)
+    metadata = settings.get_sp_metadata()
+    return Response(metadata, mimetype="text/xml")
+
+# -- API: settings -------------------------------------------------------------
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    cfg    = load_config()
+    masked = dict(cfg)
+    BULLET = "ΓÇó"
+    for k in ("anthropic_key", "openai_key", "notify_email_password",
+              "notify_pagerduty_integration_key", "notify_tracecat_api_token",
+              "lucid_api_token"):
+        if masked.get(k):
+            v = str(masked[k])
+            masked[k] = v[:8] + BULLET * max(0, len(v) - 8)
+    masked["server_ip"] = _get_server_ip()
+    return jsonify(masked)
+
+@app.route("/api/settings", methods=["POST"])
+def post_settings():
+    body = request.get_json(force=True)
+    db   = get_db()
+    cfg  = db.get_all_settings()
+    BULLET = "ΓÇó"
+
+    for field in (
+        "app_name", "provider", "anthropic_model", "openai_model",
+        "base_url", "timezone", "storage_path", "backup_path",
+        "notify_slack_channel", "notify_slack_webhook_url",
+        "notify_email_smtp_host", "notify_email_from", "notify_email_default_to",
+        "notify_email_username", "notify_webhook_url", "notify_webhook_method",
+        "notify_webhook_payload_template", "notify_tracecat_webhook_url",
+        "okta_metadata_xml", "okta_entity_id", "okta_sso_url", "okta_cert",
+        "pfx_path", "pfx_passphrase", "pem_cert_path", "pem_key_path",
+        "ssl_cert", "ssl_key",
+    ):
+        if field in body:
+            cfg[field] = body[field]
+
+    cfg["app_name"] = cfg.get("app_name") or "pktPCAP"
+
+    for field, default in (("port", 8765), ("max_upload_mb", 500),
+                           ("storage_quota_gb", 50), ("retention_days", 90),
+                           ("backup_interval_hours", 24), ("backup_rotation", 7),
+                           ("session_timeout_minutes", 480),
+                           ("notify_email_smtp_port", 587)):
+        if field in body:
+            try:
+                cfg[field] = int(body[field])
+            except (ValueError, TypeError):
+                cfg[field] = default
+
+    for field in (
+        "ssl_enabled", "auto_purge", "auto_backup", "backup_include_captures",
+        "local_auth_enabled", "okta_saml_enabled", "notify_smtp_tls",
+        "notify_slack_enabled", "notify_email_enabled", "notify_pagerduty_enabled",
+        "notify_webhook_enabled", "notify_tracecat_enabled", "pfx_mode",
+        "wireshark_capture_enabled",
+    ):
+        if field in body:
+            cfg[field] = bool(body[field])
+
+    for k in ("anthropic_key", "openai_key", "notify_email_password",
+              "notify_pagerduty_integration_key", "notify_tracecat_api_token",
+              "lucid_api_token"):
+        v = body.get(k, "")
+        if v and BULLET not in str(v):
+            cfg[k] = v
+
+    db.set_many_settings(cfg)
+    return jsonify({"ok": True, "port": cfg.get("port", 8765)})
+
+# -- API: database config ------------------------------------------------------
+
+@app.route("/api/db-config", methods=["GET"])
+def get_db_config():
+    return jsonify(load_db_config())
+
+@app.route("/api/db-config/test", methods=["POST"])
+def test_db_config():
+    body    = request.get_json(force=True)
+    db_type = body.get("db_type", "sqlite")
+    db_path = body.get("db_path", "pktpcap.db")
+    if db_type != "sqlite":
+        return jsonify({"ok": False, "error": "Only SQLite is supported"}), 400
+    try:
+        test_db = Database(db_path)
+        test_db._conn().execute("SELECT 1")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/db-config", methods=["POST"])
+def post_db_config():
+    body    = request.get_json(force=True)
+    db_type = body.get("db_type", "sqlite")
+    db_path = (body.get("db_path") or "pktpcap.db").strip()
+    if db_type != "sqlite":
+        return jsonify({"ok": False, "error": "Only SQLite is supported currently"}), 400
+    if not db_path:
+        return jsonify({"ok": False, "error": "db_path required"}), 400
+    try:
+        new_db = Database(db_path)
+        new_db._conn().execute("SELECT 1")
+    except Exception as e:
+        return jsonify({"ok": False, "error": "Cannot open DB: {}".format(e)}), 400
+    try:
+        export = get_db().export_all()
+        new_db.import_all(export)
+    except Exception as e:
+        return jsonify({"ok": False, "error": "Migration failed: {}".format(e)}), 500
+    save_db_config(db_type, db_path)
+    import db as _db_module
+    _db_module._db = new_db
+    return jsonify({"ok": True})
+
+# -- API: AI proxy -------------------------------------------------------------
+
+@app.route("/api/ai", methods=["POST"])
+def ai_call():
+    cfg      = load_config()
+    body     = request.get_json(force=True)
+    prompt   = body.get("prompt", "")
+    data     = body.get("data", [])
+    provider = cfg.get("provider", "anthropic")
+    user_content = "\n\n".join(data) if data else ""
+    full_message = (prompt + "\n\n" + user_content).strip() if user_content else prompt
+    try:
+        if provider == "anthropic":
+            key   = cfg.get("anthropic_key", "")
+            model = cfg.get("anthropic_model", "claude-opus-4-8")
+            if not key:
+                return jsonify({"error": "Anthropic API key not configured. Go to /settings to add it."}), 400
+            import anthropic as _ant
+            client = _ant.Anthropic(api_key=key)
+            resp = client.messages.create(model=model, max_tokens=2048,
+                                          messages=[{"role": "user", "content": full_message}])
+            text = resp.content[0].text if resp.content else ""
+        elif provider == "openai":
+            key   = cfg.get("openai_key", "")
+            model = cfg.get("openai_model", "gpt-4o")
+            if not key:
+                return jsonify({"error": "OpenAI API key not configured. Go to /settings to add it."}), 400
+            import openai as _oai
+            client = _oai.OpenAI(api_key=key)
+            resp = client.chat.completions.create(model=model, max_tokens=2048,
+                                                  messages=[{"role": "user", "content": full_message}])
+            text = resp.choices[0].message.content or ""
+        else:
+            return jsonify({"error": "Unknown provider: {}".format(provider)}), 400
+        return jsonify({"content": text})
+    except Exception as e:
+        log.exception("AI call failed")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/ai/test", methods=["POST"])
+def ai_test():
+    cfg      = load_config()
+    body     = request.get_json(force=True)
+    provider = body.get("provider", cfg.get("provider", "anthropic"))
+    BULLET   = "ΓÇó"
+
+    def pick_key(field):
+        v = body.get(field, "")
+        return v if (v and BULLET not in str(v)) else cfg.get(field, "")
+
+    try:
+        if provider == "anthropic":
+            key   = pick_key("anthropic_key")
+            model = body.get("anthropic_model") or cfg.get("anthropic_model", "claude-opus-4-8")
+            if not key:
+                return jsonify({"ok": False, "error": "No Anthropic key provided"}), 400
+            import anthropic as _ant
+            client = _ant.Anthropic(api_key=key)
+            resp = client.messages.create(model=model, max_tokens=20,
+                                          messages=[{"role": "user", "content": "Say PONG"}])
+            return jsonify({"ok": True, "reply": resp.content[0].text})
+        elif provider == "openai":
+            key   = pick_key("openai_key")
+            model = body.get("openai_model") or cfg.get("openai_model", "gpt-4o")
+            if not key:
+                return jsonify({"ok": False, "error": "No OpenAI key provided"}), 400
+            import openai as _oai
+            client = _oai.OpenAI(api_key=key)
+            resp = client.chat.completions.create(model=model, max_tokens=20,
+                                                  messages=[{"role": "user", "content": "Say PONG"}])
+            return jsonify({"ok": True, "reply": resp.choices[0].message.content})
+        else:
+            return jsonify({"ok": False, "error": "Unknown provider: {}".format(provider)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# -- API: users ----------------------------------------------------------------
+
+def _safe_user(u):
+    return {k: v for k, v in u.items() if k != "password_hash"}
+
+@app.route("/api/users", methods=["GET"])
+def api_get_users():
+    return jsonify([_safe_user(u) for u in get_db().get_users()])
+
+@app.route("/api/users", methods=["POST"])
+def api_create_user():
+    body     = request.get_json(force=True)
+    username = (body.get("username") or "").strip()
+    email    = (body.get("email") or "").strip()
+    password = body.get("password") or ""
+    role     = body.get("role", "viewer")
+    if not username:
+        return jsonify({"ok": False, "error": "Username required"}), 400
+    if not password:
+        return jsonify({"ok": False, "error": "Password required"}), 400
+    if role not in ("admin", "analyst", "viewer"):
+        return jsonify({"ok": False, "error": "Invalid role"}), 400
+    db = get_db()
+    if db.get_user_by_username(username):
+        return jsonify({"ok": False, "error": "Username already exists"}), 400
+    uid = db.create_user(username, email, role, hash_password(password))
+    return jsonify({"ok": True, "id": uid})
+
+@app.route("/api/users/<int:uid>", methods=["PUT"])
+def api_update_user(uid):
+    body = request.get_json(force=True)
+    db   = get_db()
+    user = db.get_user(uid)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    fields = {}
+    new_username = (body.get("username") or "").strip()
+    if new_username and new_username != user["username"]:
+        if db.get_user_by_username(new_username):
+            return jsonify({"ok": False, "error": "Username already exists"}), 400
+        fields["username"] = new_username
+    if body.get("email") is not None:
+        fields["email"] = body["email"].strip()
+    if body.get("role") in ("admin", "analyst", "viewer"):
+        fields["role"] = body["role"]
+    if body.get("status") in ("active", "inactive"):
+        fields["status"] = body["status"]
+    if body.get("password"):
+        fields["password_hash"] = hash_password(body["password"])
+    db.update_user(uid, fields)
+    return jsonify({"ok": True})
+
+@app.route("/api/users/<int:uid>", methods=["DELETE"])
+def api_delete_user(uid):
+    db   = get_db()
+    user = db.get_user(uid)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    if user["role"] == "admin" and db.count_active_admins() <= 1:
+        return jsonify({"ok": False, "error": "Cannot delete the last admin"}), 400
+    db.delete_user(uid)
+    return jsonify({"ok": True})
+
+@app.route("/api/users/<int:uid>/reset-password", methods=["POST"])
+def api_reset_password(uid):
+    body   = request.get_json(force=True)
+    new_pw = body.get("password") or ""
+    if not new_pw:
+        return jsonify({"ok": False, "error": "Password required"}), 400
+    db = get_db()
+    if not db.get_user(uid):
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    db.update_user(uid, {"password_hash": hash_password(new_pw)})
+    return jsonify({"ok": True})
+
+# -- API: restart --------------------------------------------------------------
+
+@app.route("/api/restart", methods=["POST"])
+def restart_server():
+    def do_restart():
+        time.sleep(0.8)
+        import subprocess
+        subprocess.Popen([sys.executable] + sys.argv)
+        os._exit(0)
+    threading.Thread(target=do_restart, daemon=True).start()
+    return jsonify({"ok": True})
+
+# -- API: app logs -------------------------------------------------------------
+
+_VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+_LOG_LEVEL_NOS = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
+
+
+@app.route("/api/logs", methods=["GET"])
+def api_get_logs():
+    level   = (request.args.get("level") or "").upper()
+    logger  = request.args.get("logger") or ""
+    search  = request.args.get("search") or ""
+    since   = request.args.get("since") or ""
+    limit   = min(int(request.args.get("limit", 200)), 2000)
+    offset  = max(int(request.args.get("offset", 0)), 0)
+
+    conditions, params = [], []
+    if level in _VALID_LOG_LEVELS:
+        conditions.append("level_no >= ?")
+        params.append(_LOG_LEVEL_NOS[level])
+    if logger:
+        conditions.append("logger LIKE ?")
+        params.append(logger + "%")
+    if search:
+        conditions.append("message LIKE ?")
+        params.append("%" + search + "%")
+    if since:
+        conditions.append("ts > ?")
+        params.append(since)
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    db = get_db()
+    conn = db._conn()
+
+    total = conn.execute(
+        f"SELECT COUNT(*) FROM app_logs {where}", params
+    ).fetchone()[0]
+
+    rows = conn.execute(
+        f"""SELECT id, ts, level, level_no, logger, message, exc_info
+            FROM app_logs {where}
+            ORDER BY id DESC LIMIT ? OFFSET ?""",
+        params + [limit, offset],
+    ).fetchall()
+
+    return jsonify({
+        "total":   total,
+        "limit":   limit,
+        "offset":  offset,
+        "records": [dict(r) for r in rows],
+    })
+
+
+@app.route("/api/logs/stats", methods=["GET"])
+def api_get_log_stats():
+    db   = get_db()
+    conn = db._conn()
+
+    by_level = {r["level"]: r["cnt"] for r in conn.execute(
+        "SELECT level, COUNT(*) as cnt FROM app_logs GROUP BY level ORDER BY level_no DESC"
+    ).fetchall()}
+    loggers = [r[0] for r in conn.execute(
+        "SELECT DISTINCT logger FROM app_logs ORDER BY logger"
+    ).fetchall()]
+    total = conn.execute("SELECT COUNT(*) FROM app_logs").fetchone()[0]
+    row   = conn.execute("SELECT ts FROM app_logs ORDER BY id DESC LIMIT 1").fetchone()
+
+    return jsonify({
+        "total":     total,
+        "by_level":  by_level,
+        "loggers":   loggers,
+        "latest_ts": row["ts"] if row else None,
+    })
+
+
+@app.route("/api/logs", methods=["DELETE"])
+def api_clear_logs():
+    db = get_db()
+    with db._write_lock:
+        db._conn().execute("DELETE FROM app_logs")
+        db._conn().commit()
+    log.info("App logs cleared")
+    return jsonify({"status": "cleared"})
+
+
+@app.route("/api/logs/level", methods=["POST"])
+def api_set_log_level():
+    level = (request.args.get("level") or "").upper()
+    if level not in _VALID_LOG_LEVELS:
+        return jsonify({"error": f"Invalid level '{level}'"}), 400
+    global _log_handler
+    if _log_handler is not None:
+        _log_handler.set_capture_level(logging.getLevelName(level))
+    else:
+        logging.getLogger("pktpcap").setLevel(logging.getLevelName(level))
+    log.info(f"Log capture level changed to {level}")
+    return jsonify({"status": "ok", "level": level})
+
+
+# -- API: screenshots ----------------------------------------------------------
+
+@app.route("/api/save-image", methods=["POST"])
+def save_image():
+    import base64, re
+    body      = request.get_json(force=True)
+    filename  = body.get("filename", "screenshot.png")
+    data_url  = body.get("dataUrl", "")
+    filename  = re.sub(r"[^a-zA-Z0-9_\-.]", "_", filename)
+    match     = re.match(r"data:image/\w+;base64,(.*)", data_url, re.DOTALL)
+    if not match:
+        return jsonify({"ok": False, "error": "Invalid data URL"}), 400
+    img_bytes = base64.b64decode(match.group(1))
+    out_dir   = BASE / "screenshots"
+    out_dir.mkdir(exist_ok=True)
+    (out_dir / filename).write_bytes(img_bytes)
+    return jsonify({"ok": True, "path": str(out_dir / filename)})
+
+@app.route("/api/screenshot", methods=["POST"])
+def take_screenshot():
+    import re, subprocess
+    body     = request.get_json(force=True)
+    filename = re.sub(r"[^a-zA-Z0-9_\-.]", "_", body.get("filename", "screenshot.png"))
+    out_dir  = BASE / "screenshots"
+    out_dir.mkdir(exist_ok=True)
+    out_path = str(out_dir / filename).replace("\\", "/")
+    ps = (
+        r"Add-Type -AssemblyName System.Drawing" + "\n"
+        r'Add-Type @"' + "\n"
+        r"using System;" + "\n"
+        r"using System.Drawing;" + "\n"
+        r"using System.Runtime.InteropServices;" + "\n"
+        r"public class Win32 {" + "\n"
+        r"    [DllImport(""user32.dll"")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint nFlags);" + "\n"
+        r"    [DllImport(""user32.dll"")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);" + "\n"
+        r"    [StructLayout(LayoutKind.Sequential)]" + "\n"
+        r"    public struct RECT { public int Left, Top, Right, Bottom; }" + "\n"
+        r"}" + "\n"
+        r'"@' + "\n"
+        r'$chrome = Get-Process | Where-Object { $_.Name -eq "chrome" -and $_.MainWindowHandle -ne [IntPtr]::Zero } | Sort-Object CPU -Descending | Select-Object -First 1' + "\n"
+        r'if (-not $chrome) { Write-Error "Chrome not found"; exit 1 }' + "\n"
+        r"$hwnd = $chrome.MainWindowHandle" + "\n"
+        r"$rect = New-Object Win32+RECT" + "\n"
+        r"[Win32]::GetWindowRect($hwnd, [ref]$rect) | Out-Null" + "\n"
+        r"$w = $rect.Right - $rect.Left" + "\n"
+        r"$h = $rect.Bottom - $rect.Top" + "\n"
+        r"$bmp = New-Object System.Drawing.Bitmap($w, $h)" + "\n"
+        r"$g = [System.Drawing.Graphics]::FromImage($bmp)" + "\n"
+        r"$hdc = $g.GetHdc()" + "\n"
+        r"[Win32]::PrintWindow($hwnd, $hdc, 2) | Out-Null" + "\n"
+        r"$g.ReleaseHdc($hdc)" + "\n"
+        + "$bmp.Save('" + out_path + "')\n"
+        r"$bmp.Dispose(); $g.Dispose()"
+    )
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+        capture_output=True, text=True, timeout=20
+    )
+    if result.returncode != 0:
+        return jsonify({"ok": False, "error": result.stderr[:300]}), 500
+    return jsonify({"ok": True, "path": out_path})
+
+# -- API: Live Feeds -----------------------------------------------------------
+
+_FEED_NAME_RE = _re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_\-]{0,63}$")
+
+@app.route("/api/feed/<name>", methods=["POST"])
+def receive_feed(name):
+    """Streaming endpoint -- tshark/Wireshark pushes raw pcapng bytes here."""
+    if not _check_feed_auth():
+        return jsonify({"error": "Unauthorized -- include Authorization: Bearer <token> header"}), 401
+    if not _FEED_NAME_RE.match(name):
+        return jsonify({"error": "Invalid session name (alphanumeric, hyphens, underscores; max 64 chars)"}), 400
+
+    session = _get_or_create_feed(name, request.remote_addr or "unknown")
+    with session._lock:
+        session.connected = True
+
+    try:
+        stream = request.stream
+        while True:
+            chunk = stream.read(65536)
+            if not chunk:
+                break
+            session.append(chunk)
+    finally:
+        with session._lock:
+            session.connected = False
+
+    return jsonify({"ok": True, "bytes_received": session.bytes_received})
+
+@app.route("/api/feeds", methods=["GET"])
+def list_feeds():
+    with _feed_sessions_lock:
+        result = [s.to_dict() for s in _feed_sessions.values()]
+    result.sort(key=lambda s: (not s["connected"], -s["last_seen"]))
+    return jsonify(result)
+
+@app.route("/api/feeds/<name>/download", methods=["GET"])
+def download_feed(name):
+    with _feed_sessions_lock:
+        session = _feed_sessions.get(name)
+    if not session:
+        return jsonify({"error": "Session not found"}), 404
+    data = session.get_bytes()
+    if not data:
+        return jsonify({"error": "No data captured yet"}), 404
+    return Response(
+        data,
+        mimetype="application/octet-stream",
+        headers={"Content-Disposition": 'attachment; filename="{}.pcapng"'.format(name)},
+    )
+
+@app.route("/api/feeds/<name>", methods=["DELETE"])
+def delete_feed(name):
+    with _feed_sessions_lock:
+        _feed_sessions.pop(name, None)
+    return jsonify({"ok": True})
+
+
+# ── Suite token registration (called by pktHub after registration) ─────────────
+@app.route("/api/suite/register", methods=["POST"])
+def suite_register():
+    """
+    pktHub pushes the new suite token here on every registration/rotation.
+    Writes directly to SQLite (the authoritative store for load_config()).
+    """
+    data = request.get_json(silent=True) or {}
+    new_token = (data.get("suite_token") or "").strip()
+    if not new_token:
+        return jsonify({"error": "suite_token required"}), 400
+    try:
+        # Write directly to SQLite — bypasses any caching in load_config()
+        import sqlite3 as _sq
+        _db_path = str(load_db_config().get("db_path", "pktpcap.db"))
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('suite_token', ?)", (new_token,))
+        _conn.commit()
+        _conn.close()
+        return jsonify({"status": "ok"}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+# ── End suite token registration ───────────────────────────────────────────────
+
+
+@app.route("/api/suite/regenerate", methods=["POST"])
+def regenerate_suite_token():
+    """Generate a new suite token, revoking the old one."""
+    import sqlite3 as _sq, secrets as _sec
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _new = _sec.token_urlsafe(32)
+        _conn = _sq.connect(_db_path)
+        _conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('suite_token',?)", (_new,))
+        _conn.commit()
+        _conn.close()
+        return jsonify({"suite_token": _new, "status": "regenerated"}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+# ── Suite token (pktHub integration) ─────────────────────────────────────────
+@app.route("/api/suite/token", methods=["GET"])
+def get_suite_token():
+    """Return the current suite token for display in Settings UI."""
+    cfg = load_config()
+    token = (cfg.get("suite_token") or "").strip()
+    return jsonify({"suite_token": token, "has_token": bool(token)})
+
+
+
+# ── Suite: direct-access lock/unlock ─────────────────────────────────────────
+@app.route("/api/suite/direct-access", methods=["POST"])
+def suite_set_direct_access():
+    """Hub sends this to lock/unlock direct UI access. Auth: X-Suite-Token."""
+    import sqlite3 as _sq
+    _suite_tk = request.headers.get("X-Suite-Token", "")
+    cfg = load_config()
+    if not _suite_tk or not cfg.get("suite_token") or _suite_tk != cfg.get("suite_token"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        body = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+    locked = bool(body.get("locked", False))
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('direct_ui_locked', ?)",
+                      ("true" if locked else "false",))
+        _conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('lock_heartbeat_at', datetime('now'))")
+        _conn.commit()
+        _conn.close()
+        return jsonify({"status": "ok", "direct_ui_locked": locked})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/suite/direct-access", methods=["GET"])
+def suite_get_direct_access():
+    """Return current lock state. Auth: X-Suite-Token."""
+    import sqlite3 as _sq
+    _suite_tk = request.headers.get("X-Suite-Token", "")
+    cfg = load_config()
+    if not _suite_tk or not cfg.get("suite_token") or _suite_tk != cfg.get("suite_token"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _row  = _conn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        _rrow = _conn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+        _conn.close()
+        return jsonify({
+            "direct_ui_locked": bool(_row and _row[0] == "true"),
+            "hub_redirect_url":  _rrow[0] if _rrow and _rrow[0] else "",
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+# ── End direct-access routes ──────────────────────────────────────────────────
+
+
+
+# ── Suite: public mode status + hub redirect URL setter ───────────────────────
+@app.route("/api/suite/mode", methods=["GET"])
+def suite_mode():
+    """Public — returns direct_ui_locked and hub_redirect_url."""
+    import sqlite3 as _sq
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _row  = _conn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        _rrow = _conn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+        _conn.close()
+        return jsonify({
+            "direct_ui_locked": bool(_row and _row[0] == "true"),
+            "hub_redirect_url":  _rrow[0] if _rrow and _rrow[0] else "",
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/suite/hub-redirect-url", methods=["PATCH"])
+def suite_set_hub_redirect_url():
+    """Set hub_redirect_url. Regular session auth."""
+    import sqlite3 as _sq
+    body = request.get_json(force=True)
+    url = (body.get("hub_redirect_url") or "").strip()
+    try:
+        _db_path = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path):
+            _db_path = str(BASE / _db_path)
+        _conn = _sq.connect(_db_path)
+        _conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('hub_redirect_url', ?)", (url,))
+        _conn.commit()
+        _conn.close()
+        return jsonify({"status": "ok", "hub_redirect_url": url})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+# ── End public mode / hub redirect ────────────────────────────────────────────
+
+
+# -- Widget routes for pktHub NOC Builder (auto-registered) -------------------
+try:
+    from widgets_routes import register as _register_widgets
+    _register_widgets(app)
+except Exception as _we:
+    import logging as _wlog
+    _wlog.getLogger('pktpcap.server').warning('Widget routes not loaded: %s', _we)
+
+# -- Entry point ---------------------------------------------------------------
+
+def open_browser(port, scheme="http"):
+    time.sleep(1.2)
+    webbrowser.open("{}://localhost:{}/".format(scheme, port))
+
+if __name__ == "__main__":
+    init_db()
+    # ── Direct access lock failsafe ─────────────────────────────────────────
+    try:
+        import sqlite3 as _sq, urllib.request as _ureq, ssl as _ssl
+        _db_path_fs = load_db_config().get("db_path", "pktpcap.db")
+        if not os.path.isabs(_db_path_fs):
+            _db_path_fs = str(BASE / _db_path_fs)
+        _fconn = _sq.connect(_db_path_fs)
+        _frow = _fconn.execute("SELECT value FROM settings WHERE key='direct_ui_locked'").fetchone()
+        if _frow and _frow[0] == "true":
+            _frrow = _fconn.execute("SELECT value FROM settings WHERE key='hub_redirect_url'").fetchone()
+            _hub_url = _frrow[0] if _frrow and _frrow[0] else ""
+            _hub_up = False
+            if _hub_url:
+                try:
+                    _ctx = _ssl.create_default_context()
+                    _ctx.check_hostname = False
+                    _ctx.verify_mode = _ssl.CERT_NONE
+                    _freq = _ureq.urlopen(
+                        f"{_hub_url.rstrip('/')}/api/health", timeout=5, context=_ctx)
+                    _hub_up = _freq.status == 200
+                except Exception:
+                    pass
+            if not _hub_up:
+                _fconn.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES ('direct_ui_locked', 'false')")
+                _fconn.commit()
+                log.warning("Startup failsafe: direct_ui_locked was set but hub unreachable — lock cleared")
+            else:
+                log.info("Startup: direct_ui_locked=true, hub reachable — lock maintained")
+        _fconn.close()
+    except Exception as _fe:
+        log.warning(f"Startup lock check: {_fe}")
+    # ─────────────────────────────────────────────────────────────────────────
+
+    _ensure_secret_key()
+    _ensure_feed_token()
+
+    # -- Attach in-app log handler -----------------------------------------------
+    from logging_handler import SQLiteLogHandler
+    _db_path = load_db_config().get("db_path", "pktpcap.db")
+    if not os.path.isabs(_db_path):
+        _db_path = str(BASE / _db_path)
+    _log_handler = SQLiteLogHandler(db_path=_db_path)
+    _log_handler.attach_to_root_logger("")  # root logger ΓÇö catches Flask, werkzeug, everything
+    # ---------------------------------------------------------------------------
+
+    cfg  = load_config()
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else cfg.get("port", 8765)
+
+    ssl_enabled = cfg.get("ssl_enabled", False)
+    ssl_cert    = cfg.get("ssl_cert", "")
+    ssl_key_    = cfg.get("ssl_key", "")
+    ssl_context = None
+    scheme      = "http"
+
+    if ssl_enabled and ssl_cert and ssl_key_:
+        if not os.path.isfile(ssl_cert):
+            log.warning("SSL cert not found: %s", ssl_cert)
+            print("  WARNING: SSL cert not found: {}".format(ssl_cert))
+        elif not os.path.isfile(ssl_key_):
+            log.warning("SSL key not found: %s", ssl_key_)
+            print("  WARNING: SSL key not found: {}".format(ssl_key_))
+        else:
+            ssl_context = (ssl_cert, ssl_key_)
+            scheme = "https"
+
+    # Auto-detect SSL from ssl/ subdirectory (original behaviour — db ssl_enabled flag not required)
+    if ssl_context is None:
+        _auto_crt = BASE / "ssl" / "server.crt"
+        _auto_key = BASE / "ssl" / "server.key"
+        if _auto_crt.is_file() and _auto_key.is_file():
+            ssl_context = (str(_auto_crt), str(_auto_key))
+            scheme = "https"
+            log.info("SSL auto-detected from ssl/ directory")
+
+    log.info("pktPCAP starting on %s://0.0.0.0:%s", scheme, port)
+    print("\n  pktPCAP")
+    print("  " + "-" * 37)
+    print("  App      ->  {}://localhost:{}/".format(scheme, port))
+    print("  Settings ->  {}://localhost:{}/settings".format(scheme, port))
+    print("  DB       ->  {}".format(load_db_config().get("db_path", "pktpcap.db")))
+    print()
+
+    threading.Thread(target=open_browser, args=(port, scheme), daemon=True).start()
+    app.run(host="0.0.0.0", port=port, ssl_context=ssl_context, threaded=True)
+

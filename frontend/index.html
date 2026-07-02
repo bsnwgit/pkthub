@@ -1,13 +1,474 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>pktHub</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pktsuite</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: #0d1117;
+  color: #e6edf3;
+  min-height: 100vh;
+  font-size: 13px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* ── Header ── */
+.header {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 100px;
+  letter-spacing: 0.02em;
+}
+.pill-ok    { background: rgba(46,160,67,0.15);  color: #3fb950; border: 1px solid rgba(46,160,67,0.3); }
+.pill-err   { background: rgba(248,81,73,0.15);  color: #f85149; border: 1px solid rgba(248,81,73,0.3); }
+.pill-dim   { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+
+.header-right { margin-left: auto; font-size: 11px; color: #e6edf3; }
+
+/* ── Layout ── */
+.main {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #e6edf3;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ── Metric cards ── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 16px 18px;
+  transition: border-color 0.15s;
+}
+.metric-card:hover { border-color: #58a6ff44; }
+
+.metric-label {
+  font-size: 11px;
+  color: #e6edf3;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  color: #e6edf3;
+  margin-top: 6px;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.metric-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: #e6edf3;
+  margin-left: 4px;
+  font-family: inherit;
+}
+
+/* ── Alerts panel ── */
+.alerts-panel {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.alerts-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #30363d;
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.alert-count-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: rgba(248,81,73,0.15);
+  color: #f85149;
+  border: 1px solid rgba(248,81,73,0.3);
+}
+
+.alert-count-badge.clean {
+  background: rgba(46,160,67,0.1);
+  color: #3fb950;
+  border-color: rgba(46,160,67,0.2);
+}
+
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #21262d;
+  transition: background 0.1s;
+}
+.alert-row:last-child { border-bottom: none; }
+.alert-row:hover { background: #1c2128; }
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  letter-spacing: 0.04em;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.badge-critical { background: rgba(248,81,73,0.15); color: #f85149; border: 1px solid rgba(248,81,73,0.3); }
+.badge-warning  { background: rgba(227,179,65,0.15); color: #e3b341; border: 1px solid rgba(227,179,65,0.3); }
+.badge-info     { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3); }
+
+.alert-body { flex: 1; min-width: 0; }
+.alert-msg  { font-size: 12px; color: #e6edf3; line-height: 1.4; }
+.alert-rule { font-size: 11px; color: #e6edf3; margin-top: 2px; font-family: 'SF Mono','Fira Code',monospace; }
+.alert-time { font-size: 11px; color: #e6edf3; flex-shrink: 0; margin-top: 2px; white-space: nowrap; font-family: 'SF Mono','Fira Code',monospace; }
+
+.empty-state {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #e6edf3;
+}
+
+/* ── App cards ── */
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.app-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  color: #e6edf3;
+  transition: border-color 0.15s, background 0.15s;
+}
+.app-card:hover {
+  border-color: #58a6ff;
+  background: #1c2128;
+}
+
+.app-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #21262d;
+  border: 1px solid #30363d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-info { flex: 1; min-width: 0; }
+.app-name { font-size: 13px; font-weight: 600; color: #e6edf3; }
+.app-desc { font-size: 11px; color: #e6edf3; margin-top: 3px; line-height: 1.4; }
+.app-status { font-size: 11px; margin-top: 5px; font-family: 'SF Mono','Fira Code',monospace; font-weight: 600; }
+.status-live { color: #3fb950; }
+.status-down { color: #f85149; }
+.status-na   { color: #e6edf3; }
+
+.ext-arrow { color: #e6edf3; font-size: 14px; flex-shrink: 0; }
+.app-card:hover .ext-arrow { color: #58a6ff; }
+
+/* ── Skeleton ── */
+@keyframes shimmer { 0%,100%{opacity:.5} 50%{opacity:.9} }
+.loading-pulse { animation: shimmer 1.6s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <img src="/logos/lockup.svg" alt="pktsuite" width="258" height="80">
+  </div>
+  <div id="status-pill" class="status-pill pill-dim">Connecting...</div>
+  <div class="header-right" id="refresh-info"></div>
+  <a href="/settings" title="Settings" style="margin-left:8px;color:#8b949e;display:flex;align-items:center;text-decoration:none;transition:color 0.15s;" onmouseover="this.style.color='#58a6ff'" onmouseout="this.style.color='#8b949e'">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </a>
+</header>
+
+<main class="main">
+
+  <!-- Live metrics -->
+  <section>
+    <div class="section-label">pktFlow — live</div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Flows / sec</div>
+        <div class="metric-value loading-pulse" id="m-fps">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Active devices</div>
+        <div class="metric-value loading-pulse" id="m-devices">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Unacked alerts</div>
+        <div class="metric-value loading-pulse" id="m-alerts">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Alerts -->
+  <section>
+    <div class="alerts-panel">
+      <div class="alerts-panel-header">
+        <span class="panel-title">Active Alerts</span>
+        <span class="alert-count-badge clean" id="alert-badge">loading</span>
+      </div>
+      <div id="alerts-list"><div class="empty-state loading-pulse">Loading...</div></div>
+    </div>
+  </section>
+
+  <!-- App launcher — rendered dynamically from /api/apps -->
+  <section>
+    <div class="section-label">Applications</div>
+    <div class="apps-grid" id="apps-grid">
+      <div class="empty-state loading-pulse">Loading apps…</div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+let lastFetch = null;
+let _lastData;
+
+function updateAppStatuses(data) {
+  document.querySelectorAll('.app-card[data-app-icon="flow"] .app-status').forEach(el => {
+    el.innerHTML = data.pktflow_up
+      ? '<span class="status-live">● live</span>'
+      : '<span class="status-down">● unreachable</span>';
+  });
+}
+
+function timeAgo(isoStr) {
+  const sec = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+  if (sec < 60)  return sec + 's ago';
+  const min = Math.floor(sec / 60);
+  if (min < 60)  return min + 'm ago';
+  return Math.floor(min / 60) + 'h ago';
+}
+
+function badgeClass(sev) {
+  if (sev === 'critical') return 'badge-critical';
+  if (sev === 'warning')  return 'badge-warning';
+  return 'badge-info';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function stopPulse() {
+  document.querySelectorAll('.loading-pulse').forEach(el => el.classList.remove('loading-pulse'));
+}
+
+function render(data) {
+  stopPulse();
+
+  // Header status
+  const pill = document.getElementById('status-pill');
+  if (data.pktflow_up) {
+    pill.className = 'status-pill pill-ok';
+    pill.textContent = '● All systems operational';
+  } else {
+    pill.className = 'status-pill pill-err';
+    pill.textContent = '● pktFlow unreachable';
+  }
+
+  // Metrics
+  const fps = data.flow_rate && data.flow_rate.flows_per_sec != null
+    ? Math.round(data.flow_rate.flows_per_sec)
+    : null;
+
+  const fpsEl = document.getElementById('m-fps');
+  fpsEl.innerHTML = (data.pktflow_up && fps != null)
+    ? fps + '<span class="metric-unit">fps</span>'
+    : '—';
+
+  const deviceCount = Array.isArray(data.devices) ? data.devices.length : 0;
+  document.getElementById('m-devices').textContent = data.pktflow_up ? deviceCount : '—';
+
+  const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+  const alertEl = document.getElementById('m-alerts');
+  alertEl.textContent = data.pktflow_up ? alerts.length : '—';
+  alertEl.style.color = (data.pktflow_up && alerts.length > 0) ? '#f85149' : '';
+
+  // Alert badge
+  const badge = document.getElementById('alert-badge');
+  if (!data.pktflow_up) {
+    badge.textContent = 'unavailable';
+    badge.className = 'alert-count-badge';
+  } else if (alerts.length === 0) {
+    badge.textContent = 'all clear';
+    badge.className = 'alert-count-badge clean';
+  } else {
+    badge.textContent = alerts.length + ' active';
+    badge.className = 'alert-count-badge';
+  }
+
+  // Alert list
+  const listEl = document.getElementById('alerts-list');
+  if (!data.pktflow_up) {
+    listEl.innerHTML = '<div class="empty-state">pktFlow is unreachable — alerts unavailable</div>';
+  } else if (!alerts.length) {
+    listEl.innerHTML = '<div class="empty-state">✓ No active alerts</div>';
+  } else {
+    listEl.innerHTML = alerts.map(a => `
+      <div class="alert-row">
+        <span class="badge ${badgeClass(a.severity)}">${esc((a.severity||'info').toUpperCase())}</span>
+        <div class="alert-body">
+          <div class="alert-msg">${esc(a.message || '')}</div>
+          ${a.rule_name ? `<div class="alert-rule">${esc(a.rule_name)}</div>` : ''}
+        </div>
+        <div class="alert-time">${a.fired_at ? timeAgo(a.fired_at) : ''}</div>
+      </div>`).join('');
+  }
+
+  // App card status — update all flow-type cards
+  _lastData = data;
+  updateAppStatuses(data);
+
+  lastFetch = new Date();
+}
+
+function updateRefreshInfo() {
+  if (!lastFetch) return;
+  const sec = Math.floor((Date.now() - lastFetch) / 1000);
+  document.getElementById('refresh-info').textContent =
+    'updated ' + sec + 's ago · auto-refresh every 30s';
+}
+
+async function fetchData() {
+  try {
+    const resp = await fetch('/api/dashboard');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    render(await resp.json());
+  } catch (err) {
+    stopPulse();
+    const pill = document.getElementById('status-pill');
+    pill.className = 'status-pill pill-err';
+    pill.textContent = '● Dashboard error';
+    document.getElementById('refresh-info').textContent = 'failed to load — retrying in 30s';
+  }
+}
+
+// ── App launcher ──────────────────────────────────────────────────────────────
+
+const ICONS = {
+  flow: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+  pcap: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+  generic: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+};
+
+async function loadApps() {
+  try {
+    const r = await fetch('/api/apps');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const apps = await r.json();
+    const grid = document.getElementById('apps-grid');
+    if (!apps.length) {
+      grid.innerHTML = '<div class="empty-state">No apps configured — add them in <a href="/settings" style="color:#58a6ff">Settings</a>.</div>';
+      return;
+    }
+    grid.innerHTML = apps.map(a => `
+      <a class="app-card" href="${esc(a.url)}" data-app-icon="${esc(a.icon||'generic')}">
+        <div class="app-icon">${ICONS[a.icon] || ICONS.generic}</div>
+        <div class="app-info">
+          <div class="app-name">${esc(a.name)}</div>
+          <div class="app-desc">${esc(a.description || '')}</div>
+          <div class="app-status">${a.icon === 'flow'
+            ? '<span class="status-na">● checking…</span>'
+            : `<span class="status-na">● ${esc(a.url)}</span>`
+          }</div>
+        </div>
+        <div class="ext-arrow">↗</div>
+      </a>
+    `).join('');
+    // Trigger a status update if data already loaded
+    if (typeof _lastData !== 'undefined') updateAppStatuses(_lastData);
+  } catch (e) {
+    document.getElementById('apps-grid').innerHTML = '<div class="empty-state">Failed to load apps</div>';
+  }
+}
+
+fetchData();
+loadApps();
+setInterval(fetchData, 30000);
+setInterval(updateRefreshInfo, 5000);
+</script>
+
+</body>
 </html>

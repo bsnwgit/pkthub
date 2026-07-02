@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pktLog — Viewer Guide</title>
+<style>
+:root{--bg-primary:#0a0f1a;--bg-secondary:#111827;--bg-card:#1a2236;--green-bright:#4ade80;--green-dark:#071a07;--green-dim:#166534;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;--border:#1e293b;--border-green:#166534;--accent:#4ade80;--accent-border:#166534;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7}
+a{color:var(--green-bright);text-decoration:none}a:hover{color:#86efac}
+.dot-grid{background-image:radial-gradient(circle,rgba(74,222,128,0.05) 1px,transparent 1px);background-size:40px 40px}
+nav{position:sticky;top:0;z-index:100;background:rgba(10,15,26,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:2rem;height:60px}
+.nav-links{display:flex;gap:0.25rem;flex:1}
+.nav-links a{padding:0.4rem 0.85rem;border-radius:6px;font-size:0.875rem;color:var(--text-secondary);transition:all 0.2s}
+.nav-links a:hover,.nav-links a.active{background:rgba(74,222,128,0.08);color:var(--green-bright)}
+.nav-badge{margin-left:auto;background:rgba(74,222,128,0.1);border:1px solid var(--accent-border);color:var(--accent);padding:0.2rem 0.75rem;border-radius:20px;font-size:0.75rem;font-family:'Courier New',monospace}
+.container{max-width:1100px;margin:0 auto}
+section{padding:3.5rem 2rem}
+.section-label{font-family:'Courier New',monospace;font-size:0.75rem;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem;opacity:0.8}
+h1{font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-0.03em}
+h2{font-size:1.6rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:1.25rem;margin-top:2.5rem}
+h2:first-of-type{margin-top:0}
+h3{font-size:1.05rem;font-weight:600;margin-bottom:0.5rem}
+p{color:var(--text-secondary);margin-bottom:0.75rem}
+code{font-family:'Courier New',monospace;background:rgba(74,222,128,0.08);border:1px solid var(--border-green);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85em;color:var(--green-bright)}
+.guide-layout{display:grid;grid-template-columns:220px 1fr;gap:3rem;align-items:start}
+.sidebar{position:sticky;top:80px}
+.sidebar-nav{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:0.85rem}
+.sidebar-nav h4{color:var(--text-muted);font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;font-family:'Courier New',monospace;padding:0.25rem 0.5rem;margin-bottom:0.25rem}
+.sidebar-nav a{display:block;padding:0.35rem 0.5rem;border-radius:5px;color:var(--text-secondary);transition:all 0.15s}
+.sidebar-nav a:hover{background:rgba(74,222,128,0.07);color:var(--accent)}
+.sidebar-nav .divider{height:1px;background:var(--border);margin:0.5rem 0}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.75rem;margin-bottom:1.5rem}
+.card-accent{border-color:var(--accent-border);background:rgba(74,222,128,0.03)}
+.note{background:rgba(74,222,128,0.05);border:1px solid var(--border-green);border-radius:8px;padding:1rem 1.25rem;margin:1rem 0;font-size:0.875rem;color:var(--text-secondary)}
+.note::before{content:'ℹ️  '}
+.limit{background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:0.75rem 1.25rem;margin:0.75rem 0;font-size:0.875rem;color:var(--text-secondary)}
+.limit::before{content:'🔒 ';font-size:0.9rem}
+table{width:100%;border-collapse:collapse;font-size:0.875rem;margin-top:0.75rem}
+th{text-align:left;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:0.8rem}
+td{padding:0.5rem 0.75rem;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+td:first-child{color:var(--text-primary)}
+tr:last-child td{border-bottom:none}
+.severity-badge{display:inline-block;padding:0.1rem 0.5rem;border-radius:8px;font-size:0.75rem;font-weight:600;font-family:'Courier New',monospace}
+footer{border-top:1px solid var(--border);padding:2rem;margin-top:2rem}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.footer-links{display:flex;gap:1.5rem}
+.footer-links a{font-size:0.875rem;color:var(--text-muted)}
+.footer-links a:hover{color:var(--green-bright)}
+@media(max-width:768px){.guide-layout{grid-template-columns:1fr}.sidebar{position:static}}
+</style>
+</head>
+<body class="dot-grid">
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="36">
+        <defs><clipPath id="cl"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#cl)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+    </div>
+    <div class="nav-links">
+      <a href="index.html">Overview</a><a href="architecture.html">Architecture</a>
+      <a href="guide-admin.html">Admin Guide</a><a href="guide-analyst.html">Analyst Guide</a>
+      <a href="guide-viewer.html" class="active">Viewer Guide</a>
+    </div>
+    <span class="nav-badge">VIEWER</span>
+  </div>
+</nav>
+
+<section style="padding:4rem 2rem 2rem;background:linear-gradient(135deg,#060d0e 0%,#0a0f1a 100%);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">User Guide</div>
+    <div style="margin-bottom:1rem;">
+      <span style="display:inline-block;padding:0.35rem 1rem;border-radius:20px;font-size:0.85rem;font-weight:600;background:rgba(74,222,128,0.1);color:var(--green-bright);border:1px solid var(--accent-border);font-family:'Courier New',monospace;">VIEWER</span>
+    </div>
+    <h1>Viewer <span style="color:var(--green-bright)">Guide</span></h1>
+    <p style="max-width:560px;font-size:1.05rem;margin-top:0.75rem;">For operations staff and stakeholders who need visibility into system activity without requiring configuration or analysis access.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="guide-layout">
+      <aside class="sidebar">
+        <div class="sidebar-nav">
+          <h4>Viewer Guide</h4>
+          <a href="#overview">Overview</a>
+          <a href="#login">Logging In</a>
+          <a href="#dashboard">Dashboard</a>
+          <a href="#logs">Browsing Logs</a>
+          <a href="#alerts">Viewing Alerts</a>
+          <a href="#severity">Severity Reference</a>
+          <a href="#limits">Access Limits</a>
+          <div class="divider"></div>
+          <a href="guide-analyst.html">→ Analyst Guide</a>
+          <a href="guide-admin.html">→ Admin Guide</a>
+        </div>
+      </aside>
+
+      <main>
+        <div id="overview">
+          <h2>Viewer Overview</h2>
+          <div class="card card-accent">
+            <p>The <strong>Viewer</strong> role provides read-only access to the pktLog dashboard, log browser, and alert events. Viewers can observe what is happening on the network's logging infrastructure but cannot modify data, export results, or change any configuration.</p>
+            <p style="margin-bottom:0;">If you need to export data or investigate an incident in depth, ask your administrator to upgrade your account to the Analyst role.</p>
+          </div>
+        </div>
+
+        <div id="login">
+          <h2>Logging In</h2>
+          <div class="card">
+            <p>Navigate to the pktLog URL provided by your administrator. You will be prompted for a <strong>username</strong> and <strong>password</strong>. Enter the credentials your administrator provided. Your session will remain active for the duration configured by your admin (typically 8 hours).</p>
+            <p style="margin-bottom:0;">If you cannot log in or your account is not active, contact your pktLog administrator.</p>
+          </div>
+        </div>
+
+        <div id="dashboard">
+          <h2>Dashboard</h2>
+          <p>After logging in you will land on the <strong>Dashboard</strong> — a real-time overview of all syslog activity across the platform.</p>
+          <div class="card">
+            <h3>What You Can See</h3>
+            <table>
+              <tr><th>Widget</th><th>What It Tells You</th></tr>
+              <tr><td>Events/sec</td><td>How many log messages are arriving right now</td></tr>
+              <tr><td>Events Today</td><td>Total messages received since midnight</td></tr>
+              <tr><td>Severity Distribution</td><td>The breakdown of message severity — a high proportion of <span class="severity-badge" style="background:rgba(239,68,68,0.15);color:#f87171;">error</span> or <span class="severity-badge" style="background:rgba(239,68,68,0.2);color:#ef4444;">critical</span> events can indicate a problem</td></tr>
+              <tr><td>Volume Chart</td><td>Event volume over time — sudden spikes can indicate incidents or noisy devices</td></tr>
+              <tr><td>Top Hosts</td><td>Which devices are sending the most log messages</td></tr>
+              <tr><td>Active Alerts</td><td>Number of open alert events that analysts are reviewing</td></tr>
+              <tr><td>Collector Status</td><td>Whether log collection from each site is healthy or has gaps</td></tr>
+            </table>
+          </div>
+          <div class="note">The dashboard refreshes automatically. There is no need to manually reload the page to see current data.</div>
+        </div>
+
+        <div id="logs">
+          <h2>Browsing Logs</h2>
+          <p>Navigate to <strong>Logs</strong> in the top menu to browse the syslog event stream.</p>
+          <div class="card">
+            <h3>Browsing the Log Table</h3>
+            <p>The Logs page shows a paginated table of syslog events, most recent first. You can scroll through pages to see older events. Click any row to expand it and see the full event details including the original raw syslog message.</p>
+            <p style="margin-bottom:0;">As a Viewer, you can use the <strong>time range selector</strong> and <strong>basic filters</strong> (host, severity) to narrow what you see, but you cannot export or save search results.</p>
+          </div>
+          <div class="limit">Viewers cannot export log data. To download results for reporting or investigation, request that an Analyst perform the export.</div>
+        </div>
+
+        <div id="alerts">
+          <h2>Viewing Alerts</h2>
+          <p>Navigate to <strong>Alerts</strong> to see alert events generated by the platform's alert rules.</p>
+          <div class="card">
+            <h3>Reading the Alerts Page</h3>
+            <p>The Alerts page shows all fired alert events with their status (Open, Acknowledged, Resolved) and the rule that triggered them. As a Viewer you can <em>read</em> alerts to understand what conditions have been detected, but you cannot acknowledge or resolve them — those actions are reserved for Analysts and Admins.</p>
+          </div>
+          <div class="note">If you see an alert you believe requires immediate attention, notify an Analyst or Administrator directly.</div>
+        </div>
+
+        <div id="severity">
+          <h2>Syslog Severity Reference</h2>
+          <div class="card">
+            <table>
+              <tr><th>Level</th><th>Numeric</th><th>Meaning</th><th>Common Examples</th></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(239,68,68,0.2);color:#ef4444;">Emergency</span></td><td>0</td><td>System is unusable</td><td>Kernel panic, power failure</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(239,68,68,0.15);color:#f87171;">Alert</span></td><td>1</td><td>Action must be taken immediately</td><td>Data corruption detected</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(251,146,60,0.15);color:#fb923c;">Critical</span></td><td>2</td><td>Critical conditions</td><td>Hardware failure, disk full</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(251,146,60,0.1);color:#fbbf24;">Error</span></td><td>3</td><td>Error conditions</td><td>Authentication failure, service crash</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(234,179,8,0.1);color:#eab308;">Warning</span></td><td>4</td><td>Warning conditions</td><td>Disk space low, config change</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(96,165,250,0.1);color:#60a5fa;">Notice</span></td><td>5</td><td>Normal but significant</td><td>Service start/stop, user login</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(74,222,128,0.1);color:#4ade80;">Info</span></td><td>6</td><td>Informational messages</td><td>Routine operational events</td></tr>
+              <tr><td><span class="severity-badge" style="background:rgba(100,116,139,0.15);color:#94a3b8;">Debug</span></td><td>7</td><td>Debug-level messages</td><td>Detailed application tracing</td></tr>
+            </table>
+          </div>
+          <div class="note">Healthy systems typically show mostly <strong>Info</strong> and <strong>Notice</strong> events. A sudden increase in <strong>Error</strong>, <strong>Critical</strong>, or <strong>Emergency</strong> messages warrants investigation by an Analyst.</div>
+        </div>
+
+        <div id="limits">
+          <h2>Viewer Access Limits</h2>
+          <div class="card">
+            <table>
+              <tr><th>Feature</th><th>Viewer Access</th></tr>
+              <tr><td>View dashboard widgets</td><td>✅ Full access</td></tr>
+              <tr><td>Browse log events</td><td>✅ Full read access</td></tr>
+              <tr><td>View alert events</td><td>✅ Read only</td></tr>
+              <tr><td>Filter logs by time / host / severity</td><td>✅ Basic filters</td></tr>
+              <tr><td>Export log data (CSV/JSON)</td><td>❌ Analyst or Admin only</td></tr>
+              <tr><td>Acknowledge or resolve alerts</td><td>❌ Analyst or Admin only</td></tr>
+              <tr><td>Manage users or settings</td><td>❌ Admin only</td></tr>
+              <tr><td>Configure alert rules</td><td>❌ Admin only</td></tr>
+            </table>
+          </div>
+          <p style="margin-top:1rem;">To gain additional capabilities, contact your pktLog administrator to have your account role updated.</p>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 64" height="28">
+        <defs><clipPath id="clf"><rect width="140" height="64" rx="12"/></clipPath></defs>
+        <rect width="140" height="64" rx="12" fill="#111827"/>
+        <rect width="64" height="64" fill="#071a07" clip-path="url(#clf)"/>
+        <g transform="translate(8,8) scale(2)"><path d="M3 7h18M3 11h18M3 15h14M3 19h9" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/></g>
+        <text x="76" y="22" font-family="Courier New,Courier,monospace" font-size="10" fill="#6b7280" letter-spacing="2">pkt</text>
+        <text x="74" y="48" font-family="Courier New,Courier,monospace" font-size="26" font-weight="700" fill="white" letter-spacing="-1">LOG</text>
+      </svg>
+      <span style="color:var(--text-muted);font-size:0.85rem;">pktLog Viewer Guide · v1.0</span>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="guide-admin.html">Admin</a><a href="guide-analyst.html">Analyst</a>
+    </div>
+  </div>
+</footer>
+</body></html>
