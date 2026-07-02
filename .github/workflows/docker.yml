@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push pktHub Docker Image
 
 on:
   push:
@@ -37,12 +37,14 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container   # Required for GHA cache backend
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./pktHub          # Repo root is pktSolution; app lives in pktHub/
+          file: ./pktHub/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
