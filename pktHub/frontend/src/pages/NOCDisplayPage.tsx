@@ -3,6 +3,13 @@ import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { PktSuiteIcon } from '../components/Logo'
 
+// ─── Reference canvas size ────────────────────────────────────────────────────
+// Widgets are positioned in this coordinate space in the editor.
+// The display page scales the entire canvas to fit the actual screen.
+const CANVAS_W = 1920
+const CANVAS_H = 1080
+const HEADER_H = 44
+
 interface NOCWidget {
   id: string
   app_id: number
@@ -27,8 +34,22 @@ export default function NOCDisplayPage() {
   const [noc, setNOC] = useState<any>(null)
   const [error, setError] = useState('')
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [scale, setScale] = useState(1)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ── Scale-to-fit: recompute whenever window is resized ────────────────────
+  useEffect(() => {
+    const compute = () => {
+      const vw = window.innerWidth
+      const vh = window.innerHeight - HEADER_H
+      setScale(Math.min(vw / CANVAS_W, vh / CANVAS_H))
+    }
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [])
+
+  // ── Load NOC layout ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return
     const load = () => api.getNOCDisplay(token).then(setNOC).catch(e => setError(e.message))
@@ -39,7 +60,7 @@ export default function NOCDisplayPage() {
 
   const slides: NOCSlide[] = Array.isArray(noc?.layout) ? noc.layout : []
 
-  // Rotation timer
+  // ── Rotation timer ────────────────────────────────────────────────────────
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (!noc || noc.display_mode !== 'rotating' || slides.length < 2) return
@@ -66,8 +87,10 @@ export default function NOCDisplayPage() {
 
   return (
     <div className="flex flex-col" style={{ background: '#0a1628', height: '100vh', overflow: 'hidden' }}>
+
       {/* Minimal header bar */}
-      <div className="flex items-center justify-between px-6 border-b border-gray-800/60" style={{ height: '44px', flexShrink: 0 }}>
+      <div className="flex items-center justify-between px-6 border-b border-gray-800/60"
+        style={{ height: `${HEADER_H}px`, flexShrink: 0 }}>
         <div className="flex items-center gap-2">
           <PktSuiteIcon size={18} />
           <span className="text-xs text-gray-400 font-mono">{noc.name}</span>
@@ -93,34 +116,46 @@ export default function NOCDisplayPage() {
         </div>
       </div>
 
-      {/* Canvas: absolute widget iframes */}
+      {/* Canvas area — scale the reference canvas to fit the screen */}
       <div className="flex-1 relative" style={{ overflow: 'hidden' }}>
         {slides.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-sm text-gray-600">No slides configured for this noc.</div>
+            <div className="text-sm text-gray-600">No slides configured for this display.</div>
           </div>
         ) : !slide || !slide.widgets || slide.widgets.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-sm text-gray-600">No widgets on this slide.</div>
           </div>
         ) : (
-          slide.widgets.map((w: NOCWidget) => (
-            <iframe
-              key={w.id}
-              src={`/proxy/${w.app_id}${w.view_path}`}
-              title={w.title || w.widget_id}
-              style={{
-                position: 'absolute',
-                left: w.x,
-                top: w.y,
-                width: w.w,
-                height: w.h,
-                border: 'none',
-                borderRadius: '8px',
-                background: '#111827',
-              }}
-            />
-          ))
+          // Reference canvas scaled to fill the screen.
+          // All widget x/y/w/h coords are in CANVAS_W × CANVAS_H space.
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `${CANVAS_W}px`,
+            height: `${CANVAS_H}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}>
+            {slide.widgets.map((w: NOCWidget) => (
+              <iframe
+                key={`${currentSlide}-${w.id}`}
+                src={`/proxy-display/${token}/${w.app_id}${w.view_path}`}
+                title={w.title || w.widget_id}
+                style={{
+                  position: 'absolute',
+                  left: w.x,
+                  top: w.y,
+                  width: w.w,
+                  height: w.h,
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: '#111827',
+                }}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
