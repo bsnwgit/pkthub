@@ -94,6 +94,27 @@ async def init_db():
         """)
 
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS app_alerts (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                app_id      INTEGER NOT NULL,
+                app_name    TEXT    NOT NULL,
+                event_type  TEXT    NOT NULL,
+                status      TEXT    NOT NULL DEFAULT 'active',
+                resolved_at TEXT    DEFAULT NULL,
+                acked_by    TEXT    DEFAULT NULL,
+                acked_at    TEXT    DEFAULT NULL,
+                created_at  TEXT    DEFAULT (datetime('now')),
+                details     TEXT    DEFAULT '{}'
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_app_alerts_app_id ON app_alerts(app_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_app_alerts_status ON app_alerts(status)"
+        )
+
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER REFERENCES users(id),

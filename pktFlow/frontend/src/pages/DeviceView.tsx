@@ -352,8 +352,7 @@ function TopTalkersTable({ talkers, totalBytes, window, externalExpanded, onExte
                     <td className="px-2 py-2.5" onClick={e => e.stopPropagation()}>
                       <a
                         href={`/explorer?src_ip=${encodeURIComponent(t.src_ip)}&dst_ip=${encodeURIComponent(t.dst_ip)}&dst_port=${t.dst_port}&protocol=${t.protocol}&window=${window}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={e => { e.preventDefault(); navigate(`/explorer?src_ip=${encodeURIComponent(t.src_ip)}&dst_ip=${encodeURIComponent(t.dst_ip)}&dst_port=${t.dst_port}&protocol=${t.protocol}&window=${window}`) }}
                         className="text-blue-400 hover:text-blue-300 transition-colors"
                         title="View in Flow Explorer"
                       >
@@ -654,6 +653,17 @@ function SankeyTab({ talkers, onDrillDown }: { talkers: TopTalker[]; onDrillDown
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+
+// When embedded in pktHub Context Viewer, post a navigation message to the parent
+// so pktHub opens the correct /proxy/{appId}/path in a new tab instead of
+// following the bare href (which would hit pktHub router and show the dashboard).
+function pktOpen(path: string): void {
+  if (window !== window.top) {
+    window.parent.postMessage({ type: 'PKT_NAVIGATE', path }, '*')
+  } else {
+    window.open(path, '_blank', 'noopener')
+  }
+}
 export default function DeviceView() {
   const { ip } = useParams<{ ip?: string }>()
   const navigate = useNavigate()

@@ -36,6 +36,7 @@ async def get_dashboard(
             "display_name": app["display_name"],
             "app_type": app["app_type"],
             "status": app["status"],
+            "access_mode": app["access_mode"] if "access_mode" in app.keys() else "direct",
             "health_status": app["health_status"] or "unknown",
             "last_health_check": app["last_health_check"],
             "base_url": base_url,
