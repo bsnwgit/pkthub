@@ -42,7 +42,7 @@ export default function NOCDisplayPage() {
     const compute = () => {
       const vw = window.innerWidth
       const vh = window.innerHeight - HEADER_H
-      setScale(Math.min(vw / CANVAS_W, vh / CANVAS_H))
+      setScale(Math.max(vw / CANVAS_W, vh / CANVAS_H))
     }
     compute()
     window.addEventListener('resize', compute)
