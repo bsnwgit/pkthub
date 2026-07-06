@@ -994,77 +994,16 @@ const HEALTH_COLOR: Record<string, string> = {
   healthy: '#4ade80', degraded: '#f59e0b', unreachable: '#f87171', unknown: '#6b7280',
 }
 
-// ── App Registry tab (config + management) ────────────────────────────────────
+// ── App Registry tab (config only — app management lives in main App Registry page) ─────────
 function AppRegistrySection({ settings, set, save }: {
   settings: Record<string,string>
   set: (k: string, v: string|boolean|number) => void
   save: { save: () => Promise<void>; saving: boolean; saved: boolean; error: string }
 }) {
-  const { isAdmin } = useAuth()
-  const navigate = useNavigate()
-  const [apps, setApps] = useState<any[]>([])
-  const [appsLoading, setAppsLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editingAppId, setEditingAppId] = useState<number | null>(null)
-  const blankForm = { name: '', base_url: '', description: '', return_url: '', suite_token: '' }
-  const [form, setForm] = useState({ ...blankForm })
-  const [registering, setRegistering] = useState(false)
-  const [regError, setRegError] = useState('')
-  const [tokenMap, setTokenMap] = useState<Record<number, string>>({})
-
-  const loadApps = () => {
-    setAppsLoading(true)
-    api.listApps().then(setApps).catch(() => {}).finally(() => setAppsLoading(false))
-  }
-  useEffect(() => { loadApps() }, [])
-
-  const register = async () => {
-    setRegError(''); setRegistering(true)
-    try {
-      if (editingAppId !== null) {
-        await api.updateApp(editingAppId, { name: form.name, base_url: form.base_url, display_name: form.name, return_url: form.return_url || null })
-      } else {
-        await api.registerApp({ ...form, return_url: form.return_url || null })
-      }
-      setForm({ name: '', base_url: '', description: '', return_url: '', suite_token: '' })
-      setEditingAppId(null)
-      setShowForm(false)
-      loadApps()
-    } catch (e: any) { setRegError(e.message) }
-    finally { setRegistering(false) }
-  }
-
-  const deregister = async (id: number, name: string) => {
-    if (!confirm(`Deregister ${name}? This removes the suite token and restores direct access.`)) return
-    await api.deregisterApp(id).then(loadApps).catch((e: any) => alert(e.message))
-  }
-
-  const rotateToken = async (id: number) => {
-    try {
-      const res = await api.rotateToken(id)
-      setTokenMap(m => ({ ...m, [id]: res.suite_token }))
-      setTimeout(() => setTokenMap(m => { const n = { ...m }; delete n[id]; return n }), 30000)
-    } catch (e: any) { alert(e.message) }
-  }
-
-  const toggleMode = async (app: any) => {
-    const toLocked = app.access_mode !== 'managed'
-    const msg = toLocked
-      ? `Enable managed mode on ${app.name}?\n\nThis blocks direct access — all traffic must go through pktHub.`
-      : `Restore direct access to ${app.name}?\n\nUsers will be able to bypass pktHub.`
-    if (!confirm(msg)) return
-    try {
-      const res = await api.setDirectAccess(app.id, toLocked)
-      if (res.verified === false) alert(res.detail || 'Lock command sent but verification failed')
-      loadApps()
-    }
-    catch (e: any) { alert(e.message) }
-  }
-
   return (
     <div className="space-y-4">
       <Section title="App Registry" onSave={save.save} saving={save.saving} saved={save.saved} error={save.error}>
-        <Field label="Default mode on register" hint="Mode assigned to a pktAPP app when it is first registered">
+        <Field label="Default mode on register" hint="Mode assigned to a pktApp when it is first registered">
           <SelectInput value={strOf(settings,'default_app_mode','observe')} onChange={v => set('default_app_mode', v)}
             options={[{value:'observe',label:'Observe (read-only)'},{value:'managed',label:'Managed (full control)'}]} />
         </Field>
@@ -1089,130 +1028,9 @@ function AppRegistrySection({ settings, set, save }: {
           </div>
         </Field>
       </Section>
-
-      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-          <p className="text-sm font-semibold text-white">Registered Apps</p>
-          <div className="flex gap-2">
-            <button onClick={loadApps} className="p-1.5 text-gray-400 hover:text-white rounded transition-colors"><RefreshCw size={13} /></button>
-            {isAdmin && (
-              <button onClick={() => setShowForm(v => !v)}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-                style={{ background: 'linear-gradient(90deg,#60a5fa,#2dd4bf)' }}>
-                <Plus size={13} /> Register App
-              </button>
-            )}
-          </div>
-        </div>
-
-        {showForm && isAdmin && (
-          <div className="px-5 py-4 border-b border-gray-800 space-y-3">
-            <p className="text-xs font-semibold text-white">{editingAppId !== null ? 'Edit App' : 'Register New App'}</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">App Name</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500"
-                  placeholder="pktFlow" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Base URL</label>
-                <input value={form.base_url} onChange={e => setForm(f => ({ ...f, base_url: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white font-mono focus:outline-none focus:border-blue-500"
-                  placeholder="https://172.23.80.5:8766" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Description</label>
-                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500"
-                  placeholder="Real-time NetFlow analysis" />
-              </div>
-                            <div className="col-span-3">
-                <p className="text-xs text-blue-300/80 bg-blue-950/30 border border-blue-800/30 rounded-lg px-3 py-2 mb-3">
-                  Get the Suite Token from the pktApp: <strong>Settings &rarr; Integrations &rarr; pktHub Integration &rarr; Copy Token</strong>
-                </p>
-                <label className="block text-xs text-gray-400 mb-1">
-                  Suite Token <span className="text-red-400">*</span>
-                </label>
-                <input value={form.suite_token} onChange={e => setForm(f => ({ ...f, suite_token: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white font-mono focus:outline-none focus:border-blue-500"
-                  placeholder="Paste token from pktApp Settings → Integrations" />
-              </div>
-<div className="col-span-3">
-                <label className="block text-xs text-gray-400 mb-1">
-                  Hub Return URL <span className="text-gray-600">(optional — only set if the app server cannot resolve the pktHub hostname; use IP-based URL)</span>
-                </label>
-                <input value={form.return_url} onChange={e => setForm(f => ({ ...f, return_url: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white font-mono focus:outline-none focus:border-blue-500"
-                  placeholder="Leave blank unless DNS issues — e.g. https://172.23.80.5:8760" />
-              </div>
-            </div>
-            {regError && <p className="text-xs text-red-400">{regError}</p>}
-            <div className="flex gap-2">
-              <button onClick={register} disabled={registering || !form.name || !form.base_url || (editingAppId === null && !form.suite_token)}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: '#60a5fa' }}>
-                {registering ? 'Saving…' : editingAppId !== null ? 'Save Changes' : 'Register'}
-              </button>
-              <button onClick={() => { setShowForm(false); setEditingAppId(null); setForm({ name: '', base_url: '', description: '', return_url: '', suite_token: '' }) }} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {appsLoading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
-        {!appsLoading && apps.length === 0 && (
-          <div className="text-sm text-gray-500 py-10 text-center">No apps registered. Click "Register App" to add one.</div>
-        )}
-        <div className="divide-y divide-gray-800">
-          {apps.map(app => {
-            const color = appColor(app.name)
-            const statusColor = HEALTH_COLOR[app.health_status] || '#6b7280'
-            return (
-              <div key={app.id} className="flex items-center gap-3 px-5 py-3" style={{ borderLeft: `3px solid ${color}30` }}>
-                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: statusColor }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">{app.display_name || app.name}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${app.access_mode === 'managed' ? 'bg-orange-900/30 text-orange-300' : 'bg-blue-900/20 text-blue-300'}`}>
-                      {app.access_mode === 'managed' ? '🔒 Managed' : '👁 Observe'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 font-mono truncate">{app.base_url}</p>
-                  {app.return_url && <p className="text-xs text-blue-500/70 font-mono truncate">hub: {app.return_url}</p>}
-                  {tokenMap[app.id] && (
-                    <div className="mt-1.5 p-2 rounded bg-gray-800 border border-yellow-800/40">
-                      <p className="text-xs text-yellow-400 mb-0.5">Suite token — copy now, shown once:</p>
-                      <code className="text-xs text-gray-200 break-all">{tokenMap[app.id]}</code>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => navigate(`/proxy/${app.id}`)} title="Open in proxy"
-                    className="p-1.5 text-gray-500 hover:text-white rounded transition-colors"><ExternalLink size={13} /></button>
-                  {isAdmin && (
-                    <>
-                      <button onClick={() => toggleMode(app)} title={app.access_mode === 'managed' ? 'Disable Managed Mode' : 'Enable Managed Mode'}
-                        className="p-1.5 text-gray-500 hover:text-white rounded transition-colors">
-                        {app.access_mode === 'managed' ? <Eye size={13} /> : <ShieldCheck size={13} />}
-                      </button>
-                      <button onClick={() => rotateToken(app.id)} title="Rotate suite token"
-                        className="p-1.5 text-gray-500 hover:text-blue-400 rounded transition-colors"><RefreshCw size={13} /></button>
-                      <button onClick={() => { setEditingAppId(app.id); setForm({ name: app.name, base_url: app.base_url, description: app.description || '', return_url: app.return_url || '', suite_token: '' }); setRegError(''); setShowForm(true) }} title="Edit app"
-                        className="p-1.5 text-gray-500 hover:text-yellow-400 rounded transition-colors"><Pencil size={13} /></button>
-                      <button onClick={() => deregister(app.id, app.display_name || app.name)} title="Deregister"
-                        className="p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors"><Trash2 size={13} /></button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
     </div>
   )
 }
-
 // ── NOC tab (config + management) ──────────────────────────────────────────
 function NOCSection({ settings, set, save }: {
   settings: Record<string,string>
