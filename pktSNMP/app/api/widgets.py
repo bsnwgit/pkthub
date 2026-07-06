@@ -104,7 +104,7 @@ def _widget_page(title: str, body: str) -> str:
   body{{background:#0a1628;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}}
   .header{{padding:10px 14px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:8px;flex-shrink:0}}
   .header-title{{font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:0.03em}}
-  .content{{flex:1;overflow:auto;padding:12px}}
+  .content{{flex:1;overflow:hidden;padding:12px}}
   table{{width:100%;border-collapse:collapse}}
   th{{text-align:left;font-size:10px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:5px 8px;border-bottom:1px solid #1e293b}}
   td{{padding:7px 8px;border-bottom:1px solid #0f172a;font-size:12px;color:#cbd5e1}}
