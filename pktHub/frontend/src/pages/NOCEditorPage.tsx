@@ -26,6 +26,7 @@ interface AppWithWidgets {
 interface PlacedWidget {
   id: string; app_id: number; widget_id: string; view_path: string
   title: string; x: number; y: number; w: number; h: number
+  config?: Record<string, string | number | boolean>
 }
 interface Slide {
   id: string; title: string; dwell_seconds: number; widgets: PlacedWidget[]
@@ -40,6 +41,15 @@ const APP_COLORS: Record<string, string> = {
 }
 function appColor(name: string): string {
   return APP_COLORS[name.toLowerCase().replace(/[^a-z]/g, '')] ?? '#94a3b8'
+}
+
+// ─── Widget iframe src ── appends config params as query string ─────────────
+function widgetIframeSrc(w: PlacedWidget, proxyBase: string): string {
+  const cfg = w.config || {}
+  const qs  = new URLSearchParams()
+  Object.entries(cfg).forEach(([k, v]) => { if (v !== '' && v !== undefined) qs.set(k, String(v)) })
+  const q = qs.toString()
+  return `${proxyBase}${w.view_path}${q ? '?' + q : ''}`
 }
 
 // ─── Shared styles ──────────────────────────────────────────────────────────────
@@ -197,6 +207,14 @@ export default function NOCEditorPage() {
     setSlides(prev => prev.map((s, i) =>
       i === currentSlideIdx
         ? { ...s, widgets: s.widgets.map(w => w.id === widgetId ? { ...w, ...fields } : w) } : s
+    ))
+  }, [currentSlideIdx])
+
+  const updateWidgetConfig = useCallback((widgetId: string, key: string, value: string | number | boolean) => {
+    setSlides(prev => prev.map((s, i) =>
+      i === currentSlideIdx
+        ? { ...s, widgets: s.widgets.map(w => w.id === widgetId ? { ...w, config: { ...w.config, [key]: value } } : w) }
+        : s
     ))
   }, [currentSlideIdx])
 
@@ -426,7 +444,7 @@ export default function NOCEditorPage() {
                 const clr  = wApp ? appColor(wApp.name) : '#94a3b8'
                 const isSel = w.id === selectedWidgetId
                 const proxyBase = wApp && proxyReady.has(w.app_id) ? `/proxy/${w.app_id}` : null
-                const frameSrc  = proxyBase ? `${proxyBase}${w.view_path}` : null
+                const frameSrc  = proxyBase ? widgetIframeSrc(w, proxyBase) : null
 
                 return (
                   <div
@@ -539,6 +557,32 @@ export default function NOCEditorPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Severity filter — only for log_stream widget */}
+              {selectedWidget.widget_id === 'log_stream' && (
+                <>
+                  <div style={{ paddingTop: '14px', paddingBottom: '4px' }}>
+                    <p style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filters</p>
+                  </div>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
+                    <span style={{ fontSize: '10px', color: '#64748b' }}>Min Severity</span>
+                    <select
+                      value={String(selectedWidget.config?.severity_max ?? '')}
+                      onChange={e => updateWidgetConfig(
+                        selectedWidget.id, 'severity_max',
+                        e.target.value === '' ? '' : parseInt(e.target.value)
+                      )}
+                      style={inputSt}
+                    >
+                      <option value="">All</option>
+                      <option value="4">≤ Warning (4)</option>
+                      <option value="3">≤ Error (3)</option>
+                      <option value="2">≤ Critical (2)</option>
+                      <option value="0">Emergency only (0)</option>
+                    </select>
+                  </label>
+                </>
+              )}
 
               <button
                 onClick={() => removeWidget(selectedWidget.id)}
