@@ -116,19 +116,20 @@ export default function NOCDisplayPage() {
         </div>
       </div>
 
-      {/* Canvas area — scale the reference canvas to fit the screen */}
-      <div className="flex-1 relative" style={{ overflow: 'hidden' }}>
+      {/* Canvas area — scale the reference canvas to fit the screen, centered */}
+      <div className="flex-1" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {slides.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex items-center justify-center w-full h-full">
             <div className="text-sm text-gray-600">No slides configured for this display.</div>
           </div>
         ) : !slide || !slide.widgets || slide.widgets.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex items-center justify-center w-full h-full">
             <div className="text-sm text-gray-600">No widgets on this slide.</div>
           </div>
         ) : (
-          // Reference canvas scaled to fill the screen.
-          // All widget x/y/w/h coords are in CANVAS_W × CANVAS_H space.
+          // Zoom wrapper — sized to actual visual footprint so flex centering works correctly.
+          <div style={{ width: `${CANVAS_W * scale}px`, height: `${CANVAS_H * scale}px`, position: 'relative', flexShrink: 0 }}>
+          {/* Reference canvas — fixed 1920×1080, CSS-scaled from top-left */}
           <div style={{
             position: 'absolute',
             top: 0,
@@ -155,6 +156,7 @@ export default function NOCDisplayPage() {
                 }}
               />
             ))}
+          </div>
           </div>
         )}
       </div>

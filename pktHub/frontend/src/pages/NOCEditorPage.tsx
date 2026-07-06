@@ -52,6 +52,9 @@ const inputSt: React.CSSProperties = {
 // ─── Zoom levels ────────────────────────────────────────────────────────────────
 const ZOOM_LEVELS = [0.25, 0.33, 0.5, 0.67, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
+// ─── Snap grid ──────────────────────────────────────────────────────────────────
+const SNAP_GRID = 24
+
 function uid()      { return 'w-'     + Math.random().toString(36).slice(2, 9) }
 function slideUid() { return 'slide-' + Math.random().toString(36).slice(2, 9) }
 
@@ -72,6 +75,7 @@ export default function NOCEditorPage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [proxyReady, setProxyReady] = useState<Set<number>>(new Set())
   const [zoom, setZoom] = useState(0.5)
+  const [snapEnabled, setSnapEnabled] = useState(false)
 
   const canvasRef     = useRef<HTMLDivElement>(null)
   const canvasAreaRef = useRef<HTMLDivElement>(null)
@@ -87,6 +91,8 @@ export default function NOCEditorPage() {
   } | null>(null)
   const zoomRef = useRef(zoom)
   useEffect(() => { zoomRef.current = zoom }, [zoom])
+  const snapRef = useRef(false)
+  useEffect(() => { snapRef.current = snapEnabled }, [snapEnabled])
 
   // ── Fit-to-canvas ────────────────────────────────────────────────────────
   const calcFitZoom = useCallback(() => {
@@ -96,6 +102,9 @@ export default function NOCEditorPage() {
   }, [])
 
   const fitCanvas = useCallback(() => setZoom(calcFitZoom()), [calcFitZoom])
+
+  // ── Snap helper ──────────────────────────────────────────────────────────
+  const snapVal = (v: number) => snapRef.current ? Math.round(v / SNAP_GRID) * SNAP_GRID : v
 
   // ── Zoom step helpers ────────────────────────────────────────────────────
   const zoomIn = () => setZoom(z => {
@@ -211,9 +220,9 @@ export default function NOCEditorPage() {
     const m = dragDataRef.current.manifest
     // Center widget on cursor, clamped to canvas boundary
     const x = Math.max(0, Math.min(CANVAS_W - m.default_w,
-      Math.round((e.clientX - rect.left) / z - m.default_w / 2)))
+      snapVal(Math.round((e.clientX - rect.left) / z - m.default_w / 2))))
     const y = Math.max(0, Math.min(CANVAS_H - m.default_h,
-      Math.round((e.clientY - rect.top) / z - m.default_h / 2)))
+      snapVal(Math.round((e.clientY - rect.top) / z - m.default_h / 2))))
     const { appId } = dragDataRef.current
     const placed: PlacedWidget = {
       id: uid(), app_id: appId, widget_id: m.id, view_path: m.view_path,
@@ -252,16 +261,16 @@ export default function NOCEditorPage() {
     if (resizeMoveRef.current) {
       const r = resizeMoveRef.current
       updateWidget(r.widgetId, {
-        w: Math.max(r.minW, Math.min(CANVAS_W - r.origX, r.origW + (e.clientX - r.startX) / z)),
-        h: Math.max(r.minH, Math.min(CANVAS_H - r.origY, r.origH + (e.clientY - r.startY) / z)),
+        w: Math.max(r.minW, Math.min(CANVAS_W - r.origX, snapVal(r.origW + (e.clientX - r.startX) / z))),
+        h: Math.max(r.minH, Math.min(CANVAS_H - r.origY, snapVal(r.origH + (e.clientY - r.startY) / z))),
       })
       return
     }
     if (dragMoveRef.current) {
       const d = dragMoveRef.current
       updateWidget(d.widgetId, {
-        x: Math.max(0, Math.min(CANVAS_W - d.origW, d.origX + (e.clientX - d.startX) / z)),
-        y: Math.max(0, Math.min(CANVAS_H - d.origH, d.origY + (e.clientY - d.startY) / z)),
+        x: Math.max(0, Math.min(CANVAS_W - d.origW, snapVal(d.origX + (e.clientX - d.startX) / z))),
+        y: Math.max(0, Math.min(CANVAS_H - d.origH, snapVal(d.origY + (e.clientY - d.startY) / z))),
       })
     }
   }
@@ -323,6 +332,13 @@ export default function NOCEditorPage() {
             </>
           )}
         </div>
+
+        {/* Snap toggle */}
+        <button
+          onClick={() => setSnapEnabled(s => !s)}
+          title="Snap to 24px grid"
+          style={{ color: snapEnabled ? '#a78bfa' : '#475569', background: snapEnabled ? 'rgba(167,139,250,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${snapEnabled ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}
+        >Snap</button>
 
         {/* Zoom controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px 8px', flexShrink: 0 }}>
