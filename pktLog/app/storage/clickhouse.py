@@ -195,6 +195,19 @@ class ClickHouseBackend(StorageBackend):
         rows = await asyncio.to_thread(self._execute, q, {"hours": hours, "limit": limit})
         return [{"source_ip": r[0], "source_name": r[1], "log_group": r[2], "count": r[3]} for r in rows]
 
+    async def count_by_facility(self, hours: int = 1) -> list[dict]:
+        """Count syslog events grouped by facility — used by facility breakdown widget."""
+        q = """
+            SELECT facility, facility_name, count() AS cnt
+            FROM syslog_events
+            WHERE timestamp >= now() - INTERVAL %(hours)s HOUR
+            GROUP BY facility, facility_name
+            ORDER BY cnt DESC
+            LIMIT 20
+        """
+        rows = await asyncio.to_thread(self._execute, q, {"hours": hours})
+        return [{"facility": r[0], "facility_name": r[1], "count": r[2]} for r in rows]
+
     async def top_programs(self, hours: int = 24, limit: int = 20) -> list[dict]:
         q = """
             SELECT program, count() AS cnt
@@ -241,6 +254,10 @@ class ClickHouseBackend(StorageBackend):
         """
         rows = await asyncio.to_thread(self._execute, q)
         return [{"collector_ip": r[0], "collector_name": r[1], "last_seen": r[2].isoformat()} for r in rows]
+
+    async def get_sampler_last_seen(self) -> list[dict]:
+        """Alias for collector_last_seen — called by the alert evaluator."""
+        return await self.collector_last_seen()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -72,7 +72,7 @@ body{{background:#0a1628;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;
 .hdr{{padding:8px 14px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:8px;flex-shrink:0;height:36px}}
 .hdr-dot{{width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0}}
 .hdr-title{{font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:0.03em}}
-.content{{flex:1;overflow:auto;padding:12px}}
+.content{{flex:1;overflow:hidden;padding:12px}}
 table{{width:100%;border-collapse:collapse}}
 th{{text-align:left;font-size:10px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:4px 8px;border-bottom:1px solid #1e293b}}
 td{{padding:6px 8px;border-bottom:1px solid #0f172a;font-size:12px;color:#cbd5e1}}
@@ -310,7 +310,7 @@ async def widget_geo_map():
 <div id="map"></div>
 <script>
 const GD={geo_json};
-const map=L.map('map',{{attributionControl:false,zoomControl:true}});
+const map=L.map('map',{{attributionControl:false,zoomControl:false,scrollWheelZoom:false,doubleClickZoom:false,dragging:false,touchZoom:false,keyboard:false,boxZoom:false}});
 L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png',{{subdomains:'abcd'}}).addTo(map);
 GD.arcs.forEach(a=>L.polyline([[a.src_lat,a.src_lng],[a.dst_lat,a.dst_lng]],{{color:'#60a5fa',weight:1.2,opacity:0.45}}).addTo(map));
 const pts=[];
@@ -321,7 +321,7 @@ GD.locations.forEach(loc=>{{
   pts.push([loc.lat,loc.lng]);
 }});
 if(pts.length){{
-  map.fitBounds(L.latLngBounds(pts),{{padding:[30,30],maxZoom:10}});
+  map.fitBounds(L.latLngBounds(pts),{{padding:[20,20]}});
 }}else{{
   map.setView([20,0],2);
   document.getElementById('map').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#334155;font-size:13px">No public IP geo data available</div>';
@@ -386,11 +386,13 @@ async def widget_network_topology():
 # ── Collector Status ──────────────────────────────────────────────────────────
 @router.get("/widgets/collector_status", response_class=HTMLResponse, include_in_schema=False)
 async def widget_collector_status():
+    # Per-sampler stats from ClickHouse
     ch_rows = await asyncio.to_thread(_ch, """
         SELECT sampler_ip, sampler_name, sum(bytes) as bytes, max(timestamp) as last_seen
         FROM flows WHERE timestamp >= now() - INTERVAL 1 HOUR
         GROUP BY sampler_ip, sampler_name ORDER BY bytes DESC
     """)
+    # Device names from SQLite registry
     dev_names: dict = {}
     try:
         async with aiosqlite.connect(_DB) as db:
@@ -404,7 +406,7 @@ async def widget_collector_status():
     if ch_rows:
         trs = []
         for r in ch_rows:
-            ip   = str(r[0])
+            ip  = str(r[0])
             name = dev_names.get(ip, str(r[1] or ""))
             last = _fmt_ts(r[3])
             trs.append(

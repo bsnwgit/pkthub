@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Log Stream</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #080d18; color: #e2e8f0;
+      font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 11px; height: 100vh; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0; background: #0d1525;
+    }
+    #header .title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #4ade80; }
+    #header .status { font-size: 9px; color: #334155; }
+    #feed {
+      flex: 1; overflow: hidden; padding: 5px 6px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+
+    /* PAN-OS card */
+    .card-panos {
+      background: #0f1a2e; border: 1px solid rgba(255,255,255,0.07);
+      border-left: 3px solid #334155; border-radius: 4px;
+      padding: 6px 10px; animation: fadeIn 0.15s ease; flex-shrink: 0;
+    }
+    .card-panos.allow { border-left-color: #16a34a; }
+    .card-panos.deny  { border-left-color: #dc2626; }
+    .card-panos.reset { border-left-color: #d97706; }
+    .chips { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; flex-wrap: wrap; }
+    .chip { font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chip-type  { background: rgba(96,165,250,0.12);  color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+    .chip-allow { background: rgba(74,222,128,0.12);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .chip-deny  { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+    .chip-reset { background: rgba(251,191,36,0.12);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+    .chip-sub   { background: rgba(148,163,184,0.08); color: #94a3b8; border: 1px solid rgba(148,163,184,0.15); }
+    .chip-dev   { color: #334155; font-size: 8px; margin-left: auto; }
+    .flow-line  { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .ip   { color: #e2e8f0; font-weight: 600; font-size: 13px; }
+    .port { color: #475569; font-size: 11px; }
+    .proto-pill {
+      font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 10px;
+      background: rgba(255,255,255,0.05); color: #64748b; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .arrow { color: #334155; font-size: 12px; }
+
+    /* compact card */
+    .card-compact {
+      display: flex; align-items: flex-start; gap: 6px; padding: 4px 8px;
+      background: #0b1627; border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 3px; animation: fadeIn 0.15s ease; flex-shrink: 0;
+    }
+    .sev-badge {
+      font-size: 7px; font-weight: 700; padding: 2px 4px; border-radius: 2px;
+      flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1px;
+    }
+    .sev-0,.sev-1 { background: rgba(248,113,113,0.25); color: #f87171; }
+    .sev-2        { background: rgba(251,146,60,0.25);  color: #fb923c; }
+    .sev-3        { background: rgba(252,165,165,0.2);  color: #fca5a5; }
+    .sev-4        { background: rgba(251,191,36,0.2);   color: #fbbf24; }
+    .sev-5        { background: rgba(96,165,250,0.15);  color: #60a5fa; }
+    .sev-6        { background: rgba(74,222,128,0.12);  color: #4ade80; }
+    .sev-7        { background: rgba(148,163,184,0.08); color: #64748b; }
+    .card-compact .body { flex: 1; min-width: 0; }
+    .card-compact .prog { color: #64748b; font-size: 9px; margin-bottom: 2px; }
+    .card-compact .msg  { color: #94a3b8; font-size: 10px; word-break: break-all; white-space: normal; line-height: 1.4; }
+    .card-compact .ts   { color: #1e293b; font-size: 9px; flex-shrink: 0; margin-top: 1px; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+</head>
+<body>
+<div id="header">
+  <span class="title">Live Log Stream</span>
+  <span class="status" id="status">connecting...</span>
+</div>
+<div id="feed"></div>
+<script>
+  const urlParams   = new URLSearchParams(window.location.search)
+  const severityMax = urlParams.has('severity_max') ? parseInt(urlParams.get('severity_max')) : null
+  const API_BASE    = '../syslog/search'
+
+  // CSV parser
+  function parseCSVLine(line) {
+    const fields = []; let field = '', inQ = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') { inQ = !inQ }
+      else if (c === ',' && !inQ) { fields.push(field.trim()); field = '' }
+      else { field += c }
+    }
+    fields.push(field.trim()); return fields
+  }
+
+  const PANOS_TYPES = ['TRAFFIC','THREAT','SYSTEM','CONFIG','HIPMATCH','GLOBALPROTECT','AUTHENTICATION','USERID']
+  function g(f, i) { return (i < f.length ? f[i] : '').trim() }
+
+  // Find PAN-OS log type by scanning for marker, then walk back 3 commas to CSV start
+  function parsePanOs(msg) {
+    if (!msg) return null
+    let typeStart = -1, logType = ''
+    for (const t of PANOS_TYPES) {
+      const idx = msg.indexOf(',' + t + ',')
+      if (idx !== -1) { typeStart = idx; logType = t; break }
+    }
+    if (typeStart === -1) return null
+    let commas = 0, csvStart = 0
+    for (let i = typeStart - 1; i >= 0; i--) {
+      if (msg[i] === ',') { commas++; if (commas === 3) { csvStart = i + 1; break } }
+    }
+    const f = parseCSVLine(msg.slice(csvStart))
+    if (f.length < 5 || f[3] !== logType || f.length < 9) return null
+    const action = g(f,30) || g(f,4)
+    return { logType, subtype: g(f,4), srcIp: g(f,7), dstIp: g(f,8),
+      srcPort: g(f,24), dstPort: g(f,25), protocol: g(f,29).toUpperCase(),
+      action, application: g(f,14), ruleName: g(f,11), srcUser: g(f,12),
+      srcZone: g(f,16), dstZone: g(f,17), deviceName: g(f,52),
+      threatId: g(f,32), severity: g(f,34), category: g(f,33) }
+  }
+
+  // Try all likely entry fields until one parses
+  function tryParsePanOs(entry) {
+    for (const key of ['raw','message','original','full_message','raw_message']) {
+      if (entry[key]) { const pan = parsePanOs(String(entry[key])); if (pan) return pan }
+    }
+    return null
+  }
+
+  function actionCls(action) {
+    if (!action) return 'deny'
+    const a = action.toLowerCase()
+    if (a === 'allow' || a === 'end' || a === 'start') return 'allow'
+    if (a.startsWith('reset')) return 'reset'
+    return 'deny'
+  }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+  function buildPanOsCard(pan) {
+    const ac = actionCls(pan.action)
+    const card = document.createElement('div')
+    card.className = 'card-panos ' + ac
+    const actionLabel = (pan.action || ac).toUpperCase()
+    const subtypeLabel = pan.subtype && pan.subtype.toUpperCase() !== actionLabel ? pan.subtype : ''
+    let chips = '<span class="chip chip-type">PAN-OS ' + esc(pan.logType) + '</span>'
+    chips += '<span class="chip chip-' + ac + '">' + esc(actionLabel) + '</span>'
+    if (subtypeLabel) chips += '<span class="chip chip-sub">' + esc(subtypeLabel) + '</span>'
+    if (pan.deviceName) chips += '<span class="chip chip-dev">' + esc(pan.deviceName) + '</span>'
+    const srcStr = pan.srcPort
+      ? '<span class="ip">' + esc(pan.srcIp) + '</span><span class="port">:' + esc(pan.srcPort) + '</span>'
+      : '<span class="ip">' + esc(pan.srcIp) + '</span>'
+    const dstStr = pan.dstPort
+      ? '<span class="ip">' + esc(pan.dstIp) + '</span><span class="port">:' + esc(pan.dstPort) + '</span>'
+      : '<span class="ip">' + esc(pan.dstIp) + '</span>'
+    const proto = pan.protocol ? '<span class="proto-pill">' + esc(pan.protocol) + '</span>' : ''
+    card.innerHTML = '<div class="chips">' + chips + '</div><div class="flow-line">' + srcStr + proto + '<span class="arrow">──►</span>' + dstStr + '</div>'
+    return card
+  }
+
+  const SEV_LABELS = ['EMERG','ALERT','CRIT','ERR','WARN','NOTICE','INFO','DEBUG']
+  function buildCompactCard(entry) {
+    const sev = entry.severity != null ? entry.severity : 6
+    const ts  = entry.timestamp ? String(entry.timestamp).slice(11,19) : ''
+    const card = document.createElement('div'); card.className = 'card-compact'
+    const badge = document.createElement('span')
+    badge.className = 'sev-badge sev-' + Math.min(sev,7); badge.textContent = SEV_LABELS[sev] || String(sev)
+    const body = document.createElement('div'); body.className = 'body'
+    if (entry.program) {
+      const p = document.createElement('div'); p.className = 'prog'; p.textContent = entry.program; body.appendChild(p)
+    }
+    const m = document.createElement('div'); m.className = 'msg'; m.textContent = entry.message || ''; body.appendChild(m)
+    const tsEl = document.createElement('span'); tsEl.className = 'ts'; tsEl.textContent = ts
+    card.appendChild(badge); card.appendChild(body); card.appendChild(tsEl)
+    return card
+  }
+
+  const feed = document.getElementById('feed')
+  const statusEl = document.getElementById('status')
+  const DOM_CAP = 50
+  const seen = new Set()
+  let lastTs = null, count = 0, panCount = 0
+
+  function prepend(el) {
+    feed.insertBefore(el, feed.firstChild); count++
+    while (count > DOM_CAP) { feed.removeChild(feed.lastChild); count-- }
+  }
+
+  async function poll() {
+    try {
+      const qs = new URLSearchParams({ limit: 50 })
+      if (lastTs) qs.set('start_time', lastTs)
+      if (severityMax !== null) qs.set('severity_max', String(severityMax))
+      const res = await fetch(API_BASE + '?' + qs.toString())
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      const data = await res.json()
+      const entries = Array.isArray(data) ? data : (data.entries || data.logs || [])
+      const fresh = entries
+        .filter(function(e) { const k = e.id || (e.timestamp + '|' + (e.message||'')); return !seen.has(k) })
+        .filter(function(e) { return severityMax === null || (e.severity != null ? e.severity : 6) <= severityMax })
+        .sort(function(a,b) { return new Date(a.timestamp) - new Date(b.timestamp) })
+      for (let i = 0; i < fresh.length; i++) {
+        const entry = fresh[i]
+        const key = entry.id || (entry.timestamp + '|' + (entry.message||''))
+        seen.add(key)
+        if (!lastTs || entry.timestamp > lastTs) lastTs = entry.timestamp
+        const pan = tryParsePanOs(entry)
+        if (pan) panCount++
+        prepend(pan ? buildPanOsCard(pan) : buildCompactCard(entry))
+      }
+      if (seen.size > 2000) {
+        const a = Array.from(seen); a.splice(0, 1000).forEach(function(k) { seen.delete(k) })
+      }
+      statusEl.textContent = count + ' entries (' + panCount + ' PAN-OS) * ' + new Date().toLocaleTimeString()
+      statusEl.style.color = '#334155'
+    } catch(err) {
+      statusEl.textContent = 'error: ' + err.message
+      statusEl.style.color = '#f87171'
+    }
+  }
+  poll(); setInterval(poll, 5000)
+</script>
+</body>
+</html>

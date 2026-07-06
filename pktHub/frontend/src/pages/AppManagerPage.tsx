@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import {
   Plus, Trash2, RefreshCw, ExternalLink, ChevronDown,
-  ShieldCheck, Eye, X, CircleCheck, CircleAlert
+  ShieldCheck, Eye, X, CircleCheck, CircleAlert, Pencil
 } from 'lucide-react'
 import AlertLogSection from '../components/AlertLogSection'
 
@@ -136,7 +136,8 @@ export default function AppManagerPage() {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
   const [showForm, setShowForm]     = useState(false)
-  const [form, setForm]             = useState({ name: '', base_url: '', description: '', suite_token: '' })
+  const [editingAppId, setEditingAppId] = useState<number | null>(null)
+  const [form, setForm]             = useState({ name: '', base_url: '', description: '', suite_token: '', return_url: '' })
   const [registering, setRegistering] = useState(false)
   const [regError, setRegError]     = useState('')
   const [verifyStatus, setVerifyStatus] = useState<'idle'|'checking'|'ok'|'fail'>('idle')
@@ -182,14 +183,41 @@ export default function AppManagerPage() {
     }
   }
 
+  const cancelForm = () => {
+    setShowForm(false)
+    setEditingAppId(null)
+    setForm({ name: '', base_url: '', description: '', suite_token: '', return_url: '' })
+    setRegError('')
+  }
+
   const register = async () => {
     setRegError(''); setRegistering(true)
     try {
-      await api.registerApp(form)
-      setForm({ name: '', base_url: '', description: '', suite_token: '' })
-      setShowForm(false); load()
+      if (editingAppId !== null) {
+        await api.updateApp(editingAppId, {
+          name: form.name, base_url: form.base_url,
+          description: form.description, return_url: form.return_url || null,
+        })
+      } else {
+        await api.registerApp(form)
+      }
+      cancelForm()
+      load()
     } catch (e: any) { setRegError(e.message) }
     finally { setRegistering(false) }
+  }
+
+  const startEdit = (app: any) => {
+    setEditingAppId(app.id)
+    setForm({
+      name: app.name,
+      base_url: app.base_url,
+      description: app.description || '',
+      suite_token: '',
+      return_url: app.return_url || '',
+    })
+    setRegError('')
+    setShowForm(true)
   }
 
   const verifyUrl = async (url: string) => {
@@ -215,12 +243,19 @@ export default function AppManagerPage() {
     })
   }
 
-  const rotateToken = async (id: number) => {
-    try {
-      const res = await api.rotateToken(id)
-      setTokenMap(m => ({ ...m, [id]: res.suite_token }))
-      setTimeout(() => setTokenMap(m => { const n = { ...m }; delete n[id]; return n }), 30000)
-    } catch (e: any) { setError(e.message) }
+  const rotateToken = (id: number, name: string) => {
+    showConfirm({
+      title: `Rotate Suite Token — ${name}?`,
+      message: `This generates a new suite token and immediately invalidates the current one.\n\nThe new token will be displayed once — copy it before navigating away.\n\nThe app will lose hub connectivity until the token is re-entered in its Settings → Integrations.`,
+      confirmLabel: 'Rotate Token', danger: true,
+      onConfirm: async () => {
+        try {
+          const res = await api.rotateToken(id)
+          setTokenMap(m => ({ ...m, [id]: res.suite_token }))
+          setTimeout(() => setTokenMap(m => { const n = { ...m }; delete n[id]; return n }), 30000)
+        } catch (e: any) { setError(e.message) }
+      },
+    })
   }
 
   const resyncTokenHandler = async (appId: number, appName: string) => {
@@ -317,7 +352,7 @@ export default function AppManagerPage() {
             <RefreshCw size={13} />
           </button>
           {isAdmin && (
-            <button onClick={() => setShowForm(v => !v)}
+            <button onClick={() => { cancelForm(); setShowForm(v => !v) }}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
               style={{ background: 'linear-gradient(90deg,#60a5fa,#2dd4bf)' }}>
               <Plus size={13} /> Register App
@@ -332,13 +367,17 @@ export default function AppManagerPage() {
         </div>
       )}
 
-      {/* Register form */}
+      {/* Register / Edit form */}
       {showForm && isAdmin && (
         <div className="rounded-xl border border-blue-500/20 p-5 space-y-4" style={{ background: '#111827' }}>
-          <h2 className="text-sm font-semibold text-white">Register New App</h2>
-          <p className="text-xs text-blue-300/80 bg-blue-950/30 border border-blue-800/30 rounded-lg px-3 py-2">
-            Get the Suite Token from the pktApp: <strong>Settings → Integrations → pktHub Integration → Copy Token</strong>
-          </p>
+          <h2 className="text-sm font-semibold text-white">
+            {editingAppId !== null ? 'Edit App' : 'Register New App'}
+          </h2>
+          {editingAppId === null && (
+            <p className="text-xs text-blue-300/80 bg-blue-950/30 border border-blue-800/30 rounded-lg px-3 py-2">
+              Get the Suite Token from the pktApp: <strong>Settings → Integrations → pktHub Integration → Copy Token</strong>
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-400 mb-1">App Name</label>
@@ -369,20 +408,29 @@ export default function AppManagerPage() {
               </div>
             </div>
             <div>
+              <label className="block text-xs text-gray-400 mb-1">Return URL <span className="text-gray-600">(optional)</span></label>
+              <input value={form.return_url} onChange={e => setForm(f => ({ ...f, return_url: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500"
+                placeholder="https://pkthub.internal/apps" />
+            </div>
+          </div>
+          {editingAppId === null && (
+            <div>
               <label className="block text-xs text-gray-400 mb-1">Suite Token <span className="text-red-400">*</span></label>
               <input value={form.suite_token} onChange={e => setForm(f => ({ ...f, suite_token: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500 font-mono"
                 placeholder="Paste token from pktApp Settings → Integrations" />
             </div>
-          </div>
+          )}
           {regError && <div className="text-xs text-red-400">{regError}</div>}
           <div className="flex gap-2">
-            <button onClick={register} disabled={registering || !form.name || !form.base_url || !form.suite_token}
+            <button onClick={register}
+              disabled={registering || !form.name || !form.base_url || (editingAppId === null && !form.suite_token)}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
               style={{ background: '#60a5fa' }}>
-              {registering ? 'Registering…' : 'Register'}
+              {registering ? (editingAppId !== null ? 'Saving…' : 'Registering…') : (editingAppId !== null ? 'Save Changes' : 'Register')}
             </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">
+            <button onClick={cancelForm} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">
               Cancel
             </button>
           </div>
@@ -419,6 +467,15 @@ export default function AppManagerPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-bold text-white">{app.name}</h3>
+                        {/* Health status chip */}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+                          app.health_status === 'healthy'     ? 'bg-green-900/25 text-green-400 border-green-800/30' :
+                          app.health_status === 'degraded'    ? 'bg-amber-900/30 text-amber-300 border-amber-800/30' :
+                          app.health_status === 'unreachable' ? 'bg-red-900/25 text-red-400 border-red-800/30' :
+                                                                'bg-gray-800/60 text-gray-500 border-gray-700/30'
+                        }`}>
+                          {(app.health_status || 'unknown').charAt(0).toUpperCase() + (app.health_status || 'unknown').slice(1)}
+                        </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
                           isManaged
                             ? 'bg-orange-900/30 text-orange-300 border-orange-700/30'
@@ -464,12 +521,23 @@ export default function AppManagerPage() {
 
                   {/* Right: action buttons */}
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => navigate(`/proxy/${app.id}`)} title="Open in proxy"
+                    {/* Open in Context — all users */}
+                    <button onClick={() => navigate(`/context?app=${app.id}`)} title="Open in Context"
                       className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
                       <ExternalLink size={14} />
                     </button>
+                    {/* Access Log — all users */}
+                    <button onClick={() => toggleAuditLog(app.id)} title="Access log"
+                      className={`p-1.5 rounded-lg transition-colors ${logsOpen ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}>
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {/* Admin-only actions */}
                     {isAdmin && (
                       <>
+                        <button onClick={() => startEdit(app)} title="Edit app"
+                          className="p-1.5 text-gray-400 hover:text-blue-400 rounded-lg hover:bg-gray-700 transition-colors">
+                          <Pencil size={14} />
+                        </button>
                         <button onClick={() => toggleMode(app)}
                           title={isManaged ? 'Disable Managed Mode' : 'Enable Managed Mode'}
                           className={`p-1.5 rounded-lg transition-colors ${
@@ -479,11 +547,7 @@ export default function AppManagerPage() {
                           }`}>
                           {isManaged ? <Eye size={14} /> : <ShieldCheck size={14} />}
                         </button>
-                        <button onClick={() => toggleAuditLog(app.id)} title="Access log"
-                          className={`p-1.5 rounded-lg transition-colors ${logsOpen ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}>
-                          <ChevronDown size={14} className={`transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {hasMismatch && isAdmin && (
+                        {hasMismatch && (
                           <button
                             onClick={() => resyncTokenHandler(app.id, app.name)}
                             title="Re-sync suite token from app"
@@ -491,7 +555,7 @@ export default function AppManagerPage() {
                             <RefreshCw size={14} />
                           </button>
                         )}
-                        <button onClick={() => rotateToken(app.id)} title="Rotate suite token"
+                        <button onClick={() => rotateToken(app.id, app.name)} title="Rotate suite token"
                           className="p-1.5 text-gray-400 hover:text-yellow-400 rounded-lg hover:bg-gray-700 transition-colors">
                           <RefreshCw size={14} />
                         </button>

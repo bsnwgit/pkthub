@@ -20,6 +20,15 @@ interface NOCWidget {
   y: number
   w: number
   h: number
+  config?: Record<string, string | number | boolean>
+}
+
+function widgetSrc(w: NOCWidget, token: string): string {
+  const cfg = w.config || {}
+  const qs  = new URLSearchParams()
+  Object.entries(cfg).forEach(([k, v]) => { if (v !== '' && v !== undefined) qs.set(k, String(v)) })
+  const q = qs.toString()
+  return `/proxy-display/${token}/${w.app_id}${w.view_path}${q ? '?' + q : ''}`
 }
 
 interface NOCSlide {
@@ -37,12 +46,14 @@ export default function NOCDisplayPage() {
   const [scale, setScale] = useState(1)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Scale-to-fit: recompute whenever window is resized ────────────────────
+  // ── Scale-to-fit: fill width, pin top ────────────────────────────────────
+  // Scale by width so the canvas fills the screen edge-to-edge with no side
+  // margins. The canvas area is top-aligned so widgets at y=0 are always
+  // fully visible. On non-16:9 displays only the very bottom of the canvas
+  // may extend past the viewport — preferable to side margins or top clipping.
   useEffect(() => {
     const compute = () => {
-      const vw = window.innerWidth
-      const vh = window.innerHeight - HEADER_H
-      setScale(Math.min(vw / CANVAS_W, vh / CANVAS_H))
+      setScale(window.innerWidth / CANVAS_W)
     }
     compute()
     window.addEventListener('resize', compute)
@@ -116,19 +127,21 @@ export default function NOCDisplayPage() {
         </div>
       </div>
 
-      {/* Canvas area — scale the reference canvas to fit the screen */}
-      <div className="flex-1 relative" style={{ overflow: 'hidden' }}>
+      {/* Canvas area — width-fill, top-aligned. No side margins; only the very
+          bottom may extend past the viewport on non-16:9 displays. */}
+      <div className="flex-1" style={{ overflow: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
         {slides.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex items-center justify-center w-full h-full">
             <div className="text-sm text-gray-600">No slides configured for this display.</div>
           </div>
         ) : !slide || !slide.widgets || slide.widgets.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex items-center justify-center w-full h-full">
             <div className="text-sm text-gray-600">No widgets on this slide.</div>
           </div>
         ) : (
-          // Reference canvas scaled to fill the screen.
-          // All widget x/y/w/h coords are in CANVAS_W × CANVAS_H space.
+          // Zoom wrapper — sized to actual visual footprint.
+          <div style={{ width: `${CANVAS_W * scale}px`, height: `${CANVAS_H * scale}px`, position: 'relative', flexShrink: 0 }}>
+          {/* Reference canvas — fixed 1920×1080, CSS-scaled from top-left */}
           <div style={{
             position: 'absolute',
             top: 0,
@@ -141,7 +154,7 @@ export default function NOCDisplayPage() {
             {slide.widgets.map((w: NOCWidget) => (
               <iframe
                 key={`${currentSlide}-${w.id}`}
-                src={`/proxy-display/${token}/${w.app_id}${w.view_path}`}
+                src={widgetSrc(w, token!)}
                 title={w.title || w.widget_id}
                 style={{
                   position: 'absolute',
@@ -155,6 +168,7 @@ export default function NOCDisplayPage() {
                 }}
               />
             ))}
+          </div>
           </div>
         )}
       </div>
