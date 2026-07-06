@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Log Stream</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #080d18;
+      color: #e2e8f0;
+      font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 11px;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+      background: #0d1525;
+    }
+    #header .title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #4ade80;
+    }
+    #header .status { font-size: 9px; color: #334155; }
+
+    #feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 5px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    #feed::-webkit-scrollbar { width: 3px; }
+    #feed::-webkit-scrollbar-track { background: transparent; }
+    #feed::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+    /* ── PAN-OS connection card ───────────────────────────────────────────── */
+    .card-panos {
+      background: #0f1a2e;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-left: 3px solid #334155;
+      border-radius: 4px;
+      padding: 5px 8px;
+      animation: fadeIn 0.15s ease;
+    }
+    .card-panos.allow  { border-left-color: #16a34a; }
+    .card-panos.deny   { border-left-color: #dc2626; }
+    .card-panos.reset  { border-left-color: #d97706; }
+
+    .flow-line {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-bottom: 3px;
+    }
+    .ip { color: #e2e8f0; font-weight: 500; }
+    .port { color: #475569; }
+    .arrow { color: #334155; font-size: 10px; }
+
+    .proto-badge {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.06);
+      color: #64748b;
+      letter-spacing: 0.05em;
+    }
+
+    .action-badge {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 8px;
+      letter-spacing: 0.04em;
+    }
+    .action-badge.allow { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+    .action-badge.deny  { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+    .action-badge.reset { background: rgba(251,191,36,0.15);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+
+    .card-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 9px;
+      color: #475569;
+    }
+    .card-meta .sep { color: #1e293b; }
+
+    .threat-badge {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+    .threat-badge.critical { background: rgba(251,146,60,0.2);  color: #fb923c; }
+    .threat-badge.high     { background: rgba(248,113,113,0.2); color: #f87171; }
+    .threat-badge.medium   { background: rgba(251,191,36,0.2);  color: #fbbf24; }
+    .threat-badge.low      { background: rgba(148,163,184,0.1); color: #94a3b8; }
+    .threat-badge.info     { background: rgba(96,165,250,0.15); color: #60a5fa; }
+
+    .device-tag { color: #334155; }
+
+    /* ── Compact non-PAN-OS card ─────────────────────────────────────────── */
+    .card-compact {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      background: #0b1627;
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 3px;
+      min-height: 22px;
+      animation: fadeIn 0.15s ease;
+    }
+
+    .sev-badge {
+      font-size: 7px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sev-0, .sev-1 { background: rgba(248,113,113,0.25); color: #f87171; }
+    .sev-2         { background: rgba(251,146,60,0.25);  color: #fb923c; }
+    .sev-3         { background: rgba(252,165,165,0.2);  color: #fca5a5; }
+    .sev-4         { background: rgba(251,191,36,0.2);   color: #fbbf24; }
+    .sev-5         { background: rgba(96,165,250,0.15);  color: #60a5fa; }
+    .sev-6         { background: rgba(74,222,128,0.12);  color: #4ade80; }
+    .sev-7         { background: rgba(148,163,184,0.08); color: #64748b; }
+
+    .card-compact .prog { color: #64748b; flex-shrink: 0; font-size: 9px; }
+    .card-compact .msg {
+      color: #94a3b8;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      font-size: 10px;
+    }
+    .card-compact .ts { color: #1e293b; font-size: 9px; flex-shrink: 0; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <span class="title">Live Log Stream</span>
+  <span class="status" id="status">connecting…</span>
+</div>
+<div id="feed"></div>
+
+<script>
+  // ── Config from URL ──────────────────────────────────────────────────────
+  const urlParams  = new URLSearchParams(window.location.search)
+  const severityMax = urlParams.has('severity_max') ? parseInt(urlParams.get('severity_max')) : null
+
+  // Relative URL — works through any proxy depth (/proxy/, /proxy-display/, or direct)
+  const API_BASE = '../syslog/search'
+
+  // ── PAN-OS CSV parsing ───────────────────────────────────────────────────
+  function parseCSVLine(line) {
+    const fields = []
+    let field = '', inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') { inQuotes = !inQuotes }
+      else if (c === ',' && !inQuotes) { fields.push(field.trim()); field = '' }
+      else { field += c }
+    }
+    fields.push(field.trim())
+    return fields
+  }
+
+  function extractPanOsCsv(msg) {
+    const m = msg.match(/(\d+,\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2},.*)/s)
+    return m ? m[1] : null
+  }
+
+  const PANOS_TYPES = new Set(['TRAFFIC','THREAT','SYSTEM','CONFIG',
+    'HIPMATCH','GLOBALPROTECT','AUTHENTICATION','USERID'])
+
+  function parsePanOs(msg) {
+    const csv = extractPanOsCsv(msg)
+    if (!csv) return null
+    const f = parseCSVLine(csv)
+    if (f.length < 5) return null
+    const logType = f[3]
+    if (!PANOS_TYPES.has(logType)) return null
+
+    if (logType === 'TRAFFIC' && f.length >= 47) {
+      return {
+        logType: 'TRAFFIC',
+        srcIp: f[7], dstIp: f[8], srcPort: f[24], dstPort: f[25],
+        protocol: (f[29] || '').toUpperCase(),
+        action: f[30], application: f[14],
+        ruleName: f[11], srcZone: f[16], dstZone: f[17],
+        deviceName: f[52] || '',
+      }
+    }
+    if (logType === 'THREAT' && f.length >= 35) {
+      return {
+        logType: 'THREAT',
+        srcIp: f[7], dstIp: f[8], srcPort: f[24], dstPort: f[25],
+        protocol: (f[29] || '').toUpperCase(),
+        action: f[30], application: f[14],
+        ruleName: f[11], srcZone: f[16], dstZone: f[17],
+        threatId: f[32] || '', severity: f[34] || '',
+        category: f[33] || '', deviceName: f[52] || '',
+      }
+    }
+    return null
+  }
+
+  // ── Card builders ────────────────────────────────────────────────────────
+  function actionCls(action) {
+    if (!action) return 'deny'
+    const a = action.toLowerCase()
+    if (a === 'allow') return 'allow'
+    if (a.startsWith('reset')) return 'reset'
+    return 'deny'
+  }
+
+  function threatCls(sev) {
+    const s = (sev || '').toLowerCase()
+    return { critical:'critical', high:'high', medium:'medium', low:'low' }[s] || 'info'
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  }
+
+  function buildPanOsCard(pan) {
+    const ac = actionCls(pan.action)
+    const card = document.createElement('div')
+    card.className = `card-panos ${ac}`
+
+    // Flow line
+    let flowHtml = `
+      <span><span class="ip">${esc(pan.srcIp)}</span><span class="port">:${esc(pan.srcPort)}</span></span>
+      <span class="proto-badge">${esc(pan.protocol||'?')}</span>
+      <span class="arrow">──►</span>
+      <span><span class="ip">${esc(pan.dstIp)}</span><span class="port">:${esc(pan.dstPort)}</span></span>
+      <span class="action-badge ${ac}">${esc(pan.action||'deny')}</span>
+    `
+    if (pan.deviceName) flowHtml += `<span class="device-tag">${esc(pan.deviceName)}</span>`
+    card.innerHTML = `<div class="flow-line">${flowHtml}</div>`
+
+    // Meta line
+    const parts = []
+    if (pan.application) parts.push(`<span>${esc(pan.application)}</span>`)
+    if (pan.ruleName)    parts.push(`<span>rule: ${esc(pan.ruleName)}</span>`)
+    if (pan.srcZone && pan.dstZone) parts.push(`<span>${esc(pan.srcZone)} → ${esc(pan.dstZone)}</span>`)
+    if (pan.logType === 'THREAT' && pan.threatId)
+      parts.push(`<span class="threat-badge ${threatCls(pan.severity)}">${esc(pan.severity||'threat')}: ${esc(pan.threatId)}</span>`)
+    if (pan.logType === 'THREAT' && pan.category)
+      parts.push(`<span>${esc(pan.category)}</span>`)
+
+    if (parts.length) {
+      const meta = document.createElement('div')
+      meta.className = 'card-meta'
+      meta.innerHTML = parts.join('<span class="sep"> · </span>')
+      card.appendChild(meta)
+    }
+    return card
+  }
+
+  const SEV_LABELS = ['EMERG','ALERT','CRIT','ERR','WARN','NOTICE','INFO','DEBUG']
+
+  function buildCompactCard(entry) {
+    const sev = entry.severity ?? 6
+    const card = document.createElement('div')
+    card.className = 'card-compact'
+    const ts = entry.timestamp ? String(entry.timestamp).slice(11, 19) : ''
+    card.innerHTML = `
+      <span class="sev-badge sev-${Math.min(sev,7)}">${SEV_LABELS[sev] || sev}</span>
+      ${entry.program ? `<span class="prog">${esc(entry.program)}</span>` : ''}
+      <span class="msg">${esc(entry.message || '')}</span>
+      <span class="ts">${esc(ts)}</span>
+    `
+    return card
+  }
+
+  // ── Feed state ───────────────────────────────────────────────────────────
+  const feed     = document.getElementById('feed')
+  const statusEl = document.getElementById('status')
+  const DOM_CAP  = 50
+  const seen     = new Set()
+  let lastTs     = null
+  let count      = 0
+
+  function prepend(el) {
+    feed.insertBefore(el, feed.firstChild)
+    count++
+    while (count > DOM_CAP) { feed.removeChild(feed.lastChild); count-- }
+  }
+
+  // ── Polling ──────────────────────────────────────────────────────────────
+  async function poll() {
+    try {
+      const qs = new URLSearchParams({ limit: 50 })
+      if (lastTs)            qs.set('start_time', lastTs)
+      if (severityMax !== null) qs.set('severity_max', String(severityMax))
+
+      const res = await fetch(`${API_BASE}?${qs}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data  = await res.json()
+      const entries = Array.isArray(data) ? data : (data.entries || data.logs || [])
+
+      // Dedupe + sort oldest-first so prependCard results in newest at top
+      const fresh = entries
+        .filter(e => { const k = e.id || (e.timestamp + '|' + (e.message||'')); return !seen.has(k) })
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      for (const entry of fresh) {
+        const key = entry.id || (entry.timestamp + '|' + (entry.message||''))
+        seen.add(key)
+        if (!lastTs || entry.timestamp > lastTs) lastTs = entry.timestamp
+
+        // Always try parsePanOs against raw first, fall back to message
+        const raw = entry.raw || entry.message || ''
+        const pan = parsePanOs(raw)
+        prepend(pan ? buildPanOsCard(pan) : buildCompactCard(entry))
+      }
+
+      // Bound seen set memory
+      if (seen.size > 2000) {
+        const arr = [...seen]; arr.splice(0, 1000).forEach(k => seen.delete(k))
+      }
+
+      statusEl.textContent = `${count} entries · ${new Date().toLocaleTimeString()}`
+      statusEl.style.color = '#334155'
+    } catch (err) {
+      statusEl.textContent = `error: ${err.message}`
+      statusEl.style.color = '#f87171'
+    }
+  }
+
+  poll()
+  setInterval(poll, 5000)
+</script>
+</body>
+</html>
