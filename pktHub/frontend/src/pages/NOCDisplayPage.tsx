@@ -20,6 +20,15 @@ interface NOCWidget {
   y: number
   w: number
   h: number
+  config?: Record<string, string | number | boolean>
+}
+
+function widgetSrc(w: NOCWidget, token: string): string {
+  const cfg = w.config || {}
+  const qs  = new URLSearchParams()
+  Object.entries(cfg).forEach(([k, v]) => { if (v !== '' && v !== undefined) qs.set(k, String(v)) })
+  const q = qs.toString()
+  return `/proxy-display/${token}/${w.app_id}${w.view_path}${q ? '?' + q : ''}`
 }
 
 interface NOCSlide {
@@ -145,7 +154,7 @@ export default function NOCDisplayPage() {
             {slide.widgets.map((w: NOCWidget) => (
               <iframe
                 key={`${currentSlide}-${w.id}`}
-                src={`/proxy-display/${token}/${w.app_id}${w.view_path}`}
+                src={widgetSrc(w, token!)}
                 title={w.title || w.widget_id}
                 style={{
                   position: 'absolute',
