@@ -38,11 +38,13 @@ export default function NOCDisplayPage() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Scale-to-fit: recompute whenever window is resized ────────────────────
+  // Uses Math.min (contain/fit) so the canvas never overflows the available
+  // area — prevents top/bottom widget clipping on any screen resolution.
   useEffect(() => {
     const compute = () => {
       const vw = window.innerWidth
       const vh = window.innerHeight - HEADER_H
-      setScale(Math.max(vw / CANVAS_W, vh / CANVAS_H))
+      setScale(Math.min(vw / CANVAS_W, vh / CANVAS_H))
     }
     compute()
     window.addEventListener('resize', compute)

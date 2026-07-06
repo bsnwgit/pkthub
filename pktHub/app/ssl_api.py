@@ -1,12 +1,12 @@
 """
 SSL certificate management API for pktHub.
-Certs live at /etc/ssl/pktsuite/cert.pem + key.pem (actual server path, not renamed).
+Certs live at /etc/ssl/pkthub/cert.pem + key.pem (actual server path).
 """
 import os, subprocess, tempfile, datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from app.auth import require_admin
 
-CERT_DIR  = "/etc/ssl/pktsuite"
+CERT_DIR  = "/etc/ssl/pkthub"
 CERT_PATH = f"{CERT_DIR}/cert.pem"
 KEY_PATH  = f"{CERT_DIR}/key.pem"
 
