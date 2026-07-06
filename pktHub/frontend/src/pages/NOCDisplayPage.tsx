@@ -37,14 +37,14 @@ export default function NOCDisplayPage() {
   const [scale, setScale] = useState(1)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Scale-to-fit: recompute whenever window is resized ────────────────────
-  // Uses Math.min (contain/fit) so the canvas never overflows the available
-  // area — prevents top/bottom widget clipping on any screen resolution.
+  // ── Scale-to-fit: fill width, pin top ────────────────────────────────────
+  // Scale by width so the canvas fills the screen edge-to-edge with no side
+  // margins. The canvas area is top-aligned so widgets at y=0 are always
+  // fully visible. On non-16:9 displays only the very bottom of the canvas
+  // may extend past the viewport — preferable to side margins or top clipping.
   useEffect(() => {
     const compute = () => {
-      const vw = window.innerWidth
-      const vh = window.innerHeight - HEADER_H
-      setScale(Math.min(vw / CANVAS_W, vh / CANVAS_H))
+      setScale(window.innerWidth / CANVAS_W)
     }
     compute()
     window.addEventListener('resize', compute)
@@ -118,8 +118,9 @@ export default function NOCDisplayPage() {
         </div>
       </div>
 
-      {/* Canvas area — scale the reference canvas to fit the screen, centered */}
-      <div className="flex-1" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Canvas area — width-fill, top-aligned. No side margins; only the very
+          bottom may extend past the viewport on non-16:9 displays. */}
+      <div className="flex-1" style={{ overflow: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
         {slides.length === 0 ? (
           <div className="flex items-center justify-center w-full h-full">
             <div className="text-sm text-gray-600">No slides configured for this display.</div>
@@ -129,7 +130,7 @@ export default function NOCDisplayPage() {
             <div className="text-sm text-gray-600">No widgets on this slide.</div>
           </div>
         ) : (
-          // Zoom wrapper — sized to actual visual footprint so flex centering works correctly.
+          // Zoom wrapper — sized to actual visual footprint.
           <div style={{ width: `${CANVAS_W * scale}px`, height: `${CANVAS_H * scale}px`, position: 'relative', flexShrink: 0 }}>
           {/* Reference canvas — fixed 1920×1080, CSS-scaled from top-left */}
           <div style={{
