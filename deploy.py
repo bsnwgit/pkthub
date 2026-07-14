@@ -1,31 +1,50 @@
+# One-shot deployment: creates the pktdashboard read-only service account in
+# pktFlow's DB, uploads app files, sets up the venv, optionally installs SSL
+# certs, and installs/starts the systemd service.
+#
+# Usage:
+#   PKTHUB_SSH_HOST=<host> PKTHUB_SSH_USER=<user> PKTHUB_SSH_KEY=<path-to-pem> python3 deploy.py
+# or:
+#   python3 deploy.py --host <host> --user <user> --key <path-to-pem> \
+#       --project-dir <local-project-path> --install-dir /opt/pktdashboard \
+#       --pktflow-install-dir /opt/pktflow --svc-password <password>
+import argparse
 import os
+import sys
 import time
-import yaml
+
 import paramiko
+import yaml
 
-HOST = "172.23.80.5"
-USER = "ec2-user"
-KEY  = r"C:\Users\robert.barnett\.ssh\VyneCorpNetInfra.pem"
-
-PROJECT = r"C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktDashboard"
-REMOTE  = "/mnt/software/pktdashboard"
-
-SVC_PASSWORD = "Pkt@Dash2026"
-
-# Read local config.yaml to pick up SSL settings
-_cfg_path = os.path.join(PROJECT, "config.yaml")
-with open(_cfg_path) as _f:
-    _cfg = yaml.safe_load(_f) or {}
-SSL_ENABLED = bool(_cfg.get("ssl_enabled", False))
-SSL_CERT    = _cfg.get("ssl_cert", "").strip()
-SSL_KEY     = _cfg.get("ssl_key", "").strip()
+sys.stdout.reconfigure(encoding='utf-8')
 
 
-def ssh_connect():
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(HOST, username=USER, key_filename=KEY, timeout=15)
-    return client
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--host", default=os.environ.get("PKTHUB_SSH_HOST"),
+                         help="SSH host/IP of the target server")
+    parser.add_argument("--user", default=os.environ.get("PKTHUB_SSH_USER"),
+                         help="SSH username")
+    parser.add_argument("--key", default=os.environ.get("PKTHUB_SSH_KEY"),
+                         help="Path to SSH private key (.pem)")
+    parser.add_argument("--project-dir", default=os.environ.get("PKTHUB_PROJECT_DIR", os.getcwd()),
+                         help="Local path to the pktDashboard project (default: cwd)")
+    parser.add_argument("--install-dir", default=os.environ.get("PKTHUB_INSTALL_DIR", "/opt/pktdashboard"),
+                         help="Remote install directory (default: /opt/pktdashboard)")
+    parser.add_argument("--pktflow-install-dir", default=os.environ.get("PKTFLOW_INSTALL_DIR", "/opt/pktflow"),
+                         help="Remote pktFlow install directory, used to create the service account "
+                              "(default: /opt/pktflow)")
+    parser.add_argument("--svc-password", default=os.environ.get("PKTHUB_SVC_PASSWORD"),
+                         help="Password for the pktdashboard read-only service account in pktFlow "
+                              "(required — no default; generate one with e.g. `openssl rand -base64 18`)")
+    args = parser.parse_args()
+    missing = [name for name, val in (("--host/PKTHUB_SSH_HOST", args.host),
+                                       ("--user/PKTHUB_SSH_USER", args.user),
+                                       ("--key/PKTHUB_SSH_KEY", args.key),
+                                       ("--svc-password/PKTHUB_SVC_PASSWORD", args.svc_password)) if not val]
+    if missing:
+        parser.error(f"missing required value(s): {', '.join(missing)}")
+    return args
 
 
 def run(client, cmd):
@@ -56,17 +75,32 @@ def sftp_upload_dir(sftp, local_dir, remote_dir):
 
 
 def main():
+    args = parse_args()
+
+    project = args.project_dir
+    remote = args.install_dir
+
+    # Read local config.yaml to pick up SSL settings
+    cfg_path = os.path.join(project, "config.yaml")
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f) or {}
+    ssl_enabled = bool(cfg.get("ssl_enabled", False))
+    ssl_cert = cfg.get("ssl_cert", "").strip()
+    ssl_key = cfg.get("ssl_key", "").strip()
+
     print("=== pktDashboard Deploy ===")
 
-    client = ssh_connect()
-    sftp   = client.open_sftp()
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(args.host, username=args.user, key_filename=args.key, timeout=15)
+    sftp = client.open_sftp()
 
-    # 1. Create pktFlow service account
-    print("\n[1/5] Creating pktFlow service account...")
+    # 1. Create pktdashboard service account in pktFlow
+    print("\n[1/6] Creating pktdashboard service account...")
     lines = [
         "import sys, sqlite3, bcrypt",
-        "DB = '/mnt/software/pktflow/pktflow.db'",
-        "hashed = bcrypt.hashpw(b'" + SVC_PASSWORD + "', bcrypt.gensalt()).decode()",
+        f"DB = '{args.pktflow_install_dir}/pktflow.db'",
+        "hashed = bcrypt.hashpw(b'" + args.svc_password + "', bcrypt.gensalt()).decode()",
         "conn = sqlite3.connect(DB)",
         "try:",
         "    row = conn.execute(\"SELECT id FROM users WHERE username='pktdashboard'\").fetchone()",
@@ -85,47 +119,47 @@ def main():
     script = "\n".join(lines)
     with sftp.open("/tmp/_pktd_setup.py", "w") as f:
         f.write(script)
-    run(client, "/mnt/software/pktflow/venv/bin/python3 /tmp/_pktd_setup.py")
+    run(client, f"{args.pktflow_install_dir}/venv/bin/python3 /tmp/_pktd_setup.py")
     run(client, "rm /tmp/_pktd_setup.py")
 
     # 2. Create directories
-    print("\n[2/5] Creating remote directories...")
-    run(client, "mkdir -p " + REMOTE + "/app " + REMOTE + "/frontend " + REMOTE + "/logos /mnt/software/logs")
+    print("\n[2/6] Creating remote directories...")
+    run(client, f"mkdir -p {remote}/app {remote}/frontend {remote}/logos /var/log/pktdashboard")
 
     # 3. Upload files
-    print("\n[3/5] Uploading files...")
-    sftp_upload_dir(sftp, os.path.join(PROJECT, "app"),      REMOTE + "/app")
-    sftp_upload_dir(sftp, os.path.join(PROJECT, "frontend"), REMOTE + "/frontend")
-    sftp_upload_dir(sftp, os.path.join(PROJECT, "logos"),    REMOTE + "/logos")
+    print("\n[3/6] Uploading files...")
+    sftp_upload_dir(sftp, os.path.join(project, "app"), remote + "/app")
+    sftp_upload_dir(sftp, os.path.join(project, "frontend"), remote + "/frontend")
+    sftp_upload_dir(sftp, os.path.join(project, "logos"), remote + "/logos")
     for fname in ["requirements.txt", "config.yaml"]:
-        sftp.put(os.path.join(PROJECT, fname), REMOTE + "/" + fname)
+        sftp.put(os.path.join(project, fname), remote + "/" + fname)
         print("  upload: " + fname)
 
     # 4. Python venv
-    print("\n[4/5] Setting up venv...")
-    run(client, "python3 -m venv " + REMOTE + "/venv")
-    run(client, REMOTE + "/venv/bin/pip install --quiet --upgrade pip")
-    run(client, REMOTE + "/venv/bin/pip install --quiet -r " + REMOTE + "/requirements.txt")
+    print("\n[4/6] Setting up venv...")
+    run(client, f"python3 -m venv {remote}/venv")
+    run(client, f"{remote}/venv/bin/pip install --quiet --upgrade pip")
+    run(client, f"{remote}/venv/bin/pip install --quiet -r {remote}/requirements.txt")
 
     # 5. SSL certs (optional)
-    if SSL_ENABLED:
+    if ssl_enabled:
         print("\n[5/6] Uploading SSL cert and key...")
-        if not SSL_CERT or not os.path.isfile(SSL_CERT):
-            raise FileNotFoundError("ssl_cert not found locally: " + SSL_CERT)
-        if not SSL_KEY or not os.path.isfile(SSL_KEY):
-            raise FileNotFoundError("ssl_key not found locally: " + SSL_KEY)
-        run(client, "mkdir -p " + REMOTE + "/tls && chmod 700 " + REMOTE + "/tls")
-        sftp.put(SSL_CERT, REMOTE + "/tls/cert.pem")
+        if not ssl_cert or not os.path.isfile(ssl_cert):
+            raise FileNotFoundError("ssl_cert not found locally: " + ssl_cert)
+        if not ssl_key or not os.path.isfile(ssl_key):
+            raise FileNotFoundError("ssl_key not found locally: " + ssl_key)
+        run(client, f"mkdir -p {remote}/tls && chmod 700 {remote}/tls")
+        sftp.put(ssl_cert, remote + "/tls/cert.pem")
         print("  upload: cert.pem")
-        sftp.put(SSL_KEY, REMOTE + "/tls/key.pem")
+        sftp.put(ssl_key, remote + "/tls/key.pem")
         print("  upload: key.pem")
-        run(client, "chmod 600 " + REMOTE + "/tls/key.pem")
+        run(client, f"chmod 600 {remote}/tls/key.pem")
     else:
         print("\n[5/6] SSL disabled — skipping cert upload")
 
     # 6. systemd
     print("\n[6/6] Installing systemd service...")
-    sftp.put(os.path.join(PROJECT, "pktdashboard.service"), "/tmp/pktdashboard.service")
+    sftp.put(os.path.join(project, "pktdashboard.service"), "/tmp/pktdashboard.service")
     run(client, "sudo cp /tmp/pktdashboard.service /etc/systemd/system/pktdashboard.service")
     run(client, "sudo systemctl daemon-reload")
     run(client, "sudo systemctl enable pktdashboard")
@@ -135,8 +169,8 @@ def main():
 
     sftp.close()
     client.close()
-    scheme = "https" if SSL_ENABLED else "http"
-    print("\n==> Deploy complete: " + scheme + "://172.23.80.5:8760")
+    scheme = "https" if ssl_enabled else "http"
+    print(f"\n==> Deploy complete: {scheme}://{args.host}:8760")
 
 
 if __name__ == "__main__":

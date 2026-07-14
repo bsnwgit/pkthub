@@ -8,6 +8,7 @@ import asyncio
 import asyncio.subprocess as asp
 import json
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -29,7 +30,7 @@ log = logging.getLogger("pktdashboard")
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _CONFIG_CANDIDATES = [
-    Path("/mnt/software/pktdashboard/config.yaml"),
+    Path(os.environ.get("PKTDASHBOARD_INSTALL_DIR", "/opt/pktdashboard")) / "config.yaml",
     Path("config.yaml"),
 ]
 
@@ -75,11 +76,13 @@ app.add_middleware(
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
-_frontend_dir = Path("/mnt/software/pktdashboard/frontend")
+_install_dir = Path(os.environ.get("PKTDASHBOARD_INSTALL_DIR", "/opt/pktdashboard"))
+
+_frontend_dir = _install_dir / "frontend"
 if not _frontend_dir.exists():
     _frontend_dir = Path(__file__).parent.parent / "frontend"
 
-_logos_dir = Path("/mnt/software/pktdashboard/logos")
+_logos_dir = _install_dir / "logos"
 if not _logos_dir.exists():
     _logos_dir = Path(__file__).parent.parent / "logos"
 
@@ -188,7 +191,7 @@ async def restart():
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
-_LOG_FILE = Path("/mnt/software/logs/pktdashboard.log")
+_LOG_FILE = Path(os.environ.get("PKTDASHBOARD_LOG_FILE", "/var/log/pktdashboard/pktdashboard.log"))
 _LOG_TAIL_LINES = 200
 
 

@@ -15,10 +15,10 @@ port: 8760
 # SSL — optional
 # Set ssl_enabled to true and provide absolute paths to your cert and key files.
 # The service restarts with HTTPS on the same port — no nginx required.
-# Place cert/key in /mnt/software/pktdashboard/tls/ on the server (excluded from git).
+# Place cert/key in /opt/pktdashboard/tls/ on the server (excluded from git).
 ssl_enabled: false
-ssl_cert: ""   # e.g. /mnt/software/pktdashboard/tls/cert.pem
-ssl_key:  ""   # e.g. /mnt/software/pktdashboard/tls/key.pem
+ssl_cert: ""   # e.g. /opt/pktdashboard/tls/cert.pem
+ssl_key:  ""   # e.g. /opt/pktdashboard/tls/key.pem
 
 # pktsuite app registry — shown in the dashboard launcher
 # Add, remove, or reorder entries here; the dashboard renders them dynamically.

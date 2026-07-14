@@ -85,7 +85,7 @@ def _rewrite_html(content: bytes, proxy_prefix: str, content_type: str,
     the pktHub proxy rather than hitting pktHub's own routes.
 
     proxy_prefix is either:
-      - An absolute URL:  "https://172.23.80.5:8760/proxy/5/"  (when return_url is set)
+      - An absolute URL:  "https://<server-ip>:8760/proxy/5/"  (when return_url is set)
       - A root-relative:  "/proxy/5/"                           (default)
 
     Steps:

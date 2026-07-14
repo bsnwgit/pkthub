@@ -21,4 +21,4 @@ All notable changes to pktDashboard are documented here.
 - `pktdashboard.service` systemd unit
 - `deploy.py` — Paramiko-based one-shot deployment script for Windows (SentinelOne EDR compatible)
 - `config.example.yaml` — documented configuration template
-- Deployed to O2 server at `http://172.23.80.5:8760`
+- Deployed to production server at `http://<server-ip>:8760`

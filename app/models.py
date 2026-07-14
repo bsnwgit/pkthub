@@ -64,7 +64,7 @@ class AppRegisterRequest(BaseModel):
     description: str = ""
     display_name: Optional[str] = None   # defaults to name if omitted
     app_type: str = "pktapp"
-    # Optional: pktHub's own URL as the browser sees it (e.g. https://172.23.80.5:8760).
+    # Optional: pktHub's own URL as the browser sees it (e.g. https://<server-ip>:8760).
     # When set, the proxy uses this as an absolute base for proxied HTML responses
     # instead of a root-relative path. Useful when the hub hostname doesn't resolve
     # from the server's own DNS but an IP does.

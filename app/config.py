@@ -3,7 +3,7 @@ import os
 from functools import lru_cache
 from typing import List
 
-CONFIG_PATH = os.environ.get("PKTSUITE_CONFIG", "/mnt/software/pkthub/config.yaml")
+CONFIG_PATH = os.environ.get("PKTSUITE_CONFIG", "/opt/pkthub/config.yaml")
 
 class Settings:
     def __init__(self, data: dict):
@@ -21,7 +21,7 @@ class Settings:
         self.okta_domain = data.get("okta_domain", "")
         self.okta_client_id = data.get("okta_client_id", "")
         self.okta_client_secret = data.get("okta_client_secret", "")
-        self.db_path = data.get("db_path", "/mnt/software/pkthub/pkthub.db")
+        self.db_path = data.get("db_path", "/opt/pkthub/pkthub.db")
         self.health_poll_interval = data.get("health_poll_interval", 30)
         self.audit_retention_days = data.get("audit_retention_days", 90)
         self.trusted_cidrs: List[str] = data.get("trusted_cidrs", [])

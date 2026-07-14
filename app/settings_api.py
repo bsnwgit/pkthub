@@ -73,7 +73,7 @@ DEFAULTS = {
     # Backup
     "backup_auto_enabled": "false",
     "backup_interval_hours": "24",
-    "backup_path": "/mnt/software/pkthub_backups",
+    "backup_path": "/opt/pkthub_backups",
     "backup_retain_count": "5",
     # Maintenance
     "maintenance_mode": "false",

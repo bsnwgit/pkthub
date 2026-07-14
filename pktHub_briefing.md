@@ -9,7 +9,7 @@ Paste this entire document into a new chat to give Claude full context on pktHub
 pktHub is the central hub and sole management plane for all pktApps
 (pktFlow, pktSNMP, pktLog, pktPCAP, and future apps). It runs on port **8760** on the
 pkt server. The project folder on this machine is:
-`C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub\`
+`<local-path>\pktHub\`
 
 pktHub provides:
 - Unified authentication (replaces per-app login after registration)
@@ -192,7 +192,7 @@ backup.py             — local 2-rotation backup script
 ## Backup
 
 ```
-python "C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub\backup.py"
+python3 backup.py --src <path-to-pktHub-project> --dst-base <path-to-backups-dir>
 ```
 
 Backups rotate to: `pktHub_backups\` (backup_1 = most recent, backup_2 = previous)

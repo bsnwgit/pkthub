@@ -4,14 +4,17 @@ After=network.target
 
 [Service]
 Type=simple
-User=ec2-user
-WorkingDirectory=/mnt/software/pkthub
-Environment=PKTSUITE_CONFIG=/mnt/software/pkthub/config.yaml
-ExecStart=/mnt/software/pkthub/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8760 --ssl-certfile /etc/ssl/pkthub/cert.pem --ssl-keyfile /etc/ssl/pkthub/key.pem
+# Substitute __INSTALL_DIR__ (default: /opt/pkthub) and __SERVICE_USER__
+# for your target values before installing (no install script templates
+# this file automatically — see DEPLOYMENT.md).
+User=__SERVICE_USER__
+WorkingDirectory=__INSTALL_DIR__
+Environment=PKTSUITE_CONFIG=__INSTALL_DIR__/config.yaml
+ExecStart=__INSTALL_DIR__/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8760 --ssl-certfile /etc/ssl/pkthub/cert.pem --ssl-keyfile /etc/ssl/pkthub/key.pem
 Restart=always
 RestartSec=5
-StandardOutput=append:/mnt/software/pkthub/logs/pkthub.log
-StandardError=append:/mnt/software/pkthub/logs/pkthub.log
+StandardOutput=append:__INSTALL_DIR__/logs/pkthub.log
+StandardError=append:__INSTALL_DIR__/logs/pkthub.log
 
 [Install]
 WantedBy=multi-user.target

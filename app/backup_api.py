@@ -23,7 +23,7 @@ async def _get_backup_cfg(db: aiosqlite.Connection) -> dict:
         rows = await cur.fetchall()
     kv = {r["key"]: r["value"] for r in rows}
     return {
-        "path": kv.get("backup_path", "/mnt/software/pkthub_backups"),
+        "path": kv.get("backup_path", "/opt/pkthub_backups"),
         "retain": int(kv.get("backup_retain_count", "5") or "5"),
         "auto": kv.get("backup_auto_enabled", "false") == "true",
     }

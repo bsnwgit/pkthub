@@ -102,7 +102,7 @@ If pktFlow goes down, the dashboard shows an error state — but no one is proac
 
 pktDashboard listens on HTTP (port 8760). Traffic between browser and server is unencrypted on the internal network.
 
-For production deployments where the dashboard is accessible beyond the O2 host:
+For production deployments where the dashboard is accessible beyond the deployment host:
 - Put an nginx reverse proxy in front with a self-signed or internal CA cert
 - Or configure uvicorn with `--ssl-keyfile` / `--ssl-certfile`
 
@@ -112,7 +112,7 @@ For production deployments where the dashboard is accessible beyond the O2 host:
 
 ## Log Rotation — NOT CONFIGURED
 
-The systemd unit in `pktdashboard.service` writes stdout/stderr to `/mnt/software/logs/pktdashboard.log` via `StandardOutput=append:...`.
+The systemd unit in `pktdashboard.service` writes stdout/stderr to `/var/log/pktdashboard/pktdashboard.log` via `StandardOutput=append:...`.
 
 There is no logrotate configuration. The log file will grow indefinitely.
 

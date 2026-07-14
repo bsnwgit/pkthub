@@ -131,7 +131,7 @@ async def _load_saml_cfg(db: aiosqlite.Connection) -> Optional[dict]:
     if not all([idp_entity_id, idp_sso_url, idp_cert]):
         return None
 
-    base_url     = kv.get("base_url", "").rstrip("/") or "https://172.23.80.5:8760"
+    base_url     = kv.get("base_url", "").rstrip("/") or "https://localhost:8760"
     sp_entity_id = kv.get("okta_saml_sp_entity_id") or f"{base_url}/api/auth/saml/metadata"
     acs_url      = f"{base_url}/api/auth/saml/callback"
 

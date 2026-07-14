@@ -5,7 +5,7 @@ all pktApps with SSO proxy auth. Follow all sections in order.
 
 Placeholder convention used throughout:
 - `<SERVER_IP>` — IP address of the target server
-- `<INSTALL_DIR>` — base installation path (e.g. `/mnt/software`)
+- `<INSTALL_DIR>` — base installation path (e.g. `/opt`)
 - `<PORT_HUB>` — pktHub port (default 8760)
 - `<PORT_LOG>` — pktLog port (default 8768)
 - `<PORT_FLOW>` — pktFlow port (default 8766)
@@ -17,46 +17,75 @@ Placeholder convention used throughout:
 
 ## §1 — Deploy pktHub
 
+Target OS: Ubuntu Server 22.04 or 24.04 LTS. (Other systemd-based distros work too —
+adjust package manager commands accordingly.)
+
 ### Prerequisites
-- Python 3.9+ on the server
+- Python 3.9+ on the server (3.11+ recommended; ships with Ubuntu 22.04/24.04)
 - Node 18+ on the server (for frontend build)
-- SSH access as `<DEPLOY_USER>`
+- SSH access as `<DEPLOY_USER>` with sudo privileges
 - Port `<PORT_HUB>` open on internal network
 
 ### Steps
 
 ```bash
-# 1. Upload source
-scp -r ./pktHub <DEPLOY_USER>@<SERVER_IP>:<INSTALL_DIR>/pkthub
+# 1. Install system packages
+ssh <DEPLOY_USER>@<SERVER_IP>
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git sqlite3 openssl
 
-# 2. Create venv and install deps
+# 2. Create install directory
+sudo mkdir -p <INSTALL_DIR>/pkthub
+sudo chown <DEPLOY_USER>:<DEPLOY_USER> <INSTALL_DIR>/pkthub
+
+# 3. Clone/upload source
+exit   # back on your local machine
+git clone git@github.com:bsnwgit/pkthub.git
+scp -r ./pkthub/. <DEPLOY_USER>@<SERVER_IP>:<INSTALL_DIR>/pkthub
+# (or, if cloning directly on the server: git clone git@github.com:bsnwgit/pkthub.git <INSTALL_DIR>/pkthub)
+
+# 4. Create venv and install deps
 ssh <DEPLOY_USER>@<SERVER_IP>
 cd <INSTALL_DIR>/pkthub
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# 3. Build frontend
+# 5. Build frontend
 cd frontend
 npm install
 npm run build        # outputs to frontend/dist/
 
-# 4. Copy and edit config
+# 6. Copy and edit config
 cd ..
 cp config.example.yaml config.yaml
 # Edit config.yaml: set jwt_secret (random hex), admin password, port
+# No separate DB migration step is needed — app/database.py creates all
+# tables (CREATE TABLE IF NOT EXISTS) automatically on first startup.
 
-# 5. SSL cert (self-signed)
+# 7. SSL cert (self-signed)
 sudo mkdir -p /etc/ssl/pkthub
 sudo openssl req -x509 -newkey rsa:4096 -keyout /etc/ssl/pkthub/key.pem \
   -out /etc/ssl/pkthub/cert.pem -days 3650 -nodes -subj "/CN=pkthub"
 sudo chown <DEPLOY_USER>:<DEPLOY_USER> /etc/ssl/pkthub/cert.pem /etc/ssl/pkthub/key.pem
 
-# 6. Install systemd service
+# 8. Install systemd service
+# pkthub.service ships with __INSTALL_DIR__ and __SERVICE_USER__ placeholders —
+# there is no install script to substitute them automatically, so do it manually
+# (defaults used elsewhere in this guide: /opt/pkthub and <DEPLOY_USER>):
+sed -i "s|__INSTALL_DIR__|<INSTALL_DIR>/pkthub|g; s|__SERVICE_USER__|<DEPLOY_USER>|g" pkthub.service
 sudo cp pkthub.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable pkthub
 sudo systemctl start pkthub
+
+# 9. Open the firewall (ufw)
+sudo ufw allow <PORT_HUB>/tcp
+
+# 10. Verify and log in
+curl -sk https://localhost:<PORT_HUB>/api/health
+# Then browse to https://<SERVER_IP>:<PORT_HUB> and log in with the
+# initial_admin_username/initial_admin_password set in config.yaml.
 ```
 
 ### Known gotchas
@@ -296,12 +325,13 @@ For any new pktApp added to the suite:
 
 Before significant changes, run the local backup script:
 
-```
-python "C:\Users\robert.barnett\My Drive\Documents\Claude\Projects\pktHub\backup.py"
+```bash
+python3 backup.py --src <path-to-pktHub-project> --dst-base <path-to-backups-dir>
+# or: PKTHUB_BACKUP_SRC=<path> PKTHUB_BACKUP_DST=<path> python3 backup.py
 ```
 
 This rotates a 2-copy local backup:
-- `pktHub_backups\backup_1` — most recent
-- `pktHub_backups\backup_2` — previous
+- `<dst-base>/backup_1` — most recent
+- `<dst-base>/backup_2` — previous
 
 The script excludes: `.git`, `node_modules`, `__pycache__`, `venv`, `*.pyc`, `*.log`.

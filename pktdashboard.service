@@ -4,21 +4,24 @@ After=network.target
 
 [Service]
 Type=simple
-User=ec2-user
-Group=ec2-user
-WorkingDirectory=/mnt/software/pktdashboard
+# Substitute __INSTALL_DIR__ (default: /opt/pktdashboard) and __SERVICE_USER__
+# for your target values before installing (no install script templates
+# this file automatically — see DEPLOYMENT.md).
+User=__SERVICE_USER__
+Group=__SERVICE_USER__
+WorkingDirectory=__INSTALL_DIR__
 
 Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/mnt/software/pktdashboard/venv/bin/python3 -m app.main
+ExecStart=__INSTALL_DIR__/venv/bin/python3 -m app.main
 
 Restart=always
 RestartSec=5
 StartLimitInterval=60
 StartLimitBurst=3
 
-StandardOutput=append:/mnt/software/logs/pktdashboard.log
-StandardError=append:/mnt/software/logs/pktdashboard.log
+StandardOutput=append:/var/log/pktdashboard/pktdashboard.log
+StandardError=append:/var/log/pktdashboard/pktdashboard.log
 
 NoNewPrivileges=yes
 PrivateTmp=yes

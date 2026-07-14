@@ -1,8 +1,8 @@
 # pktDashboard
 
-Central landing page and operations hub for the **pktsuite** — a collection of internal network visibility tools deployed on the Vyne infrastructure O2 server.
+Central landing page and operations hub for the **pktsuite** — a collection of internal network visibility tools.
 
-**Live deployment:** `http://172.23.80.5:8760`
+**Live deployment:** `http://<server-ip>:8760`
 
 ---
 
@@ -54,7 +54,7 @@ pktFlow (FastAPI, port 8766) — same host
     │
     ▼
 pktFlow service account (viewer role)
-    SQLite: /mnt/software/pktflow/pktflow.db
+    SQLite: /opt/pktflow/pktflow.db
 ```
 
 **Key design decisions:**
@@ -104,13 +104,13 @@ cd pktsuite
 pktDashboard needs a read-only account in pktFlow's SQLite database. Run this once using pktFlow's virtualenv (which has `bcrypt` installed):
 
 ```bash
-/mnt/software/pktflow/venv/bin/python3 - <<'EOF'
+/opt/pktflow/venv/bin/python3 - <<'EOF'
 import sqlite3, bcrypt
 
 password = b"your-chosen-password"
 hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode()
 
-conn = sqlite3.connect("/mnt/software/pktflow/pktflow.db")
+conn = sqlite3.connect("/opt/pktflow/pktflow.db")
 conn.execute(
     "INSERT OR IGNORE INTO users (username, email, hashed_password, role, is_active) VALUES (?,?,?,?,?)",
     ("pktdashboard", "pktdashboard@internal", hashed, "viewer", 1)
@@ -124,7 +124,7 @@ EOF
 ### 3. Configure
 
 ```bash
-cp config.example.yaml /mnt/software/pktdashboard/config.yaml
+cp config.example.yaml /opt/pktdashboard/config.yaml
 # Edit config.yaml — set pktflow_username and pktflow_password
 ```
 
@@ -141,17 +141,17 @@ Configuration reference:
 ### 4. Create the Python virtualenv and install dependencies
 
 ```bash
-python3 -m venv /mnt/software/pktdashboard/venv
-/mnt/software/pktdashboard/venv/bin/pip install -r requirements.txt
+python3 -m venv /opt/pktdashboard/venv
+/opt/pktdashboard/venv/bin/pip install -r requirements.txt
 ```
 
 ### 5. Deploy application files
 
 ```bash
-mkdir -p /mnt/software/pktdashboard/app /mnt/software/pktdashboard/frontend
-cp app/*.py /mnt/software/pktdashboard/app/
-cp frontend/index.html /mnt/software/pktdashboard/frontend/
-cp config.yaml /mnt/software/pktdashboard/config.yaml
+mkdir -p /opt/pktdashboard/app /opt/pktdashboard/frontend
+cp app/*.py /opt/pktdashboard/app/
+cp frontend/index.html /opt/pktdashboard/frontend/
+cp config.yaml /opt/pktdashboard/config.yaml
 ```
 
 ### 6. Install and start the systemd service
@@ -177,11 +177,13 @@ curl -s http://localhost:8760/api/dashboard | python3 -m json.tool
 
 ## Automated Deployment
 
-The included `deploy.py` script handles the full deployment in one step using Python + Paramiko (no system SSH required — compatible with SentinelOne EDR):
+The included `deploy.py` script handles the full deployment in one step using Python + Paramiko (useful in environments where non-interactive `ssh`/`scp` is restricted, e.g. by endpoint security tooling):
 
 ```bash
-# Run from Windows (Python 3.13 required, Paramiko must be installed)
-C:\Users\robert.barnett\AppData\Local\Programs\Python\Python313\python.exe deploy.py
+python3 deploy.py --host <server-ip> --user <deploy-user> --key <path-to-ssh-key.pem> \
+    --project-dir . --svc-password <password>
+# or: PKTHUB_SSH_HOST=<host> PKTHUB_SSH_USER=<user> PKTHUB_SSH_KEY=<path> \
+#     PKTHUB_SVC_PASSWORD=<password> python3 deploy.py
 ```
 
 The script:
@@ -191,8 +193,6 @@ The script:
 4. Creates a Python virtualenv and installs dependencies
 5. Installs, enables, and starts the systemd service
 6. Prints final service status
-
-> **Note:** SSH access to O2 uses the `VyneCorpNetInfra.pem` key and goes through Python + Paramiko because SentinelOne EDR blocks non-interactive spawning of `ssh.exe`. See [pktFlow's O2_SSH_CONNECTION.md](../pktFlow/O2_SSH_CONNECTION.md) for details.
 
 ---
 
@@ -280,7 +280,7 @@ The frontend is a static HTML file. Update it by uploading the new file — Fast
 
 ```bash
 # Via Paramiko/SFTP from Windows
-sftp.put("frontend/index.html", "/mnt/software/pktdashboard/frontend/index.html")
+sftp.put("frontend/index.html", "/opt/pktdashboard/frontend/index.html")
 ```
 
 ### Backend code
@@ -294,7 +294,7 @@ sudo systemctl status pktdashboard
 ### Logs
 
 ```bash
-tail -f /mnt/software/logs/pktdashboard.log
+tail -f /var/log/pktdashboard/pktdashboard.log
 ```
 
 ---
@@ -322,4 +322,4 @@ The `PktFlowClient` in `app/pktflow_client.py` manages the service account JWT a
 
 ## License
 
-Internal — Vyne Dental. Not for public distribution.
+Internal use only. Not for public distribution.
