@@ -1,0 +1,9 @@
+venv/
+node_modules/
+*.db
+*.db-shm
+*.db-wal
+logs/*.log
+__pycache__/
+*.pyc
+config.yaml
