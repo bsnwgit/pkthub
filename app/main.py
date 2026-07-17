@@ -85,6 +85,9 @@ if os.path.exists(FRONTEND_DIST):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        static_file = os.path.join(FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(static_file):
+            return FileResponse(static_file)
         index = os.path.join(FRONTEND_DIST, "index.html")
         if os.path.exists(index):
             return FileResponse(index, headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"})
