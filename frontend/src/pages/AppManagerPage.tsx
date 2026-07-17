@@ -399,7 +399,7 @@ export default function AppManagerPage() {
                 <input value={form.base_url}
                   onChange={e => { setForm(f => ({ ...f, base_url: e.target.value })); setVerifyStatus('idle') }}
                   className="flex-1 px-3 py-2 rounded-lg text-sm bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-blue-500"
-                  placeholder="https://172.23.80.5:8766" />
+                  placeholder="https://10.0.0.10:8766" />
                 <button onClick={() => verifyUrl(form.base_url)}
                   disabled={!form.base_url || verifyStatus === 'checking'}
                   className="px-3 py-2 rounded-lg text-xs border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 disabled:opacity-40 whitespace-nowrap bg-gray-800">

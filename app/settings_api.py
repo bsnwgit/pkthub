@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 import aiosqlite
 import json
+import os
 from typing import List
 from app.database import get_db
 from app.auth import require_admin
+from app.config import get_settings
 from app.models import ConfigItem
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -73,7 +75,7 @@ DEFAULTS = {
     # Backup
     "backup_auto_enabled": "false",
     "backup_interval_hours": "24",
-    "backup_path": "/mnt/software/pkthub_backups",
+    "backup_path": os.path.join(get_settings().install_dir, "backups"),
     "backup_retain_count": "5",
     # Maintenance
     "maintenance_mode": "false",

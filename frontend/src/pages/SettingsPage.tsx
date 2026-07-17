@@ -1303,7 +1303,7 @@ function BackupSection({ settings, set, save }: {
 
       {/* Backup path */}
       <Field label="Backup path" hint="Directory on the server where snapshots are stored.">
-        <TextInput value={str('backup_path', '/mnt/software/pkthub_backups')} onChange={v => set('backup_path', v)} mono />
+        <TextInput value={str('backup_path', '')} onChange={v => set('backup_path', v)} mono />
       </Field>
 
       {/* Manual backup */}
@@ -1595,7 +1595,7 @@ export default function SettingsPage() {
             <TextInput value={str('app_name', 'pktHub')} onChange={v => set('app_name', v)} />
           </Field>
           <Field label="Base URL" hint="Canonical URL for this pktHub instance — used for SAML ACS and notification links">
-            <TextInput value={str('base_url')} onChange={v => set('base_url', v)} placeholder="https://172.23.80.5:8760" mono />
+            <TextInput value={str('base_url')} onChange={v => set('base_url', v)} placeholder="https://10.0.0.10:8760" mono />
           </Field>
           <Field label="Timezone" hint="Affects display of timestamps in the UI">
             <SelectInput

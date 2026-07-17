@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/backup", tags=["backup"])
 _log = logging.getLogger(__name__)
 
 DB_PATH = get_settings().db_path
+DEFAULT_BACKUP_DIR = os.path.join(get_settings().install_dir, "backups")
 
 
 async def _get_backup_cfg(db: aiosqlite.Connection) -> dict:
@@ -23,7 +24,7 @@ async def _get_backup_cfg(db: aiosqlite.Connection) -> dict:
         rows = await cur.fetchall()
     kv = {r["key"]: r["value"] for r in rows}
     return {
-        "path": kv.get("backup_path", "/mnt/software/pkthub_backups"),
+        "path": kv.get("backup_path") or DEFAULT_BACKUP_DIR,
         "retain": int(kv.get("backup_retain_count", "5") or "5"),
         "auto": kv.get("backup_auto_enabled", "false") == "true",
     }
