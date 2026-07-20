@@ -1,5 +1,9 @@
 # pktHub
 
+<p align="center">
+  <img src="lockup-256h.png" alt="pktHub" height="64">
+</p>
+
 NOC/SOC management hub — part of the pkt suite. Registers and proxies the
 sibling pkt* apps (pktSNMP, pktFlow, pktLog, pktPCAP, pktWiFi, pktIPAM) behind
 a single login, provides a NOC display builder for wallboards, and centralizes
