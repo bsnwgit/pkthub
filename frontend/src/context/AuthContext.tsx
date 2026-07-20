@@ -42,7 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .finally(() => setLoading(false))
     } else {
-      setLoading(false)
+      // No stored session — if every auth method is disabled, log straight
+      // in as the default admin instead of showing the login form.
+      api.authConfig()
+        .then(config => {
+          if (config && !config.local_enabled && !config.saml_enabled) {
+            return api.autoLogin().then(res => {
+              setMemoryToken(res.access_token)
+              localStorage.setItem('pkthub_token', res.access_token)
+              return api.me()
+            }).then(me => setUser(me as User))
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false))
     }
 
     // Poll session every 60 s — if the server returns 401, client.ts

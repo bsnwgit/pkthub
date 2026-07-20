@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server
 } from 'lucide-react'
 import clsx from 'clsx'
+import AiAssistant from './AiAssistant'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -75,6 +76,8 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+
+      <AiAssistant />
     </div>
   )
 }

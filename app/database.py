@@ -35,6 +35,12 @@ async def init_db():
             )
         """)
 
+        # Migration: add is_default_admin to existing databases that predate this column
+        async with db.execute("PRAGMA table_info(users)") as cur:
+            user_cols = {row[1] for row in await cur.fetchall()}
+        if "is_default_admin" not in user_cols:
+            await db.execute("ALTER TABLE users ADD COLUMN is_default_admin INTEGER NOT NULL DEFAULT 0")
+
         await db.execute("""
             CREATE TABLE IF NOT EXISTS registered_apps (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
