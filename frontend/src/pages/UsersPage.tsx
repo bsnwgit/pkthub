@@ -43,12 +43,17 @@ export default function UsersPage() {
     await api.updateUser(id, { role }).then(load).catch(e => alert(e.message))
   }
 
+  const makeDefaultAdmin = async (u: any) => {
+    if (u.is_default_admin || u.role !== 'admin' || !u.is_active) return
+    await api.setDefaultAdmin(u.id).then(load).catch(e => alert(e.message))
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Users</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Manage pktHub user accounts and roles</p>
+          <p className="text-sm text-gray-400 mt-0.5">Manage pktHub user accounts and roles. The <span className="text-yellow-400">★</span> marks the default admin — auto-logged-in when every auth method is disabled.</p>
         </div>
         <button
           onClick={() => setShowForm(v => !v)}
@@ -121,6 +126,16 @@ export default function UsersPage() {
                       {u.username[0]?.toUpperCase()}
                     </div>
                     <span className="text-white font-medium">{u.username}</span>
+                    <button
+                      onClick={() => makeDefaultAdmin(u)}
+                      disabled={u.is_default_admin || u.role !== 'admin' || !u.is_active}
+                      title={u.is_default_admin
+                        ? 'Default admin — auto-logged-in when all auth methods are disabled'
+                        : (u.role === 'admin' && u.is_active ? 'Make default admin' : 'Only active admins can be the default admin')}
+                      className={`text-sm leading-none ${u.is_default_admin ? 'text-yellow-400' : 'text-gray-500 hover:text-gray-300 disabled:hover:text-gray-500'}`}
+                    >
+                      {u.is_default_admin ? '★' : '☆'}
+                    </button>
                     {u.id === me?.id && <span className="text-xs text-gray-500">(you)</span>}
                   </div>
                 </td>

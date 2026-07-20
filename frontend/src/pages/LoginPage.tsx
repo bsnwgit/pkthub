@@ -25,9 +25,15 @@ function clearCookie(name: string) {
 }
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, user } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+
+  // If auto-login (all auth methods disabled) already established a session
+  // in the background, leave immediately instead of showing a login form.
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [user])
 
   const [username, setUsername]     = useState('')
   const [password, setPassword]     = useState('')

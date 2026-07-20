@@ -79,6 +79,9 @@ DEFAULTS = {
     "backup_retain_count": "5",
     # Maintenance
     "maintenance_mode": "false",
+    # AI Assistant
+    "anthropic_api_key": "",
+    "ai_model": "claude-haiku-4-5-20251001",
 }
 
 @router.get("")

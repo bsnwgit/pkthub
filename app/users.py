@@ -16,7 +16,7 @@ async def list_users(
         rows = await cur.fetchall()
     return [UserOut(
         id=r["id"], username=r["username"], email=r["email"] or "",
-        role=r["role"], is_active=bool(r["is_active"]),
+        role=r["role"], is_active=bool(r["is_active"]), is_default_admin=bool(r["is_default_admin"]),
         created_at=r["created_at"], last_login=r["last_login"]
     ) for r in rows]
 
@@ -37,7 +37,8 @@ async def create_user(
     except aiosqlite.IntegrityError:
         raise HTTPException(status_code=409, detail="Username or email already exists")
     return UserOut(id=row["id"], username=row["username"], email=row["email"],
-                   role=row["role"], is_active=bool(row["is_active"]), created_at=row["created_at"])
+                   role=row["role"], is_active=bool(row["is_active"]), is_default_admin=bool(row["is_default_admin"]),
+                   created_at=row["created_at"])
 
 @router.patch("/{user_id}", response_model=UserOut)
 async def update_user(
@@ -63,8 +64,29 @@ async def update_user(
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
     return UserOut(id=row["id"], username=row["username"], email=row["email"] or "",
-                   role=row["role"], is_active=bool(row["is_active"]),
+                   role=row["role"], is_active=bool(row["is_active"]), is_default_admin=bool(row["is_default_admin"]),
                    created_at=row["created_at"], last_login=row["last_login"])
+
+@router.patch("/{user_id}/set-default-admin", status_code=204)
+async def set_default_admin(
+    user_id: int,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Mark this user as the account auto-logged-in when every auth method is disabled.
+
+    Exactly one user can hold the flag at a time — setting it here clears it from
+    every other user in the same transaction (radio-button semantics, not a toggle).
+    """
+    async with db.execute("SELECT role, is_active FROM users WHERE id = ?", (user_id,)) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    if row["role"] != "admin" or not row["is_active"]:
+        raise HTTPException(status_code=400, detail="Default admin must be an active admin account")
+    await db.execute("UPDATE users SET is_default_admin = 0")
+    await db.execute("UPDATE users SET is_default_admin = 1 WHERE id = ?", (user_id,))
+    await db.commit()
 
 @router.delete("/{user_id}", status_code=204)
 async def delete_user(
