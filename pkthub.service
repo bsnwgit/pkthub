@@ -8,10 +8,11 @@ User=__INSTALL_USER__
 WorkingDirectory=__INSTALL_DIR__
 Environment=PKTHUB_INSTALL_DIR=__INSTALL_DIR__
 Environment=PKTSUITE_CONFIG=__INSTALL_DIR__/config.yaml
-# HTTP by default. To enable HTTPS: upload a cert via Settings > SSL, then add
-# --ssl-certfile /etc/ssl/pkthub/cert.pem --ssl-keyfile /etc/ssl/pkthub/key.pem
-# below and run: systemctl daemon-reload && systemctl restart pkthub
-ExecStart=__INSTALL_DIR__/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8760
+# Host/port come from config.yaml (Settings → General → Port writes there),
+# and HTTPS is auto-detected — app/server.py checks for a cert uploaded via
+# Settings → Security → SSL/TLS (/etc/ssl/pkthub/cert.pem + key.pem) and
+# switches to HTTPS automatically. No unit file edit needed for either.
+ExecStart=__INSTALL_DIR__/venv/bin/python -m app.server
 Restart=always
 RestartSec=5
 StandardOutput=append:__INSTALL_DIR__/logs/pkthub.log

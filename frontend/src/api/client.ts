@@ -58,6 +58,8 @@ export const api = {
   me: () => request<{ id: number; username: string; email: string; role: string }>('/auth/me'),
   logout: () => request('/auth/logout', { method: 'POST' }),
   authConfig: () => request<{ saml_enabled: boolean; local_enabled: boolean }>('/auth/config'),
+  autoLogin: () =>
+    request<{ access_token: string; role: string; username: string }>('/auth/auto-login', { method: 'POST' }),
   createProxySession: (appId: number) =>
     request<{ ok: boolean }>(`/auth/proxy-session/${appId}`, { method: 'POST' }),
 
@@ -89,6 +91,7 @@ export const api = {
   updateUser: (id: number, body: any) =>
     request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (id: number) => request(`/users/${id}`, { method: 'DELETE' }),
+  setDefaultAdmin: (id: number) => request(`/users/${id}/set-default-admin`, { method: 'PATCH' }),
   changePassword: (body: any) =>
     request('/users/me/password', { method: 'POST', body: JSON.stringify(body) }),
   resetUserPassword: (id: number, password: string) =>
@@ -133,6 +136,14 @@ export const api = {
   testNotification: (channel: string) =>
     request<{ status: string; detail?: string }>(`/notifications/test/${channel}`, { method: 'POST' }),
 
+  // Maintenance
+  getPort: () => request<{ port: number }>('/maintenance/port'),
+  setPort: (port: number) =>
+    request<{ port: number; message: string }>('/maintenance/port', {
+      method: 'POST',
+      body: JSON.stringify({ port }),
+    }),
+
   // SSL
   getSslStatus: () => request<any>('/ssl/status'),
   uploadSsl: (certFile: File, keyFile: File) => {
@@ -169,6 +180,9 @@ export const api = {
 
   // App Alert Log
   listAlerts: () => request<any[]>('/alerts'),
+
+  aiChat: (question: string) =>
+    request<{ answer: string; tokens_used: number }>('/ai/chat', { method: 'POST', body: JSON.stringify({ question }) }),
   ackAlert: (id: number) => request<any>(`/alerts/${id}/ack`, { method: 'POST' }),
   alertHistory: (params?: {
     app_id?: number; event_type?: string; status?: string;

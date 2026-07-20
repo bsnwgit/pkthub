@@ -2,19 +2,78 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { FileText, RefreshCw } from 'lucide-react'
 
+const PAGE_SIZE = 25
+// Backend caps `limit` at 500 and has no total-count field on this endpoint,
+// so pagination is done client-side over the most recent 500 matching entries
+// rather than a true server-paginated total.
+const FETCH_CAP = 500
+
+/**
+ * Page-number bar: shows every page when there are 5 or fewer, otherwise
+ * pages 1-5, an ellipsis, then the last page — plus prev/next buttons.
+ */
+function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  if (totalPages <= 1) return null
+  const blockStart = Math.floor((page - 1) / 5) * 5 + 1
+  const blockEnd   = Math.min(blockStart + 4, totalPages)
+  const pages = Array.from({ length: blockEnd - blockStart + 1 }, (_, i) => blockStart + i)
+  const btn = (p: number) => [
+    'text-xs min-w-[1.75rem] px-2 py-1 rounded-lg border transition-colors',
+    p === page
+      ? 'bg-blue-600/30 border-blue-500 text-blue-200'
+      : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white',
+  ].join(' ')
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page === 1}
+        className="text-xs px-2.5 py-1 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        ← Prev
+      </button>
+      {blockStart > 1 && (
+        <>
+          <button onClick={() => onChange(1)} className={btn(1)}>1</button>
+          <span className="px-1 text-gray-500 text-xs">..</span>
+        </>
+      )}
+      {pages.map(p => <button key={p} onClick={() => onChange(p)} className={btn(p)}>{p}</button>)}
+      {blockEnd < totalPages && (
+        <>
+          <span className="px-1 text-gray-500 text-xs">..</span>
+          <button onClick={() => onChange(totalPages)} className={btn(totalPages)}>{totalPages}</button>
+        </>
+      )}
+      <button
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+        className="text-xs px-2.5 py-1 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        Next →
+      </button>
+    </div>
+  )
+}
+
 export default function AuditPage() {
   const [entries, setEntries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState({ action: '', username: '' })
+  const [page, setPage] = useState(1)
 
   const load = () => {
-    api.auditLog({ limit: 200, action: filter.action || undefined, username: filter.username || undefined })
-      .then(setEntries)
+    api.auditLog({ limit: FETCH_CAP, action: filter.action || undefined, username: filter.username || undefined })
+      .then(entries => { setEntries(entries); setPage(1) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [])
+
+  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE))
+  const pageClamped = Math.min(page, totalPages)
+  const pagedEntries = entries.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE)
 
   const ACTION_COLOR: Record<string, string> = {
     login: '#60a5fa', logout: '#6b7280', register_app: '#4ade80',
@@ -58,6 +117,10 @@ export default function AuditPage() {
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
 
+      {!loading && entries.length > 0 && (
+        <Pagination page={pageClamped} totalPages={totalPages} onChange={setPage} />
+      )}
+
       <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
         <table className="w-full text-sm">
           <thead>
@@ -71,7 +134,7 @@ export default function AuditPage() {
             {entries.length === 0 && !loading && (
               <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">No entries found.</td></tr>
             )}
-            {entries.map((e, i) => {
+            {pagedEntries.map((e, i) => {
               const color = ACTION_COLOR[e.action] || '#6b7280'
               return (
                 <tr key={i} className="hover:bg-white/2 transition-colors">
@@ -92,6 +155,16 @@ export default function AuditPage() {
           </tbody>
         </table>
       </div>
+
+      {!loading && entries.length > 0 && (
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>
+            Showing {((pageClamped - 1) * PAGE_SIZE + 1).toLocaleString()}–{((pageClamped - 1) * PAGE_SIZE + pagedEntries.length).toLocaleString()} of {entries.length.toLocaleString()} entries
+            {entries.length === FETCH_CAP && <> (most recent {FETCH_CAP})</>}
+          </span>
+          <Pagination page={pageClamped} totalPages={totalPages} onChange={setPage} />
+        </div>
+      )}
     </div>
   )
 }

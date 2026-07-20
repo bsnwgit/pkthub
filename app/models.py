@@ -50,6 +50,7 @@ class UserOut(BaseModel):
     email: str
     role: str
     is_active: bool
+    is_default_admin: bool = False
     created_at: str
     last_login: Optional[str] = None
 

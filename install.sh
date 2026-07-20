@@ -5,15 +5,22 @@ set -euo pipefail
 APP_NAME="pkthub"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── 1. Install directory ────────────────────────────────────────────────────
+# ── 1. Install directory + port ─────────────────────────────────────────────
 if [ -z "${PKTHUB_INSTALL_DIR:-}" ] && [ -t 0 ]; then
     read -rp "Install directory [/opt/pkthub]: " INSTALL_DIR_INPUT
     INSTALL_DIR="${INSTALL_DIR_INPUT:-/opt/pkthub}"
 else
     INSTALL_DIR="${PKTHUB_INSTALL_DIR:-/opt/pkthub}"
 fi
+if [ -z "${PKTHUB_PORT:-}" ] && [ -t 0 ]; then
+    read -rp "Port [8760]: " PORT_INPUT
+    PORT="${PORT_INPUT:-8760}"
+else
+    PORT="${PKTHUB_PORT:-8760}"
+fi
 
 echo "Installing pktHub to: $INSTALL_DIR"
+echo "Port: $PORT"
 
 # ── 2. Build frontend in place (before copy, so 'dist' travels with the tree)
 if command -v npm >/dev/null 2>&1; then
@@ -60,6 +67,7 @@ if [ ! -f config.yaml ]; then
 
     sed -i "s#CHANGE_ME_generate_with_openssl_rand_hex_32#${JWT_SECRET}#" config.yaml
     sed -i "s#initial_admin_password: \"CHANGE_ME\"#initial_admin_password: \"${ADMIN_PASSWORD}\"#" config.yaml
+    sed -i "s/^port: 8760/port: ${PORT}/" config.yaml
 
     echo ""
     echo "==================================================================="
@@ -76,8 +84,8 @@ INSTALL_USER="${SUDO_USER:-$(whoami)}"
 
 # ── 6. systemd service ───────────────────────────────────────────────────────
 # Installs on plain HTTP. Enabling HTTPS is an admin task: upload a cert via
-# Settings > SSL, then add --ssl-certfile/--ssl-keyfile to this unit's
-# ExecStart and restart the service.
+# Settings > Security > SSL/TLS — app/server.py auto-detects it on the next
+# restart, no unit file edit needed.
 sed -e "s#__INSTALL_DIR__#${INSTALL_DIR}#g" -e "s#__INSTALL_USER__#${INSTALL_USER}#g" \
     "$INSTALL_DIR/pkthub.service" > /etc/systemd/system/pkthub.service
 
@@ -89,4 +97,4 @@ systemctl restart pkthub
 
 echo ""
 echo "pktHub installed and running as '${INSTALL_USER}' from ${INSTALL_DIR}."
-echo "Visit http://<this-host>:8760"
+echo "Visit http://<this-host>:${PORT}"

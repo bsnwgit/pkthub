@@ -105,6 +105,46 @@ async def auth_config(db: aiosqlite.Connection = Depends(get_db)):
     return {"saml_enabled": saml_enabled, "local_enabled": local_enabled}
 
 
+@router.post("/auto-login", response_model=TokenResponse)
+async def auto_login(db: aiosqlite.Connection = Depends(get_db)):
+    """Issue a session for the default admin account when every auth method is disabled.
+
+    Only usable when both local auth and SAML SSO are off — otherwise this would be
+    an unauthenticated backdoor. The Login page calls this instead of rendering a
+    form when /config reports both methods disabled.
+    """
+    async with db.execute("SELECT value FROM platform_config WHERE key = 'okta_saml_enabled'") as cur:
+        row = await cur.fetchone()
+    saml_enabled = bool(row and row["value"] == "true")
+
+    async with db.execute("SELECT value FROM platform_config WHERE key = 'auth_local_enabled'") as cur:
+        row = await cur.fetchone()
+    local_enabled = not row or row["value"] != "false"
+
+    if local_enabled or saml_enabled:
+        raise HTTPException(status_code=403, detail="Auth is enabled; auto-login not available")
+
+    async with db.execute(
+        "SELECT * FROM users WHERE is_default_admin = 1 AND is_active = 1 LIMIT 1"
+    ) as cur:
+        user = await cur.fetchone()
+    if not user:
+        # No user explicitly flagged (or the flagged account was deactivated/deleted) —
+        # fall back to the first active admin so this never dead-ends into a lockout.
+        async with db.execute(
+            "SELECT * FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id ASC LIMIT 1"
+        ) as cur:
+            user = await cur.fetchone()
+    if not user:
+        raise HTTPException(status_code=503, detail="No admin account available")
+
+    token = create_access_token({"sub": user["username"], "role": user["role"], "uid": user["id"]})
+    await db.execute("UPDATE users SET last_login = datetime('now') WHERE id = ?", (user["id"],))
+    await db.commit()
+
+    return TokenResponse(access_token=token, role=user["role"], username=user["username"])
+
+
 # ── SAML helpers ──────────────────────────────────────────────────────────────
 
 async def _load_saml_cfg(db: aiosqlite.Connection) -> Optional[dict]:
@@ -372,7 +412,7 @@ async def ensure_initial_admin(db: aiosqlite.Connection):
     if row["count"] == 0:
         hashed = hash_password(settings.initial_admin_password)
         await db.execute(
-            "INSERT INTO users (username, email, hashed_password, role) VALUES (?, ?, ?, 'admin')",
+            "INSERT INTO users (username, email, hashed_password, role, is_default_admin) VALUES (?, ?, ?, 'admin', 1)",
             (settings.initial_admin_username, settings.initial_admin_email, hashed)
         )
         await db.commit()
