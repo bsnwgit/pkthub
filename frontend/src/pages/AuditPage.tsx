@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { FileText, RefreshCw } from 'lucide-react'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE_OPTIONS = [25, 50, 75, 100]
 // Backend caps `limit` at 500 and has no total-count field on this endpoint,
 // so pagination is done client-side over the most recent 500 matching entries
 // rather than a true server-paginated total.
@@ -61,6 +61,7 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState({ action: '', username: '' })
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   const load = () => {
     api.auditLog({ limit: FETCH_CAP, action: filter.action || undefined, username: filter.username || undefined })
@@ -71,9 +72,11 @@ export default function AuditPage() {
 
   useEffect(() => { load() }, [])
 
-  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE))
+  const changePageSize = (size: number) => { setPageSize(size); setPage(1) }
+
+  const totalPages = Math.max(1, Math.ceil(entries.length / pageSize))
   const pageClamped = Math.min(page, totalPages)
-  const pagedEntries = entries.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE)
+  const pagedEntries = entries.slice((pageClamped - 1) * pageSize, pageClamped * pageSize)
 
   const ACTION_COLOR: Record<string, string> = {
     login: '#60a5fa', logout: '#6b7280', register_app: '#4ade80',
@@ -118,7 +121,22 @@ export default function AuditPage() {
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
 
       {!loading && entries.length > 0 && (
-        <Pagination page={pageClamped} totalPages={totalPages} onChange={setPage} />
+        <div className="flex items-center justify-center gap-6">
+          <Pagination page={pageClamped} totalPages={totalPages} onChange={setPage} />
+          <div className="flex items-center gap-2">
+            <label htmlFor="audit-per-page" className="text-xs text-gray-400">Entries per page:</label>
+            <select
+              id="audit-per-page"
+              value={pageSize}
+              onChange={e => changePageSize(Number(e.target.value))}
+              className="text-sm bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-1 focus:outline-none focus:border-sky-500"
+            >
+              {PAGE_SIZE_OPTIONS.map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       )}
 
       <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
@@ -159,7 +177,7 @@ export default function AuditPage() {
       {!loading && entries.length > 0 && (
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>
-            Showing {((pageClamped - 1) * PAGE_SIZE + 1).toLocaleString()}–{((pageClamped - 1) * PAGE_SIZE + pagedEntries.length).toLocaleString()} of {entries.length.toLocaleString()} entries
+            Showing {((pageClamped - 1) * pageSize + 1).toLocaleString()}–{((pageClamped - 1) * pageSize + pagedEntries.length).toLocaleString()} of {entries.length.toLocaleString()} entries
             {entries.length === FETCH_CAP && <> (most recent {FETCH_CAP})</>}
           </span>
           <Pagination page={pageClamped} totalPages={totalPages} onChange={setPage} />
