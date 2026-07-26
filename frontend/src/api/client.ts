@@ -1,5 +1,14 @@
 const BASE = '/api'
 
+export interface UserApiKey {
+  provider: string
+  label: string
+  api_key: string
+  updated_at: string | null
+  enabled_fields: string[] | null // ipinfo/ipapi_is/mxtoolbox only; null = not customized (all shown)
+  free_tier: boolean // ipapi_is only — use its keyless free tier instead of api_key
+}
+
 // ── In-memory token store ─────────────────────────────────────────────────────
 // Intentionally NOT in localStorage — survives the session tab but is gone on
 // tab close/reload.  The server's HttpOnly pkthub_session cookie covers reloads.
@@ -197,6 +206,21 @@ export const api = {
     if (params?.limit)                q.set('limit',      String(params.limit))
     return request<any[]>(`/alerts/history?${q}`)
   },
+
+  // Per-user external API keys (IP/reputation lookup providers)
+  getUserApiKeys: () => request<UserApiKey[]>('/user-api-keys'),
+  setUserApiKey: (provider: string, api_key: string) =>
+    request<UserApiKey>(`/user-api-keys/${provider}`, { method: 'PUT', body: JSON.stringify({ api_key }) }),
+  testUserApiKey: (provider: string, api_key: string) =>
+    request<{ status: string; detail: string }>(`/user-api-keys/${provider}/test`, { method: 'POST', body: JSON.stringify({ api_key }) }),
+  setIpinfoFields: (enabled_fields: string[]) =>
+    request<UserApiKey>('/user-api-keys/ipinfo/fields', { method: 'PUT', body: JSON.stringify({ enabled_fields }) }),
+  setIpapiIsFields: (enabled_fields: string[]) =>
+    request<UserApiKey>('/user-api-keys/ipapi_is/fields', { method: 'PUT', body: JSON.stringify({ enabled_fields }) }),
+  setIpapiIsFreeTier: (free_tier: boolean) =>
+    request<UserApiKey>('/user-api-keys/ipapi_is/free-tier', { method: 'PUT', body: JSON.stringify({ free_tier }) }),
+  setMxtoolboxFields: (enabled_fields: string[]) =>
+    request<UserApiKey>('/user-api-keys/mxtoolbox/fields', { method: 'PUT', body: JSON.stringify({ enabled_fields }) }),
 
   // Alert Rules
   listAlertRules: () => request<any[]>('/alert-rules'),
