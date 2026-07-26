@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { Activity, Server, AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react'
 import AlertLogSection from '../components/AlertLogSection'
+import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa',
@@ -62,7 +63,13 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-white">Dashboard</h1>
+            <HelpButton title="Dashboard — How It Works">
+              <p>Health status is polled from each registered app's own health endpoint every refresh — <span className="text-gray-300 font-medium">Degraded</span> means it responded but reported a problem, <span className="text-gray-300 font-medium">Unreachable</span> means pktHub couldn't reach it at all.</p>
+              <p>Click an app card to jump into its Context Viewer — a proxied view of that app inside pktHub without a separate login.</p>
+            </HelpButton>
+          </div>
           <p className="text-sm text-gray-400 mt-0.5">Platform overview — live health across all registered pktApps</p>
         </div>
         <button onClick={load} className="text-xs text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg border border-gray-700 hover:border-gray-500 transition-colors">

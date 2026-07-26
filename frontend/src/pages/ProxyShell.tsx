@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 import { PktSuiteIcon } from '../components/Logo'
 import { Home, LogOut, ChevronDown } from 'lucide-react'
+import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
@@ -50,6 +51,9 @@ export default function ProxyShell() {
               {app.name.toUpperCase()}
             </span>
           )}
+          <HelpButton title="App View — How It Works">
+            <p>This is {app?.name || 'the app'}'s own UI, proxied through pktHub using a session pktHub establishes for you — no separate login. Links inside the app that open a new tab route back through this same proxy.</p>
+          </HelpButton>
         </div>
 
         {/* Right: nav */}
