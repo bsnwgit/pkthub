@@ -181,4 +181,26 @@ async def init_db():
                     (name, event_type, severity, description)
                 )
 
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_api_keys (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                username    TEXT NOT NULL,
+                provider    TEXT NOT NULL,
+                api_key     TEXT NOT NULL DEFAULT '',
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE (username, provider)
+            )
+        """)
+
+        # Migration: per-user ipinfo.io section display preference (geolocation/
+        # asn/company/privacy/abuse/domains), JSON array, NULL = all enabled.
+        async with db.execute("PRAGMA table_info(user_api_keys)") as cur:
+            uak_cols = {row[1] for row in await cur.fetchall()}
+        if "enabled_fields" not in uak_cols:
+            await db.execute("ALTER TABLE user_api_keys ADD COLUMN enabled_fields TEXT DEFAULT NULL")
+
+        # Migration: per-user "use ipapi.is's free tier (no key)" preference.
+        if "free_tier" not in uak_cols:
+            await db.execute("ALTER TABLE user_api_keys ADD COLUMN free_tier INTEGER NOT NULL DEFAULT 0")
+
         await db.commit()

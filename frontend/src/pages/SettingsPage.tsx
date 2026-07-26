@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, type UserApiKey } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { UserPlus, Trash2, Plus, Pencil, RefreshCw, ExternalLink, ShieldCheck, Eye, Monitor, Globe, EyeOff, Copy } from 'lucide-react'
 import HelpButton from '../components/HelpButton'
@@ -1015,6 +1015,241 @@ function AlertRulesSection() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Personal API Keys — per-user vault for external lookup providers ─────────
+// Scoped to the logged-in user (by username), separate from the app-wide
+// Lucidchart token below. Store/list/test only — nothing consumes these keys yet.
+// Providers whose response the user can filter down to specific sections in
+// the IP Lookup modal. Keyed by provider id; each entry's field keys match
+// what the backend's IPINFO_FIELDS / IPAPI_IS_FIELDS constants accept.
+const FIELD_SETS: Record<string, { key: string; label: string }[]> = {
+  ipinfo: [
+    { key: 'geolocation', label: 'Geolocation' },
+    { key: 'asn',         label: 'ASN / Org' },
+    { key: 'company',     label: 'Company' },
+    { key: 'privacy',     label: 'Privacy Detection (VPN/Proxy/Tor)' },
+    { key: 'abuse',       label: 'Abuse Contact' },
+    { key: 'domains',     label: 'Hosted Domains' },
+  ],
+  ipapi_is: [
+    { key: 'geolocation', label: 'Geolocation' },
+    { key: 'asn',         label: 'ASN / Org' },
+    { key: 'company',     label: 'Company' },
+    { key: 'detection',   label: 'Threat Detection (VPN/Proxy/Tor/Datacenter)' },
+    { key: 'abuse',       label: 'Abuse Contact' },
+  ],
+  mxtoolbox: [
+    { key: 'ptr',       label: 'Reverse DNS (PTR)' },
+    { key: 'asn',       label: 'ASN' },
+    { key: 'blacklist', label: 'Blacklist Check' },
+  ],
+}
+const setFieldsApi: Record<string, (fields: string[]) => Promise<UserApiKey>> = {
+  ipinfo: api.setIpinfoFields,
+  ipapi_is: api.setIpapiIsFields,
+  mxtoolbox: api.setMxtoolboxFields,
+}
+
+function ApiKeyRow({ apiKey, draft, onDraftChange, onSave, onTest, saving, saved, error, testing, testResult, onToggleField, fieldsError, onToggleFreeTier }: {
+  apiKey: UserApiKey
+  draft: string
+  onDraftChange: (v: string) => void
+  onSave: () => void
+  onTest: () => void
+  saving: boolean
+  saved: boolean
+  error: string
+  testing: boolean
+  testResult?: { ok: boolean; detail: string }
+  onToggleField?: (fieldKey: string, checked: boolean) => void
+  fieldsError?: string
+  onToggleFreeTier?: (checked: boolean) => void
+}) {
+  const isFreeTier = apiKey.provider === 'ipapi_is' && apiKey.free_tier
+  const inp = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono'
+  return (
+    <div>
+      <label className="block text-xs text-white mb-1">{apiKey.label}</label>
+      {apiKey.provider === 'ipapi_is' && onToggleFreeTier && (
+        <label className="flex items-center gap-2 text-xs text-white cursor-pointer mb-1.5">
+          <input
+            type="checkbox"
+            checked={apiKey.free_tier}
+            onChange={e => onToggleFreeTier(e.target.checked)}
+            className="accent-blue-600"
+          />
+          Use free tier (no key required, ~1,000 lookups/day)
+        </label>
+      )}
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          value={draft}
+          onChange={e => onDraftChange(e.target.value)}
+          placeholder="Not set"
+          disabled={isFreeTier}
+          className={`${inp} ${isFreeTier ? 'opacity-40 cursor-not-allowed' : ''}`}
+        />
+        <button
+          onClick={onTest}
+          disabled={isFreeTier || testing || !draft}
+          className="shrink-0 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50"
+        >
+          {testing ? 'Testing…' : 'Test'}
+        </button>
+        <button
+          onClick={onSave}
+          disabled={isFreeTier || saving}
+          className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {saved && <p className="text-xs text-green-400 mt-1">Saved</p>}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+      {testResult && (
+        <p className={`text-xs mt-1 ${testResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+          {testResult.ok ? '✓ ' : '✗ '}{testResult.detail}
+        </p>
+      )}
+      {FIELD_SETS[apiKey.provider] && onToggleField && (
+        <div className="mt-3 pl-1">
+          <p className="text-xs text-gray-500 mb-1.5">Shown in the IP Lookup modal:</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {FIELD_SETS[apiKey.provider].map(f => (
+              <label key={f.key} className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={apiKey.enabled_fields ? apiKey.enabled_fields.includes(f.key) : true}
+                  onChange={e => onToggleField(f.key, e.target.checked)}
+                  className="accent-blue-600"
+                />
+                {f.label}
+              </label>
+            ))}
+          </div>
+          {fieldsError && <p className="text-xs text-red-400 mt-1">{fieldsError}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PersonalApiKeysSection() {
+  const { user: me } = useAuth()
+  const [keys, setKeys]         = useState<UserApiKey[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [loadErr, setLoadErr]   = useState('')
+  const [drafts, setDrafts]     = useState<Record<string, string>>({})
+  const [saving, setSaving]     = useState<Record<string, boolean>>({})
+  const [saved, setSaved]       = useState<Record<string, boolean>>({})
+  const [error, setError]       = useState<Record<string, string>>({})
+  const [testing, setTesting]   = useState<Record<string, boolean>>({})
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; detail: string } | undefined>>({})
+  const [fieldsError, setFieldsError] = useState('')
+
+  const load = () => {
+    setLoading(true); setLoadErr('')
+    api.getUserApiKeys()
+      .then(rows => { setKeys(rows); setDrafts(Object.fromEntries(rows.map(r => [r.provider, r.api_key]))) })
+      .catch(e => setLoadErr(e.message || 'Failed to load keys'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const handleSave = async (provider: string) => {
+    setSaving(s => ({ ...s, [provider]: true }))
+    setError(e => ({ ...e, [provider]: '' }))
+    try {
+      const updated = await api.setUserApiKey(provider, drafts[provider] ?? '')
+      setKeys(prev => prev.map(k => k.provider === provider ? updated : k))
+      setSaved(s => ({ ...s, [provider]: true }))
+      setTimeout(() => setSaved(s => ({ ...s, [provider]: false })), 2000)
+    } catch (err: any) {
+      setError(e => ({ ...e, [provider]: err.message ?? 'Save failed' }))
+    } finally {
+      setSaving(s => ({ ...s, [provider]: false }))
+    }
+  }
+
+  const handleTest = async (provider: string) => {
+    setTesting(t => ({ ...t, [provider]: true }))
+    setTestResult(r => ({ ...r, [provider]: undefined }))
+    try {
+      const res = await api.testUserApiKey(provider, drafts[provider] ?? '')
+      setTestResult(r => ({ ...r, [provider]: { ok: res.status === 'ok', detail: res.detail } }))
+    } catch (err: any) {
+      setTestResult(r => ({ ...r, [provider]: { ok: false, detail: err.message ?? 'Test failed' } }))
+    } finally {
+      setTesting(t => ({ ...t, [provider]: false }))
+    }
+  }
+
+  const handleToggleField = async (provider: string, fieldKey: string, checked: boolean) => {
+    const providerKey = keys.find(k => k.provider === provider)
+    const current = providerKey?.enabled_fields ?? FIELD_SETS[provider].map(f => f.key)
+    const next = checked ? [...current, fieldKey] : current.filter(f => f !== fieldKey)
+    setFieldsError('')
+    try {
+      const updated = await setFieldsApi[provider](next)
+      setKeys(prev => prev.map(k => k.provider === provider ? updated : k))
+    } catch (err: any) {
+      setFieldsError(err.message ?? 'Failed to save')
+    }
+  }
+
+  const handleToggleFreeTier = async (checked: boolean) => {
+    setFieldsError('')
+    try {
+      const updated = await api.setIpapiIsFreeTier(checked)
+      setKeys(prev => prev.map(k => k.provider === 'ipapi_is' ? updated : k))
+    } catch (err: any) {
+      setFieldsError(err.message ?? 'Failed to save')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-white">User Keys</h2>
+        <HelpButton title="User Keys — How It Works">
+          <p>External API keys for lookup tools (IP reputation, geolocation, etc.) are <span className="text-gray-300 font-medium">personal, not shared</span> — each user stores their own key here under their own account, and only that user's own requests use it. Nobody else, including admins, can see the key's value.</p>
+          <p>Leave a field blank and save to clear a key.</p>
+        </HelpButton>
+      </div>
+      <p className="text-sm text-white">
+        Signed in as <span className="text-white font-medium">{me?.username}</span> — these keys apply to your account only.
+      </p>
+
+      {loading ? (
+        <p className="text-sm text-white">Loading…</p>
+      ) : loadErr ? (
+        <p className="text-sm text-red-400">{loadErr}</p>
+      ) : (
+        <div className="space-y-4 max-w-lg">
+          {keys.map(k => (
+            <ApiKeyRow
+              key={k.provider}
+              apiKey={k}
+              draft={drafts[k.provider] ?? ''}
+              onDraftChange={v => setDrafts(d => ({ ...d, [k.provider]: v }))}
+              onSave={() => handleSave(k.provider)}
+              onTest={() => handleTest(k.provider)}
+              saving={!!saving[k.provider]}
+              saved={!!saved[k.provider]}
+              error={error[k.provider] || ''}
+              testing={!!testing[k.provider]}
+              testResult={testResult[k.provider]}
+              onToggleField={FIELD_SETS[k.provider] ? (fieldKey, checked) => handleToggleField(k.provider, fieldKey, checked) : undefined}
+              fieldsError={fieldsError}
+              onToggleFreeTier={k.provider === 'ipapi_is' ? handleToggleFreeTier : undefined}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -2360,23 +2595,36 @@ export default function SettingsPage() {
         </Section>
       )}
 
-      {/* User Keys — just the app-wide Lucidchart token; pkthub has no
-          per-user API key self-service feature to house alongside it */}
+      {/* User Keys — per-user vault for external lookup providers, plus the
+          app-wide Lucidchart token (admin-configured, shared by everyone) */}
       {tab === 'apikeys' && (
-        <Section title="User Keys" onSave={lucidSave.save} saving={lucidSave.saving} saved={lucidSave.saved} error={lucidSave.error}>
-          <div className="pt-2 pb-1">
-            <p className="text-xs font-semibold text-white uppercase tracking-wider">Lucidchart</p>
+        <div>
+          <PersonalApiKeysSection />
+
+          <div className="pt-2 border-t border-gray-800 max-w-lg mt-6">
+            <p className="text-xs font-semibold text-white uppercase tracking-wider mt-4 mb-1">Lucidchart</p>
+            <label className="block text-xs text-white mb-1">API token</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={str('lucid_api_token')}
+                onChange={e => set('lucid_api_token', e.target.value)}
+                placeholder="eyJ…"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+              <button
+                onClick={lucidSave.save}
+                disabled={lucidSave.saving}
+                className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
+              >
+                {lucidSave.saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            {lucidSave.saved && <p className="text-xs text-green-400 mt-1">Saved</p>}
+            {lucidSave.error && <p className="text-xs text-red-400 mt-1">{lucidSave.error}</p>}
+            <p className="text-xs text-gray-500 mt-1">Personal Access Token from lucid.co → Account → API Tokens. Required for topology export to Lucidchart.</p>
           </div>
-          <Field label="API token" hint="Personal Access Token from lucid.co → Account → API Tokens. Required for topology export to Lucidchart.">
-            <TextInput
-              value={str('lucid_api_token')}
-              onChange={v => set('lucid_api_token', v)}
-              placeholder="eyJ…"
-              secret
-              mono
-            />
-          </Field>
-        </Section>
+        </div>
       )}
 
       {/* Audit */}
