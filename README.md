@@ -27,6 +27,7 @@ React SPA are all live in the running app — not placeholder scaffolding.
 - [Running & Managing the Service](#running--managing-the-service)
 - [Enabling HTTPS](#enabling-https)
 - [Roles & Auth](#roles--auth)
+- [IP Intelligence Lookup](#ip-intelligence-lookup)
 - [App Registry & Suite Integration](#app-registry--suite-integration)
 - [NOC Displays](#noc-displays)
 - [Alerting & Notifications](#alerting--notifications)
@@ -204,6 +205,21 @@ Auth methods, toggled under **Settings → Security → Auth**:
 
 The very first user is always created as `admin` from `config.yaml`'s
 `initial_admin_*` fields on first boot.
+
+## IP Intelligence Lookup
+
+`GET /api/ip-info/{ip}` (`app/ip_info.py`) combines four external lookups for a single public IP:
+
+- **ipinfo.io** — geolocation/ASN/org info, plus company, privacy (VPN/proxy/Tor/relay/hosting), and abuse contact on paid plans
+- **ipapi.is** — geolocation, ASN/org, company, abuse contact, VPN/proxy/Tor/datacenter/abuser detection, all in one call, no plan gating
+- **AbuseIPDB** — abuse confidence score and report history
+- **MXToolbox** — reverse DNS (PTR), ASN, and a blacklist/RBL check
+
+All four are called concurrently. Private/loopback/link-local/reserved/multicast addresses are rejected — external providers have nothing useful to say about them.
+
+Keys are **per-user**, not app-wide: each logged-in user stores their own under Settings → User Keys (`app/user_api_keys.py`), and lookups run under that user's own key/quota — no shared/admin key, no cross-user visibility. A fifth provider slot, IPQualityScore, can be saved and tested there but isn't consumed by the lookup yet.
+
+MXToolbox's other commands — email/DNS record checks (SPF, DMARC, DKIM, MX, DNS, TXT, SOA, BIMI, MTA-STS, TLSRPT, A, AAAA) and active probes (ping, traceroute, TCP/HTTP/HTTPS/SMTP connect, run from MXToolbox's own infrastructure against the target) — are reachable via `POST /api/mxtoolbox/lookup` (`{command, argument, port?}`, `app/mxtoolbox.py`). Backend only for now — no page in the UI links an IP to this lookup yet.
 
 ## App Registry & Suite Integration
 
