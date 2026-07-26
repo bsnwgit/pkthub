@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { ExternalLink, ChevronDown, Settings as SettingsIcon } from 'lucide-react'
+import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
@@ -173,7 +174,13 @@ export default function AppManagerPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-white">App Registry</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-white">App Registry</h1>
+            <HelpButton title="App Registry — How It Works">
+              <p>The day-to-day view of every registered app's health and access mode. Registering a new app, rotating its token, or deregistering it are admin actions kept in Settings → Security → Suite Integration since they touch credentials.</p>
+              <p>Expand an app to see its recent proxy access log — who opened it and when.</p>
+            </HelpButton>
+          </div>
           <p className="text-sm text-gray-400 mt-0.5">Monitor and access registered pktApps</p>
         </div>
         {isAdmin && (
