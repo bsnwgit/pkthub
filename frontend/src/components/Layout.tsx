@@ -13,7 +13,7 @@ const navItems = [
   { to: '/noc', label: 'NOC Builder', icon: Monitor },
   { to: '/apps', label: 'App Registry', icon: Server },
   { to: '/audit', label: 'Audit Log', icon: FileText, analystOk: true },
-  { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
+  { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true, dividerBefore: true },
 ]
 
 export default function Layout() {
@@ -37,20 +37,22 @@ export default function Layout() {
         {/* Nav */}
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
           {visible.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.exact}
-              className={({ isActive }) => clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-blue-500/15 text-blue-400'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-              )}
-            >
-              <item.icon size={16} />
-              {item.label}
-            </NavLink>
+            <div key={item.to}>
+              {item.dividerBefore && <div className="h-0.5 bg-gray-600 mx-1 my-2 rounded-full" />}
+              <NavLink
+                to={item.to}
+                end={item.exact}
+                className={({ isActive }) => clsx(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-blue-500/15 text-blue-400'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                )}
+              >
+                <item.icon size={16} />
+                {item.label}
+              </NavLink>
+            </div>
           ))}
         </nav>
 
