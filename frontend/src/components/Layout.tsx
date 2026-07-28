@@ -1,23 +1,44 @@
+import { useEffect, useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PktSuiteLockup } from './Logo'
 import {
-  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server
+  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server, TriangleAlert
 } from 'lucide-react'
 import clsx from 'clsx'
 import AiAssistant from './AiAssistant'
+import { api } from '../api/client'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { to: '/context', label: 'Context Viewer', icon: MonitorPlay },
   { to: '/noc', label: 'NOC Builder', icon: Monitor },
   { to: '/apps', label: 'App Registry', icon: Server },
+  { to: '/alerts', label: 'App Alerts', icon: TriangleAlert, analystOk: true },
   { to: '/audit', label: 'Audit Log', icon: FileText, analystOk: true },
-  { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true, dividerBefore: true },
+  { to: '/settings', label: 'Hub Settings', icon: Settings, adminOnly: true, dividerBefore: true },
 ]
 
 export default function Layout() {
   const { user, logout, isAdmin, isAnalyst } = useAuth()
+  const [regApps, setRegApps] = useState<{ id: number; name: string; display_name: string }[]>([])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    const load = () => api.listApps().then(setRegApps).catch(() => {})
+    load()
+    // Nav labels are display_name straight from the registry — re-poll so a
+    // rename made elsewhere shows up here without a full page reload. The
+    // 'pkthub:reg-apps-changed' event (dispatched by SettingsPage right after
+    // register/edit/deregister) forces an immediate refresh instead of
+    // waiting for the next poll tick.
+    window.addEventListener('pkthub:reg-apps-changed', load)
+    const t = setInterval(load, 30_000)
+    return () => {
+      window.removeEventListener('pkthub:reg-apps-changed', load)
+      clearInterval(t)
+    }
+  }, [isAdmin])
 
   const visible = navItems.filter(item => {
     if (item.adminOnly) return isAdmin
@@ -54,6 +75,30 @@ export default function Layout() {
               </NavLink>
             </div>
           ))}
+
+          {isAdmin && regApps.length > 0 && (
+            <>
+              <div className="h-0.5 bg-gray-600 mx-1 my-2 rounded-full" />
+              <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                Reg App Settings
+              </div>
+              {regApps.map(app => (
+                <NavLink
+                  key={app.id}
+                  to={`/app-settings/${app.id}`}
+                  className={({ isActive }) => clsx(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-blue-500/15 text-blue-400'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                  )}
+                >
+                  <Settings size={16} />
+                  <span className="truncate">{app.display_name} - Settings</span>
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* User footer */}

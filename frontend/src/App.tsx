@@ -9,6 +9,8 @@ import NOCBuilderPage from './pages/NOCBuilderPage'
 import NOCEditorPage from './pages/NOCEditorPage'
 import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
+import AppAlertsPage from './pages/AppAlertsPage'
+import AppSettingsPage from './pages/AppSettingsPage'
 import ProxyShell from './pages/ProxyShell'
 import NOCDisplayPage from './pages/NOCDisplayPage'
 import ContextViewerPage from './pages/ContextViewerPage'
@@ -46,9 +48,11 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="apps" element={<AppManagerPage />} />
             <Route path="noc" element={<NOCBuilderPage />} />
+            <Route path="alerts" element={<AppAlertsPage />} />
             <Route path="audit" element={<AuditPage />} />
             <Route path="users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
             <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
+            <Route path="app-settings/:appId" element={<RequireAdmin><AppSettingsPage /></RequireAdmin>} />
           </Route>
 
           {/* Proxied pktApps — thin top bar mode */}
