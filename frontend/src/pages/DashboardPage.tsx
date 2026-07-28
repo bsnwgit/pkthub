@@ -9,6 +9,10 @@ const APP_COLORS: Record<string, string> = {
   pktsnmp: '#2dd4bf',
   pktlog: '#4ade80',
   pktpcap: '#a78bfa',
+  pktwifi: '#38bdf8',
+  pktipam: '#f472b6',
+  pktnode: '#facc15',
+  pktsecurity: '#f87171',
 }
 
 function appColor(name: string) {

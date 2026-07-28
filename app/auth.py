@@ -381,6 +381,7 @@ try {{
 @router.post("/proxy-session/{app_id}")
 async def create_proxy_session(
     app_id: int,
+    request: Request,
     response: Response,
     current_user: dict = Depends(get_current_user),
 ):
@@ -393,11 +394,15 @@ async def create_proxy_session(
         expires_delta=timedelta(hours=8),
     )
 
+    # `Secure` cookies are silently dropped by browsers on a plain-HTTP
+    # connection, which breaks the proxy iframe auth with no visible error
+    # ("Not authenticated" for every app) — match the actual request scheme
+    # instead of hardcoding True, same as the scheme detection in proxy.py.
     response.set_cookie(
         key=f"pkthub_proxy_{app_id}",
         value=token,
         httponly=True,
-        secure=True,
+        secure=(request.url.scheme == "https"),
         samesite="lax",
         path=f"/proxy/{app_id}/",
         max_age=28800,  # 8 hours

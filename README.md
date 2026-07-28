@@ -29,6 +29,7 @@ React SPA are all live in the running app — not placeholder scaffolding.
 - [Roles & Auth](#roles--auth)
 - [IP Intelligence Lookup](#ip-intelligence-lookup)
 - [App Registry & Suite Integration](#app-registry--suite-integration)
+- [Reg App Settings](#reg-app-settings)
 - [NOC Displays](#noc-displays)
 - [Alerting & Notifications](#alerting--notifications)
 - [AI Assistant](#ai-assistant)
@@ -252,9 +253,64 @@ login page still works standalone) or `managed` ("Managed Mode" / the "Enable
 All" bulk action — locks direct login on the sibling app, forcing access
 only through pktHub's proxy/SSO). pktHub polls each managed app's reported
 lock state and, if an app reports itself unlocked while the hub still expects
-`managed`, automatically reverts that app to `direct` and writes a
-`break_glass.triggered` audit entry — a fail-safe so a sibling app can never
+`managed`, automatically reverts that app to `direct` and writes an
+`app.lock_drift_detected` audit entry — a fail-safe so a sibling app can never
 get silently stuck locked out from itself.
+
+## Reg App Settings
+
+Every registered app gets its own entry in the left nav, under a **REG APP
+SETTINGS** divider below Hub Settings — e.g. "pktSNMP - Settings". Clicking
+one shows that app's **actual, live Settings page**, embedded full-screen to
+the right of pktHub's own menu (no duplicate sidebar/header — pktHub's menu
+is the only chrome on screen). This is not a re-implementation: it's the
+real app, proxied in, so it can never drift out of sync with what that app's
+Settings page actually looks like or does.
+
+**How it works under the hood** (relevant if you're building this into a new
+pkt* app, or debugging why it doesn't work for one):
+1. pktHub authenticates the embed the same way it authenticates the NOC
+   Builder's widget iframes and the Context Viewer's "open full app" view —
+   a scoped proxy-session cookie, then `GET /proxy/:appId/settings?chromeless=1`.
+2. The sibling app's own React Router needs to recognize it's running under
+   that `/proxy/:appId/` path prefix (as its `basename`), or every route
+   fails to match and falls through to a `*` redirect — usually landing on
+   Dashboard instead of Settings.
+3. The sibling app's Layout component needs a `chromeless` mode (driven by
+   the `?chromeless=1` query param) that skips its own sidebar/header and
+   renders just the page content.
+4. The sibling app's auth store needs to recognize it's being accessed via
+   a suite token (check `GET /api/suite/whoami` — `via_suite_token: true`)
+   and synthesize a logged-in session client-side, instead of showing its
+   own login page (a fresh iframe load has no cookie/JWT session of its own).
+5. Any app-relative asset (logos, icons) referenced with a **literal
+   absolute path** (`src="/logo.png"`) will 404 when proxied — browsers
+   resolve a leading-`/` path against the real document origin regardless of
+   any `<base>` tag, so it requests the image from pktHub instead of the
+   sibling app. Fix: reference it with a **relative** path (`src="logo.png"`)
+   and make sure the app's own `index.html` has `<base href="/" />` in
+   `<head>` (so direct, non-proxied access still resolves correctly from any
+   client-side route depth) — pktHub's proxy injects its own `<base
+   href="/proxy/:appId/">` ahead of that one in the served HTML, which
+   correctly takes precedence per the HTML spec (only the first `<base>` in
+   a document is used) when the page is actually being proxied.
+
+All 8 apps in the suite (pktFlow, pktSNMP, pktLog, pktWiFi, pktIPAM, pktNode,
+pktPCAP, pktSecurity) already implement points 1–5 above — treat their
+`App.tsx` / `Layout.tsx` / `store/auth.tsx` / `index.html` as the reference
+pattern for any new pkt* app.
+
+**"Remotely Managed" lock** — separate from and narrower than the
+`direct`/`managed` **Managed Mode** described above (which locks a sibling
+app's entire direct login). This lock affects only that app's own **Settings
+page**: when pktHub registers or deregisters an app, it calls that app's
+`POST /api/suite/settings-lock` (best-effort — silently no-ops on an app that
+hasn't implemented it). While locked, a **direct** visit to that app's own
+Settings page shows an amber "Remotely Managed" banner and disables editing
+in place — steering admins toward configuring it from pktHub instead.
+Viewing Settings *through* pktHub's own embed is unaffected (it checks the
+same `via_suite_token` signal from point 4 above and skips the banner there),
+so there's no lockout-of-itself paradox.
 
 ## NOC Displays
 
@@ -267,19 +323,34 @@ DB dump elsewhere.)
 
 ## Alerting & Notifications
 
-pktHub tracks health-driven and administrative events from the suite and
-lets you route them out:
+pktHub has two separate, currently-unconnected pieces under this heading —
+don't assume one drives the other:
 
-- **Event types**: `app.unreachable`, `app.degraded`, `app.recovered`,
-  `app.registered`, `app.deregistered`, `app.mode_change`, `token.rotated`,
-  `break_glass.triggered`, `user.created`, `user.deleted`.
-- **Severities**: `critical`, `warning`, `info`.
-- **Settings → Notifications** configures Slack and generic webhook
-  (POST/PUT) channels, and the alert rules that map an event type +
-  severity to a channel (individually enabled/disabled).
-- Active/unacked alerts and full filterable history are visible from the
-  App Registry / Context Viewer pages, backed by `/api/alerts` and
-  `/api/alerts/history`.
+- **Live app-health alerts** (what you actually see day to day): when the
+  health poller finds a registered app unreachable (`connection_lost`),
+  unhealthy (`unhealthy`), or presenting a mismatched suite token
+  (`token_mismatch`), it writes a row to `app_alerts`. Active/unacked alerts
+  and full filterable history are visible from the App Registry / Context
+  Viewer pages, backed by `/api/alerts` and `/api/alerts/history`, and can be
+  acknowledged from there.
+- **Notification channels** (**Settings → Notifications**): five outbound
+  integrations can be configured and individually enabled — Slack (incoming
+  webhook), Email (SMTP), PagerDuty (Events API v2), a generic Webhook
+  (POST/PUT to a URL you provide), and TraceCat SOAR (workflow webhook +
+  optional bearer token). Each has a **Send test** button
+  (`POST /api/notifications/test/{channel}`) that fires a one-off test
+  message using the saved config — this is the only thing that actually
+  sends through these channels today.
+- **Alert Events** (**Settings → Audit** tab, not Notifications): lets you
+  define named rules pairing an event type (`app.unreachable`,
+  `app.degraded`, `app.recovered`, `app.registered`, `app.deregistered`,
+  `app.mode_change`, `token.rotated`, `break_glass.triggered`,
+  `user.created`, `user.deleted`) with a severity (`critical`, `warning`,
+  `info`) and an enabled flag. These are plain CRUD records — there is no
+  `channel` field on a rule and no background dispatcher wired up yet that
+  matches a firing event against these rules and pushes it to Slack/Email/
+  PagerDuty/Webhook/TraceCat. Configure them as a forward-looking event
+  taxonomy, not as working automated alert routing.
 
 ## AI Assistant
 
@@ -311,10 +382,14 @@ consistent live copy of the SQLite DB (via SQLite's own backup API, safe to
 run against a running database) plus `config.yaml`. Snapshots are written to
 `<install_dir>/backups` by default; the path, retention count (oldest
 snapshots beyond the configured count are pruned automatically), and an
-auto-backup toggle are all configurable on the same tab. **Settings → Data →
-Storage** covers separate general storage/retention settings (audit and
-alert retention windows, storage connection test) — a different tab from
-Backups.
+auto-backup toggle are all configurable on the same tab. Each listed
+snapshot has a **Restore…** link that restores directly from that
+on-server `.tar.gz` — no download/upload round trip required — and lets
+you pick just the DB or just `config.yaml` instead of always restoring
+both together; the same per-file selection is available on the
+bundle-upload restore. **Settings → Data → Storage** covers separate
+general storage/retention settings (audit and alert retention windows,
+storage connection test) — a different tab from Backups.
 
 ## Troubleshooting
 

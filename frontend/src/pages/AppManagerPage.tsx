@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { ExternalLink, ChevronDown, Settings as SettingsIcon } from 'lucide-react'
-import AlertLogSection from '../components/AlertLogSection'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
+  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
@@ -49,16 +49,63 @@ function PktSnmpIcon({ color }: { color: string }) {
 function PktPcapIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M3 3 H19 L13 10.5 V18 L9 20 V10.5 Z" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round"/>
+      <circle cx="9" cy="9" r="6.3" stroke={color} strokeWidth="1.7"/>
+      <rect x="6" y="7.7" width="6" height="3.1" rx="0.6" stroke={color} strokeWidth="1"/>
+      <line x1="6.9" y1="8.5" x2="11.1" y2="8.5" stroke={color} strokeWidth="0.8" strokeLinecap="round"/>
+      <line x1="6.9" y1="9.5" x2="11.1" y2="9.5" stroke={color} strokeWidth="0.8" strokeLinecap="round"/>
+      <line x1="14" y1="14" x2="18.3" y2="18.3" stroke={color} strokeWidth="1.9" strokeLinecap="round"/>
+    </svg>
+  )
+}
+function PktWifiIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 8.5 C7 3.5, 15 3.5, 20 8.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.45"/>
+      <path d="M5.5 12 C9 8.75, 13 8.75, 16.5 12" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.70"/>
+      <path d="M9 15.5 C10.2 14.3, 11.8 14.3, 13 15.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.95"/>
+      <circle cx="11" cy="18.5" r="1.4" fill={color} opacity="0.95"/>
+    </svg>
+  )
+}
+function PktIpamIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="3" width="7" height="7" rx="1.5" fill={color} fillOpacity="0.18" stroke={color} strokeWidth="1.5"/>
+      <rect x="13" y="3" width="7" height="7" rx="1.5" fill={color} fillOpacity="0.18" stroke={color} strokeWidth="1.5"/>
+      <rect x="7.5" y="13" width="7" height="7" rx="1.5" fill={color} fillOpacity="0.35" stroke={color} strokeWidth="1.5"/>
+      <path d="M5.5 10 V13 M16.5 10 V13 M5.5 13 H16.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+    </svg>
+  )
+}
+function PktNodeIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="16" height="10" rx="1.5" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.5"/>
+      <line x1="11" y1="13" x2="11" y2="16.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.7"/>
+      <line x1="6" y1="19" x2="16" y2="19" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.85"/>
+      <circle cx="11" cy="8" r="2" fill={color} opacity="0.6"/>
+    </svg>
+  )
+}
+function PktSecurityIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11 2.5 L18.5 5.5 V11 C18.5 15.5 15.3 18.7 11 19.8 C6.7 18.7 3.5 15.5 3.5 11 V5.5 Z"
+            fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.6" strokeLinejoin="round"/>
+      <path d="M7.7 11 L9.9 13.2 L14.5 8.4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/>
     </svg>
   )
 }
 function AppLogoIcon({ name, color }: { name: string; color: string }) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
-  if (key === 'pktlog')  return <PktLogIcon  color={color} />
-  if (key === 'pktflow') return <PktFlowIcon color={color} />
-  if (key === 'pktsnmp') return <PktSnmpIcon color={color} />
-  if (key === 'pktpcap') return <PktPcapIcon color={color} />
+  if (key === 'pktlog')      return <PktLogIcon      color={color} />
+  if (key === 'pktflow')     return <PktFlowIcon     color={color} />
+  if (key === 'pktsnmp')     return <PktSnmpIcon     color={color} />
+  if (key === 'pktpcap')     return <PktPcapIcon     color={color} />
+  if (key === 'pktwifi')     return <PktWifiIcon     color={color} />
+  if (key === 'pktipam')     return <PktIpamIcon     color={color} />
+  if (key === 'pktnode')     return <PktNodeIcon     color={color} />
+  if (key === 'pktsecurity') return <PktSecurityIcon color={color} />
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="3" y="3" width="16" height="16" rx="4" fill={color} fillOpacity="0.2" stroke={color} strokeWidth="1.5"/>
@@ -254,9 +301,6 @@ export default function AppManagerPage() {
           )
         })}
       </div>
-
-      {/* App Alert Log */}
-      <AlertLogSection />
     </div>
   )
 }
