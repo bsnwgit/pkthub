@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 log = logging.getLogger("pkthub.ai")
 
 SYSTEM_PROMPT = """You are the assistant integrated into pktHub, the central NOC/SOC hub for the
-pktApp suite (pktFlow, pktSNMP, pktLog, pktPcap, pktWiFi, pktIPAM). pktHub itself doesn't collect
+pktApp suite (pktFlow, pktSNMP, pktLog, pktPcap, pktWiFi, pktIPAM, pktNode, pktSecurity). pktHub itself doesn't collect
 network telemetry — it registers those other apps, proxies access to them, tracks their health,
 and logs who accessed what. Your job is to help admins and analysts understand pktHub's own
 state: which apps are registered and their health/managed-mode status, and what the audit log

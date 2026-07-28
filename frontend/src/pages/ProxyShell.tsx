@@ -7,6 +7,7 @@ import { Home, LogOut, ChevronDown } from 'lucide-react'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
+  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')

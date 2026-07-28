@@ -7,6 +7,17 @@ const CANVAS_W = 1920
 const CANVAS_H = 1080
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
+interface WidgetParamOption { value: string; label: string }
+interface WidgetParam {
+  key: string
+  label: string
+  type: 'select'
+  options?: WidgetParamOption[]
+  // Relative path on the owning app, fetched through pkthub's widget-options
+  // proxy, for params whose choices depend on that app's live data (devices,
+  // subnets, APs, etc.) rather than a fixed enum.
+  options_path?: string
+}
 interface WidgetManifestEntry {
   id: string
   title: string
@@ -16,6 +27,7 @@ interface WidgetManifestEntry {
   default_h: number
   min_w?: number
   min_h?: number
+  params?: WidgetParam[]
 }
 interface AppWithWidgets {
   id: number
@@ -38,6 +50,10 @@ const APP_COLORS: Record<string, string> = {
   pktlog:  '#4ade80',
   pktsnmp: '#2dd4bf',
   pktpcap: '#a78bfa',
+  pktwifi: '#38bdf8',
+  pktipam: '#f472b6',
+  pktnode: '#facc15',
+  pktsecurity: '#f87171',
 }
 function appColor(name: string): string {
   return APP_COLORS[name.toLowerCase().replace(/[^a-z]/g, '')] ?? '#94a3b8'
@@ -188,6 +204,21 @@ export default function NOCEditorPage() {
     : null
   const selMinW = selectedWidgetManifest?.min_w ?? 150
   const selMinH = selectedWidgetManifest?.min_h ?? 100
+
+  // ── Dynamic param options (device/subnet/AP pickers etc.) ────────────────
+  const [dynamicOptions, setDynamicOptions] = useState<Record<string, WidgetParamOption[]>>({})
+  useEffect(() => {
+    const dynamicParams = (selectedWidgetManifest?.params ?? []).filter(p => p.options_path)
+    if (!selectedWidget || dynamicParams.length === 0) return
+    dynamicParams.forEach(p => {
+      const cacheKey = `${selectedWidget.app_id}:${p.options_path}`
+      if (dynamicOptions[cacheKey]) return
+      api.getWidgetOptions(selectedWidget.app_id, p.options_path!)
+        .then(opts => setDynamicOptions(prev => ({ ...prev, [cacheKey]: opts })))
+        .catch(() => setDynamicOptions(prev => ({ ...prev, [cacheKey]: [] })))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWidget?.app_id, selectedWidgetManifest])
 
   // ── Slide management ─────────────────────────────────────────────────────
   const addSlide = () => {
@@ -558,29 +589,31 @@ export default function NOCEditorPage() {
                 </div>
               </div>
 
-              {/* Severity filter — only for log_stream widget */}
-              {selectedWidget.widget_id === 'log_stream' && (
+              {/* Widget-declared params — device/subnet/AP pickers, filters, etc. */}
+              {(selectedWidgetManifest?.params ?? []).length > 0 && (
                 <>
                   <div style={{ paddingTop: '14px', paddingBottom: '4px' }}>
                     <p style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filters</p>
                   </div>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
-                    <span style={{ fontSize: '10px', color: '#64748b' }}>Min Severity</span>
-                    <select
-                      value={String(selectedWidget.config?.severity_max ?? '')}
-                      onChange={e => updateWidgetConfig(
-                        selectedWidget.id, 'severity_max',
-                        e.target.value === '' ? '' : parseInt(e.target.value)
-                      )}
-                      style={inputSt}
-                    >
-                      <option value="">All</option>
-                      <option value="4">≤ Warning (4)</option>
-                      <option value="3">≤ Error (3)</option>
-                      <option value="2">≤ Critical (2)</option>
-                      <option value="0">Emergency only (0)</option>
-                    </select>
-                  </label>
+                  {selectedWidgetManifest!.params!.map(p => {
+                    const opts = p.options_path
+                      ? (dynamicOptions[`${selectedWidget.app_id}:${p.options_path}`] ?? [])
+                      : (p.options ?? [])
+                    return (
+                      <label key={p.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
+                        <span style={{ fontSize: '10px', color: '#64748b' }}>{p.label}</span>
+                        <select
+                          value={String(selectedWidget.config?.[p.key] ?? '')}
+                          onChange={e => updateWidgetConfig(selectedWidget.id, p.key, e.target.value)}
+                          style={inputSt}
+                        >
+                          {!p.options_path && <option value="">All</option>}
+                          {p.options_path && opts.length === 0 && <option value="">Loading…</option>}
+                          {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </label>
+                    )
+                  })}
                 </>
               )}
 

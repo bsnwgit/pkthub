@@ -35,6 +35,23 @@ def _parse_app(row) -> AppOut:
 
 
 
+async def _set_settings_lock(base_url: str, suite_token: str, locked: bool) -> None:
+    """Best-effort: tell the app whether pkthub is now managing its Settings
+    page, so its own frontend can show a 'remotely managed' banner and
+    disable local editing for a direct (non-proxied) visit. Missing on an app
+    that hasn't implemented POST /api/suite/settings-lock yet — failure here
+    must never block register/deregister."""
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            await client.post(
+                f"{base_url.rstrip('/')}/api/suite/settings-lock",
+                json={"locked": locked},
+                headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
+            )
+    except Exception:
+        pass
+
+
 async def _push_suite_token(base_url: str, old_token: str, new_token: str) -> bool:
     """Push new suite token to pktApp after registration. Best-effort."""
     try:
@@ -120,6 +137,7 @@ async def register_app(
 
     await write_audit(db, current_user, "app.register", f"app:{body.name}", {"base_url": body.base_url})
     background_tasks.add_task(poll_health, row["id"], body.base_url, suite_token)
+    background_tasks.add_task(_set_settings_lock, body.base_url, suite_token, True)
 
     return _parse_app(row)
 
@@ -182,6 +200,8 @@ async def deregister_app(
             )
     except Exception:
         pass
+
+    await _set_settings_lock(app["base_url"], app["suite_token"], False)
 
     await db.execute("DELETE FROM registered_apps WHERE id = ?", (app_id,))
     await db.commit()
@@ -274,6 +294,40 @@ async def resync_token(
     await write_audit(db, current_user, "app.resync_token", f"app:{app['name']}",
                       {"previous_token_prefix": app["suite_token"][:8] + "..."})
     return {"ok": True, "message": "Token synced from app"}
+
+
+@router.get("/{app_id}/widget-options")
+async def get_widget_options(
+    app_id: int,
+    path: str,
+    current_user: dict = Depends(require_analyst_or_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Proxy a widget's `options_path` (from its manifest entry) so the NOC
+    editor can populate a param picker (e.g. device/subnet/AP list) without
+    the browser needing direct network access or a suite token of its own."""
+    if "://" in path:
+        raise HTTPException(status_code=400, detail="path must be relative to the app")
+
+    async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+
+    target_url = f"{app['base_url'].rstrip('/')}/{path.lstrip('/')}"
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            resp = await client.get(
+                target_url,
+                headers={"X-Suite-Token": app["suite_token"], "X-Suite-Version": str(SUITE_VERSION)}
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"App returned HTTP {resp.status_code}")
+        return resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Cannot reach app: {e}")
 
 
 async def poll_health(app_id: int, base_url: str, suite_token: str):
