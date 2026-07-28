@@ -1,7 +1,8 @@
 """Backup, export, and restore endpoints for pktHub."""
-import os, shutil, tarfile, tempfile, glob, logging
+import os, re, shutil, tarfile, tempfile, glob, logging
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from typing import Optional
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 import aiosqlite
 
@@ -115,18 +116,71 @@ async def export_bundle(
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+def _parse_files_param(files: Optional[str]) -> Optional[set[str]]:
+    if not files:
+        return None
+    return {f.strip() for f in files.split(",") if f.strip()}
+
+
+def _restore_from_tar(tar_path: str, files: Optional[set[str]]) -> dict:
+    """
+    Restore whatever of {pkthub.db, config.yaml} is present in the given
+    .tar.gz and selected by `files` (None means restore everything present —
+    the original all-or-nothing behavior).
+    """
+    result: dict = {}
+
+    def wanted(name: str) -> bool:
+        return files is None or name in files
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with tarfile.open(tar_path, "r:gz") as tar:
+            members = tar.getnames()
+            db_member = next((m for m in members if m.endswith("pkthub.db")), None)
+            cfg_member = next((m for m in members if m.endswith("config.yaml")), None)
+            if not db_member and not cfg_member:
+                return {"error": "Invalid bundle: no pkthub.db or config.yaml found"}
+            tar.extractall(tmp)
+
+        if wanted("pkthub.db"):
+            if db_member:
+                extracted_db = os.path.join(tmp, db_member)
+                backup_existing = DB_PATH + ".pre_restore"
+                shutil.copy2(DB_PATH, backup_existing)
+                shutil.copy2(extracted_db, DB_PATH)
+                result["pkthub.db"] = "restored"
+            else:
+                result["pkthub.db"] = "not found in backup"
+
+        if wanted("config.yaml"):
+            if cfg_member:
+                extracted_cfg = os.path.join(tmp, cfg_member)
+                shutil.copy2(extracted_cfg, CONFIG_PATH)
+                result["config.yaml"] = "restored (restart required)"
+            else:
+                result["config.yaml"] = "not found in backup"
+
+    return result
+
+
 @router.post("/restore")
 async def restore_bundle(
     file: UploadFile = File(...),
+    files: Optional[str] = Form(None),
     current_user: dict = Depends(require_admin),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    """Upload a backup .tar.gz and restore the DB and config from it."""
+    """
+    Upload a backup .tar.gz and restore the DB and/or config from it.
+    `files` is an optional comma-separated subset of {pkthub.db, config.yaml} —
+    omit to restore everything present in the bundle.
+    """
     if not file.filename.endswith(".tar.gz"):
         raise HTTPException(status_code=400, detail="File must be a .tar.gz backup bundle")
 
     cfg = await _get_backup_cfg(db)
     os.makedirs(cfg["path"], exist_ok=True)
+    wanted = _parse_files_param(files)
 
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -135,29 +189,52 @@ async def restore_bundle(
             with open(upload_path, "wb") as f:
                 f.write(contents)
 
-            # Validate it contains pkthub.db
-            with tarfile.open(upload_path, "r:gz") as tar:
-                members = tar.getnames()
-                db_member = next((m for m in members if m.endswith("pkthub.db")), None)
-                if not db_member:
-                    raise HTTPException(status_code=400, detail="Invalid bundle: pkthub.db not found")
-                tar.extractall(tmp)
+            result = _restore_from_tar(upload_path, wanted)
 
-            extracted_db = os.path.join(tmp, db_member)
-            backup_existing = DB_PATH + ".pre_restore"
-            shutil.copy2(DB_PATH, backup_existing)
-
-            # Replace DB (service must be restarted for full effect)
-            shutil.copy2(extracted_db, DB_PATH)
-
-            # Restore config if present
-            cfg_member = next((m for m in members if m.endswith("config.yaml")), None)
-            if cfg_member:
-                extracted_cfg = os.path.join(tmp, cfg_member)
-                shutil.copy2(extracted_cfg, CONFIG_PATH)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
 
         return {
             "ok": True,
+            "result": result,
+            "message": "Restore complete. Restart the service for all changes to take effect.",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _log.error("Restore failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/restore-snapshot/{snapshot_name}")
+async def restore_from_snapshot(
+    snapshot_name: str,
+    files: Optional[str] = None,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    """
+    Restore directly from an on-server backup snapshot — no download/upload round trip.
+    `files` is an optional comma-separated subset of {pkthub.db, config.yaml} —
+    omit to restore everything present in the snapshot.
+    """
+    if not re.fullmatch(r"pkthub_backup_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.tar\.gz", snapshot_name):
+        raise HTTPException(status_code=400, detail="Invalid snapshot name")
+
+    cfg = await _get_backup_cfg(db)
+    backup_root = os.path.realpath(cfg["path"])
+    snap_path = os.path.realpath(os.path.join(cfg["path"], snapshot_name))
+    if os.path.dirname(snap_path) != backup_root or not os.path.isfile(snap_path):
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+
+    wanted = _parse_files_param(files)
+    try:
+        result = _restore_from_tar(snap_path, wanted)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return {
+            "ok": True,
+            "result": result,
             "message": "Restore complete. Restart the service for all changes to take effect.",
         }
     except HTTPException:

@@ -93,6 +93,8 @@ export const api = {
     request<any[]>(`/apps/${id}/access-log`),
   resyncToken: (id: number) =>
     request<any>(`/apps/${id}/resync-token`, { method: 'POST' }),
+  getWidgetOptions: (appId: number, path: string) =>
+    request<{ value: string; label: string }[]>(`/apps/${appId}/widget-options?path=${encodeURIComponent(path)}`),
 
   // Users
   listUsers: () => request<any[]>('/users'),

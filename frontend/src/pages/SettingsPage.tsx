@@ -1263,6 +1263,7 @@ const numOf = (s: Record<string,string>, k: string, fallback = 0) => parseInt(s[
 // ── App registry colors / status ──────────────────────────────────────────────
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
+  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
@@ -1501,6 +1502,8 @@ function BackupSection({ settings, set, save }: {
 
   const token = () => localStorage.getItem('pkthub_token') ?? ''
 
+  const ALL_BUNDLE_FILES = ['pkthub.db', 'config.yaml']
+
   const [runState,  setRunState]  = useState<'idle'|'running'|'done'|'error'>('idle')
   const [runMsg,    setRunMsg]    = useState('')
   const [snapshots, setSnapshots] = useState<Array<{name:string;size_mb:number;created:string}>>([])
@@ -1509,6 +1512,8 @@ function BackupSection({ settings, set, save }: {
   const [restoreFile, setRestoreFile] = useState<File|null>(null)
   const [restoreState, setRestoreState] = useState<'idle'|'running'|'done'|'error'>('idle')
   const [restoreMsg,   setRestoreMsg]   = useState('')
+  const [restoreFiles, setRestoreFiles] = useState<Set<string>>(new Set(ALL_BUNDLE_FILES))
+  const [snapshotRestore, setSnapshotRestore] = useState<Record<string, { expanded: boolean; selected: Set<string>; running: boolean; msg: string }>>({})
 
   const runBackup = async () => {
     setRunState('running')
@@ -1543,10 +1548,11 @@ function BackupSection({ settings, set, save }: {
   }
 
   const doRestore = async () => {
-    if (!restoreFile) return
+    if (!restoreFile || restoreFiles.size === 0) return
     setRestoreState('running')
     const form = new FormData()
     form.append('file', restoreFile)
+    form.append('files', Array.from(restoreFiles).join(','))
     try {
       const res = await fetch('/api/backup/restore', {
         method: 'POST',
@@ -1557,6 +1563,44 @@ function BackupSection({ settings, set, save }: {
       setRestoreState(res.ok ? 'done' : 'error')
       setRestoreMsg(data.message ?? data.detail ?? (res.ok ? 'Restore complete' : 'Restore failed'))
     } catch (e: any) { setRestoreState('error'); setRestoreMsg(e.message) }
+  }
+
+  const toggleSnapExpanded = (name: string) => {
+    setSnapshotRestore(prev => {
+      const cur = prev[name] ?? { expanded: false, selected: new Set(ALL_BUNDLE_FILES), running: false, msg: '' }
+      return { ...prev, [name]: { ...cur, expanded: !cur.expanded } }
+    })
+  }
+
+  const toggleSnapFile = (name: string, f: string) => {
+    setSnapshotRestore(prev => {
+      const cur = prev[name] ?? { expanded: true, selected: new Set(ALL_BUNDLE_FILES), running: false, msg: '' }
+      const next = new Set(cur.selected)
+      if (next.has(f)) next.delete(f); else next.add(f)
+      return { ...prev, [name]: { ...cur, selected: next } }
+    })
+  }
+
+  const restoreSnapshot = async (name: string) => {
+    const cur = snapshotRestore[name] ?? { expanded: true, selected: new Set(ALL_BUNDLE_FILES), running: false, msg: '' }
+    if (cur.selected.size === 0) return
+    const which = cur.selected.size === ALL_BUNDLE_FILES.length ? 'all files' : Array.from(cur.selected).join(', ')
+    if (!window.confirm(`Restore ${which} from ${name}?\n\nThis overwrites current data and cannot be undone.`)) return
+    setSnapshotRestore(prev => ({ ...prev, [name]: { ...cur, running: true, msg: '' } }))
+    try {
+      const qs = `?files=${encodeURIComponent(Array.from(cur.selected).join(','))}`
+      const res = await fetch(`/api/backup/restore-snapshot/${encodeURIComponent(name)}${qs}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token()}` },
+      })
+      const data = await res.json()
+      const msg = res.ok
+        ? Object.entries(data.result ?? {}).map(([k, v]) => `${k}: ${v}`).join(' · ')
+        : (data.detail ?? 'Restore failed')
+      setSnapshotRestore(prev => ({ ...prev, [name]: { ...cur, running: false, expanded: !res.ok, msg } }))
+    } catch (e: any) {
+      setSnapshotRestore(prev => ({ ...prev, [name]: { ...cur, running: false, msg: e.message } }))
+    }
   }
 
   return (
@@ -1608,12 +1652,41 @@ function BackupSection({ settings, set, save }: {
             <div className="mt-1 rounded-lg border border-gray-700 bg-gray-900 divide-y divide-gray-800 text-sm">
               {snapsLoading && <div className="px-4 py-3 text-gray-400">Loading…</div>}
               {!snapsLoading && snapshots.length === 0 && <div className="px-4 py-3 text-gray-500">No snapshots found.</div>}
-              {snapshots.map(s => (
-                <div key={s.name} className="px-4 py-2.5 flex justify-between items-center">
-                  <span className="font-mono text-xs text-gray-300">{s.name}</span>
-                  <span className="text-gray-500 text-xs">{s.size_mb} MB · {s.created}</span>
-                </div>
-              ))}
+              {snapshots.map(s => {
+                const sr = snapshotRestore[s.name] ?? { expanded: false, selected: new Set(ALL_BUNDLE_FILES), running: false, msg: '' }
+                return (
+                  <div key={s.name} className="px-4 py-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-xs text-gray-300">{s.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-500 text-xs">{s.size_mb} MB · {s.created}</span>
+                        <button type="button" onClick={() => toggleSnapExpanded(s.name)}
+                          className="text-xs text-blue-400 hover:text-blue-300 underline">
+                          {sr.expanded ? 'Cancel' : 'Restore…'}
+                        </button>
+                      </div>
+                    </div>
+                    {sr.expanded && (
+                      <div className="mt-2 space-y-2 bg-gray-800/60 rounded-lg p-3">
+                        <p className="text-xs text-gray-300">Choose which files to restore:</p>
+                        <div className="flex flex-wrap gap-4">
+                          {ALL_BUNDLE_FILES.map(f => (
+                            <label key={f} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-300">
+                              <input type="checkbox" checked={sr.selected.has(f)} onChange={() => toggleSnapFile(s.name, f)} className="accent-orange-600" />
+                              <span className="font-mono">{f}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <button type="button" onClick={() => restoreSnapshot(s.name)} disabled={sr.running || sr.selected.size === 0}
+                          className="bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-white text-xs rounded-lg px-3 py-1.5 transition-colors">
+                          {sr.running ? 'Restoring…' : 'Restore Selected'}
+                        </button>
+                        {sr.msg && <p className="text-xs text-gray-300 mt-1">{sr.msg}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -1638,11 +1711,28 @@ function BackupSection({ settings, set, save }: {
               <input type="file" accept=".tar.gz,.gz" className="hidden" onChange={e => { setRestoreFile(e.target.files?.[0] ?? null); setRestoreMsg('') }} />
             </label>
             <button
-              type="button" onClick={doRestore} disabled={!restoreFile || restoreState === 'running'}
+              type="button" onClick={doRestore} disabled={!restoreFile || restoreState === 'running' || restoreFiles.size === 0}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-700 hover:bg-orange-600 disabled:opacity-40 text-white transition-colors"
             >
               {restoreState === 'running' ? 'Restoring…' : 'Restore'}
             </button>
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs text-gray-300">
+            {ALL_BUNDLE_FILES.map(f => (
+              <label key={f} className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={restoreFiles.has(f)}
+                  onChange={() => setRestoreFiles(prev => {
+                    const next = new Set(prev)
+                    if (next.has(f)) next.delete(f); else next.add(f)
+                    return next
+                  })}
+                  className="accent-orange-600"
+                />
+                <span className="font-mono">{f}</span>
+              </label>
+            ))}
           </div>
           {restoreMsg && (
             <span className={`text-sm ${restoreState === 'done' ? 'text-green-400' : 'text-red-400'}`}>{restoreMsg}</span>
@@ -1867,6 +1957,7 @@ function SuiteIntegrationTab() {
       }
       cancelForm()
       load()
+      window.dispatchEvent(new Event('pkthub:reg-apps-changed'))
     } catch (e: any) { setRegError(e.message) }
     finally { setRegistering(false) }
   }
@@ -1892,7 +1983,11 @@ function SuiteIntegrationTab() {
       message: 'This removes the suite token and restores direct access to the app.\nThe app will no longer be accessible through pktHub proxy.',
       confirmLabel: 'Deregister', danger: true,
       onConfirm: async () => {
-        try { await api.deregisterApp(id); load() }
+        try {
+          await api.deregisterApp(id)
+          load()
+          window.dispatchEvent(new Event('pkthub:reg-apps-changed'))
+        }
         catch (e: any) { setError(e.message) }
       },
     })
