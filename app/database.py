@@ -203,4 +203,9 @@ async def init_db():
         if "free_tier" not in uak_cols:
             await db.execute("ALTER TABLE user_api_keys ADD COLUMN free_tier INTEGER NOT NULL DEFAULT 0")
 
+        # Migration: per-provider "show this provider's section in the IP
+        # Lookup modal at all" preference (ipinfo/ipapi_is/abuseipdb/mxtoolbox).
+        if "enabled" not in uak_cols:
+            await db.execute("ALTER TABLE user_api_keys ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
+
         await db.commit()
