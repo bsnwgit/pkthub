@@ -161,6 +161,13 @@ export const api = {
       body: JSON.stringify({ port }),
     }),
 
+  // System (version/about info)
+  getSystemInfo: () =>
+    request<{
+      app_name: string; version: string; install_dir: string
+      github: string; license: string; developer: string; contact: string
+    }>('/system/info'),
+
   // SSL
   getSslStatus: () => request<any>('/ssl/status'),
   uploadSsl: (certFile: File, keyFile: File) => {
