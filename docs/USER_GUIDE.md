@@ -57,3 +57,7 @@ If your admin has configured an Anthropic API key, an assistant is available to 
 ## Your account
 
 Manage your own password from the user menu. Your personal IP-lookup API keys live under Settings → User Keys, private to your account.
+
+## Getting help in the app
+
+Click **Documentation** in the left nav (just above your account info) to open this guide and the Administrator Guide as in-app tabs, so you don't need the repo checked out to read them.

@@ -14,6 +14,7 @@ import AppSettingsPage from './pages/AppSettingsPage'
 import ProxyShell from './pages/ProxyShell'
 import NOCDisplayPage from './pages/NOCDisplayPage'
 import ContextViewerPage from './pages/ContextViewerPage'
+import DocumentationPage from './pages/DocumentationPage'
 import Layout from './components/Layout'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
             <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
             <Route path="app-settings/:appId" element={<RequireAdmin><AppSettingsPage /></RequireAdmin>} />
+            <Route path="documentation" element={<DocumentationPage />} />
           </Route>
 
           {/* Proxied pktApps — thin top bar mode */}

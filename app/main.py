@@ -26,6 +26,7 @@ from app.ai_api import router as ai_router
 from app.user_api_keys import router as user_api_keys_router
 from app.ip_info import router as ip_info_router
 from app.mxtoolbox import router as mxtoolbox_router
+from app.docs_api import router as docs_router
 
 app = FastAPI(title="pktHub", version="1.0.0", docs_url="/api/docs")
 
@@ -56,6 +57,7 @@ app.include_router(ai_router)
 app.include_router(user_api_keys_router)
 app.include_router(ip_info_router)
 app.include_router(mxtoolbox_router)
+app.include_router(docs_router)
 
 @app.get("/api/health")
 async def health():
