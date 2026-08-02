@@ -3,7 +3,7 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PktSuiteLockup } from './Logo'
 import {
-  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server, TriangleAlert
+  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server, TriangleAlert, BookOpen
 } from 'lucide-react'
 import clsx from 'clsx'
 import AiAssistant from './AiAssistant'
@@ -100,6 +100,22 @@ export default function Layout() {
             </>
           )}
         </nav>
+
+        {/* Documentation */}
+        <div className="px-2 pt-2">
+          <NavLink
+            to="/documentation"
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-blue-500/15 text-blue-400'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+            )}
+          >
+            <BookOpen size={16} />
+            Documentation
+          </NavLink>
+        </div>
 
         {/* User footer */}
         <div className="border-t border-gray-800 px-3 py-3">
