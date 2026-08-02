@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { UserPlus, Trash2, Plus, Pencil, RefreshCw, ExternalLink, ShieldCheck, Eye, Monitor, Globe, EyeOff, Copy } from 'lucide-react'
 import HelpButton from '../components/HelpButton'
 import ConfirmModal from '../components/ConfirmModal'
+import { PktSuiteLockup } from '../components/Logo'
 
 // ── Generic helpers ────────────────────────────────────────────────────────────
 type Settings = Record<string, string>
@@ -1880,7 +1881,7 @@ function StorageSection({ settings, set, save }: {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type TabId = 'general' | 'security' | 'data' | 'notifications' | 'apikeys' | 'audit' | 'registry' | 'noc' | 'maintenance'
+type TabId = 'general' | 'security' | 'data' | 'notifications' | 'apikeys' | 'system' | 'audit' | 'registry' | 'noc' | 'maintenance'
 
 const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean; gapBefore?: boolean }> = [
   { id: 'general',       label: 'General' },
@@ -1888,10 +1889,35 @@ const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean; gapBefore?: b
   { id: 'data',          label: 'Data' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'apikeys',       label: 'User Keys' },
+  { id: 'system',        label: 'System' },
   { id: 'audit',         label: 'Audit', gapBefore: true },
   { id: 'registry',      label: 'App Registry' },
   { id: 'noc',           label: 'NOC' },
   { id: 'maintenance',   label: 'Maintenance' },
+]
+
+// ── Open-source notices — backend (requirements.txt) + frontend (package.json) ─
+const OSS_NOTICES: Array<{ name: string; license: string }> = [
+  { name: 'FastAPI',          license: 'MIT' },
+  { name: 'Uvicorn',          license: 'BSD-3-Clause' },
+  { name: 'httpx',            license: 'BSD-3-Clause' },
+  { name: 'PyYAML',           license: 'MIT' },
+  { name: 'python-jose',      license: 'MIT' },
+  { name: 'passlib',          license: 'BSD-2-Clause' },
+  { name: 'bcrypt',           license: 'Apache-2.0' },
+  { name: 'python-multipart', license: 'Apache-2.0' },
+  { name: 'aiosqlite',        license: 'MIT' },
+  { name: 'websockets',       license: 'BSD-3-Clause' },
+  { name: 'Anthropic SDK',    license: 'MIT' },
+  { name: 'React',            license: 'MIT' },
+  { name: 'React DOM',        license: 'MIT' },
+  { name: 'React Router',     license: 'MIT' },
+  { name: 'Recharts',         license: 'MIT' },
+  { name: 'Lucide Icons',     license: 'ISC' },
+  { name: 'clsx',             license: 'MIT' },
+  { name: 'Vite',             license: 'MIT' },
+  { name: 'Tailwind CSS',     license: 'MIT' },
+  { name: 'TypeScript',       license: 'Apache-2.0' },
 ]
 
 // ── Security tab — its own left-hand vertical tab strip ──────────────────────
@@ -2320,6 +2346,12 @@ export default function SettingsPage() {
     api.getPort().then((r: { port: number }) => setPortValue(r.port)).catch(() => {}).finally(() => setPortLoaded(true))
   }, [])
 
+  const [systemInfo, setSystemInfo] = useState<{
+    app_name: string; version: string; install_dir: string
+    github: string; license: string; developer: string; contact: string
+  } | null>(null)
+  useEffect(() => { api.getSystemInfo().then(setSystemInfo).catch(() => {}) }, [])
+
   const [generalSaving, setGeneralSaving] = useState(false)
   const [generalSaved, setGeneralSaved]   = useState(false)
   const [generalError, setGeneralError]   = useState('')
@@ -2746,6 +2778,69 @@ export default function SettingsPage() {
             {lucidSave.saved && <p className="text-xs text-green-400 mt-1">Saved</p>}
             {lucidSave.error && <p className="text-xs text-red-400 mt-1">{lucidSave.error}</p>}
             <p className="text-xs text-gray-500 mt-1">Personal Access Token from lucid.co → Account → API Tokens. Required for topology export to Lucidchart.</p>
+          </div>
+        </div>
+      )}
+
+      {/* System — version/about info */}
+      {tab === 'system' && (
+        <div className="space-y-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-800 grid grid-cols-3 gap-4 items-center">
+              <h2 className="text-sm font-semibold text-white">System: {systemInfo?.app_name ?? 'pktHub'}</h2>
+              <div className="col-span-2">
+                <PktSuiteLockup height={32} />
+              </div>
+            </div>
+            <div className="px-6 py-2">
+              <Field label="Version">
+                <p className="text-sm text-white font-mono">v{systemInfo?.version ?? '—'}</p>
+              </Field>
+              <Field label="Directory">
+                <p className="text-sm text-white font-mono break-all">{systemInfo?.install_dir ?? '—'}</p>
+              </Field>
+              <Field label="Github">
+                {systemInfo?.github ? (
+                  <a href={systemInfo.github} target="_blank" rel="noreferrer"
+                    className="text-sm text-blue-400 hover:text-blue-300 break-all">{systemInfo.github}</a>
+                ) : <p className="text-sm text-white">—</p>}
+              </Field>
+              <Field label="License">
+                <p className="text-sm text-white">{systemInfo?.license ?? '—'}</p>
+              </Field>
+              <Field label="Developer">
+                <p className="text-sm text-white">{systemInfo?.developer ?? '—'}</p>
+              </Field>
+              <Field label="Contact">
+                {systemInfo?.contact ? (
+                  <a href={`mailto:${systemInfo.contact}`}
+                    className="text-sm text-blue-400 hover:text-blue-300">{systemInfo.contact}</a>
+                ) : <p className="text-sm text-white">—</p>}
+              </Field>
+            </div>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-800">
+              <h2 className="text-sm font-semibold text-white">Licenses &amp; Copyright</h2>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-xs text-gray-400 mb-3">
+                {systemInfo?.app_name ?? 'pktHub'} is built with the following open-source software:
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-gray-300 font-mono">
+                {OSS_NOTICES.map(n => (
+                  <div key={n.name} className="flex justify-between gap-2">
+                    <span>{n.name}</span>
+                    <span className="text-gray-500">{n.license}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden px-6 py-6 flex items-center justify-center">
+            <img src="barsoftnetware-logo.png" alt="Barsoft Netware" className="h-56 w-auto" />
           </div>
         </div>
       )}
