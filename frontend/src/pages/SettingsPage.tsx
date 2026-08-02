@@ -1054,8 +1054,12 @@ const setFieldsApi: Record<string, (fields: string[]) => Promise<UserApiKey>> = 
   ipapi_is: api.setIpapiIsFields,
   mxtoolbox: api.setMxtoolboxFields,
 }
+// The 5 providers with a section in the IP Lookup modal — AbuseIPDB and
+// IPQualityScore have no per-field checkboxes (single score, not multiple
+// sections) but still get the modal-section on/off toggle.
+const MODAL_PROVIDERS = ['ipinfo', 'ipapi_is', 'abuseipdb', 'mxtoolbox', 'ipqualityscore']
 
-function ApiKeyRow({ apiKey, draft, onDraftChange, onSave, onTest, saving, saved, error, testing, testResult, onToggleField, fieldsError, onToggleFreeTier }: {
+function ApiKeyRow({ apiKey, draft, onDraftChange, onSave, onTest, saving, saved, error, testing, testResult, onToggleField, fieldsError, onToggleFreeTier, onToggleEnabled }: {
   apiKey: UserApiKey
   draft: string
   onDraftChange: (v: string) => void
@@ -1069,12 +1073,24 @@ function ApiKeyRow({ apiKey, draft, onDraftChange, onSave, onTest, saving, saved
   onToggleField?: (fieldKey: string, checked: boolean) => void
   fieldsError?: string
   onToggleFreeTier?: (checked: boolean) => void
+  onToggleEnabled?: (checked: boolean) => void
 }) {
   const isFreeTier = apiKey.provider === 'ipapi_is' && apiKey.free_tier
   const inp = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono'
   return (
     <div>
       <label className="block text-xs text-white mb-1">{apiKey.label}</label>
+      {onToggleEnabled && MODAL_PROVIDERS.includes(apiKey.provider) && (
+        <label className="flex items-center gap-2 text-xs text-white cursor-pointer mb-1.5">
+          <input
+            type="checkbox"
+            checked={apiKey.enabled}
+            onChange={e => onToggleEnabled(e.target.checked)}
+            className="accent-blue-600"
+          />
+          Show this provider in the IP Lookup modal
+        </label>
+      )}
       {apiKey.provider === 'ipapi_is' && onToggleFreeTier && (
         <label className="flex items-center gap-2 text-xs text-white cursor-pointer mb-1.5">
           <input
@@ -1213,6 +1229,16 @@ function PersonalApiKeysSection() {
     }
   }
 
+  const handleToggleEnabled = async (provider: string, checked: boolean) => {
+    setFieldsError('')
+    try {
+      const updated = await api.setProviderEnabled(provider, checked)
+      setKeys(prev => prev.map(k => k.provider === provider ? updated : k))
+    } catch (err: any) {
+      setFieldsError(err.message ?? 'Failed to save')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -1233,8 +1259,8 @@ function PersonalApiKeysSection() {
       ) : (
         <div className="space-y-4 max-w-lg">
           {keys.map(k => (
+            <div key={k.provider} className="pb-4 border-b-2 border-gray-600 last:border-0 last:pb-0">
             <ApiKeyRow
-              key={k.provider}
               apiKey={k}
               draft={drafts[k.provider] ?? ''}
               onDraftChange={v => setDrafts(d => ({ ...d, [k.provider]: v }))}
@@ -1248,7 +1274,9 @@ function PersonalApiKeysSection() {
               onToggleField={FIELD_SETS[k.provider] ? (fieldKey, checked) => handleToggleField(k.provider, fieldKey, checked) : undefined}
               fieldsError={fieldsError}
               onToggleFreeTier={k.provider === 'ipapi_is' ? handleToggleFreeTier : undefined}
+              onToggleEnabled={checked => handleToggleEnabled(k.provider, checked)}
             />
+            </div>
           ))}
         </div>
       )}
