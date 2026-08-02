@@ -72,6 +72,11 @@ export const api = {
   createProxySession: (appId: number) =>
     request<{ ok: boolean }>(`/auth/proxy-session/${appId}`, { method: 'POST' }),
 
+  // Documentation
+  getDocs: () => request<{ slug: string; title: string }[]>('/docs-content'),
+  getDoc: (slug: string) =>
+    request<{ slug: string; title: string; content: string }>(`/docs-content/${slug}`),
+
   // Dashboard
   dashboard: () => request<any>('/dashboard'),
 
