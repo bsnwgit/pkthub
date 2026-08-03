@@ -79,10 +79,72 @@ DEFAULTS = {
     "backup_retain_count": "5",
     # Maintenance
     "maintenance_mode": "false",
-    # AI Assistant
+    # AI Assistant — providers tried in order: local ones first (private), then
+    # cloud (paid). Each provider has its own enabled flag; the first enabled
+    # provider with valid config is used to answer a chat request.
+    "ai_provider_ollama_enabled": "false",
+    "ai_provider_ollama_base_url": "http://localhost:11434",
+    "ai_provider_ollama_model": "llama3.1",
+    # Arbitrary additional self-hosted/local providers exposing an OpenAI-
+    # compatible /v1/chat/completions API (LM Studio, LocalAI, vLLM, etc.),
+    # JSON-encoded (this store is string-valued): [{id, name, base_url, api_key, model, enabled}]
+    "ai_local_providers": "[]",
+    "ai_provider_anthropic_enabled": "true",
     "anthropic_api_key": "",
     "ai_model": "claude-haiku-4-5-20251001",
+    "ai_provider_openai_enabled": "false",
+    "openai_api_key": "",
+    "openai_model": "gpt-4o",
 }
+
+# Sentinel mask written over secret values in GET responses.
+# If the UI sends this value back on Save, treat it as "unchanged" and skip the write.
+_MASK = "••••••••"
+_SECRET_KEYS = {"anthropic_api_key", "openai_api_key"}
+
+
+def _mask_local_providers(raw: str) -> str:
+    """Mask each entry's api_key, same convention as the flat _SECRET_KEYS."""
+    try:
+        providers = json.loads(raw)
+    except (ValueError, TypeError):
+        return raw
+    if not isinstance(providers, list):
+        return raw
+    masked = []
+    for p in providers:
+        if isinstance(p, dict) and p.get("api_key"):
+            p = {**p, "api_key": _MASK}
+        masked.append(p)
+    return json.dumps(masked)
+
+
+async def _unmask_local_providers(db: aiosqlite.Connection, raw: str) -> str:
+    """Preserve existing api_key for any entry whose api_key round-tripped as the mask."""
+    try:
+        new_value = json.loads(raw)
+    except (ValueError, TypeError):
+        return raw
+    if not isinstance(new_value, list):
+        return raw
+
+    async with db.execute("SELECT value FROM platform_config WHERE key='ai_local_providers'") as cur:
+        row = await cur.fetchone()
+    old_by_id = {}
+    if row:
+        try:
+            for p in json.loads(row["value"]) or []:
+                if isinstance(p, dict) and p.get("id"):
+                    old_by_id[p["id"]] = p.get("api_key", "")
+        except (ValueError, TypeError):
+            pass
+
+    result = []
+    for p in new_value:
+        if isinstance(p, dict) and p.get("api_key") == _MASK:
+            p = {**p, "api_key": old_by_id.get(p.get("id"), "")}
+        result.append(p)
+    return json.dumps(result)
 
 @router.get("")
 async def get_all_settings(
@@ -93,6 +155,13 @@ async def get_all_settings(
         rows = await cur.fetchall()
     stored = {r["key"]: r["value"] for r in rows}
     merged = {**DEFAULTS, **stored}
+
+    for k in _SECRET_KEYS:
+        if merged.get(k):
+            merged[k] = _MASK
+    if merged.get("ai_local_providers"):
+        merged["ai_local_providers"] = _mask_local_providers(merged["ai_local_providers"])
+
     return merged
 
 @router.get("/{key}")
@@ -103,11 +172,14 @@ async def get_setting(
 ):
     async with db.execute("SELECT value FROM platform_config WHERE key = ?", (key,)) as cur:
         row = await cur.fetchone()
-    if row:
-        return {"key": key, "value": row["value"]}
-    if key in DEFAULTS:
-        return {"key": key, "value": DEFAULTS[key]}
-    raise HTTPException(status_code=404, detail="Setting not found")
+    value = row["value"] if row else DEFAULTS.get(key)
+    if value is None and key not in DEFAULTS:
+        raise HTTPException(status_code=404, detail="Setting not found")
+    if key in _SECRET_KEYS and value:
+        value = _MASK
+    if key == "ai_local_providers" and value:
+        value = _mask_local_providers(value)
+    return {"key": key, "value": value}
 
 @router.put("/{key}")
 async def set_setting(
@@ -116,14 +188,21 @@ async def set_setting(
     current_user: dict = Depends(require_admin),
     db: aiosqlite.Connection = Depends(get_db)
 ):
+    if key in _SECRET_KEYS and body.value == _MASK:
+        return {"key": key, "value": body.value, "skipped": "mask value"}
+
+    value = body.value
+    if key == "ai_local_providers":
+        value = await _unmask_local_providers(db, value)
+
     await db.execute(
         """INSERT INTO platform_config (key, value, updated_at)
            VALUES (?, ?, datetime('now'))
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at""",
-        (key, body.value)
+        (key, value)
     )
     await db.commit()
-    return {"key": key, "value": body.value}
+    return {"key": key, "value": value}
 
 @router.get("/storage/test")
 async def test_storage_connection(
@@ -175,11 +254,18 @@ async def set_settings_bulk(
     db: aiosqlite.Connection = Depends(get_db)
 ):
     for item in items:
+        if item.key in _SECRET_KEYS and item.value == _MASK:
+            continue  # never overwrite a secret with the display mask
+
+        value = item.value
+        if item.key == "ai_local_providers":
+            value = await _unmask_local_providers(db, value)
+
         await db.execute(
             """INSERT INTO platform_config (key, value, updated_at)
                VALUES (?, ?, datetime('now'))
                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at""",
-            (item.key, item.value)
+            (item.key, value)
         )
     await db.commit()
     return {"updated": len(items)}

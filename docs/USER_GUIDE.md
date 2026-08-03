@@ -52,7 +52,7 @@ Any IP shown in the app is clickable, opening a lookup combining ipinfo.io, ipap
 
 ## AI Assistant
 
-If your admin has configured an Anthropic API key, an assistant is available to answer questions — see Settings → Security → AI Assistant for where it's configured.
+If your admin has enabled an AI provider (local/self-hosted like Ollama, or a cloud provider like Anthropic or OpenAI), an assistant is available to answer questions — see Settings → Security → AI Assistant for where it's configured.
 
 ## Your account
 

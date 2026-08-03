@@ -17,7 +17,25 @@ export default function AiAssistant() {
   const [messages, setMessages]   = useState<Message[]>([])
   const [input, setInput]         = useState('')
   const [loading, setLoading]     = useState(false)
+  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [providerName, setProviderName] = useState<string>('AI')
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Check if any provider (local or cloud) is enabled and configured
+  useEffect(() => {
+    if (!open || configured !== null) return
+    api.getSettings().then(s => {
+      const ollamaReady = s['ai_provider_ollama_enabled'] === 'true' && Boolean(s['ai_provider_ollama_base_url'])
+      let localProviders: Array<Record<string, unknown>> = []
+      try { localProviders = s['ai_local_providers'] ? JSON.parse(s['ai_local_providers']) : [] } catch { /* ignore */ }
+      const localReady = localProviders.some(p => p.enabled && p.base_url)
+      const anthropicKey = s['anthropic_api_key']
+      const anthropicReady = s['ai_provider_anthropic_enabled'] !== 'false' && Boolean(anthropicKey && anthropicKey !== '••••••••')
+      const openaiKey = s['openai_api_key']
+      const openaiReady = s['ai_provider_openai_enabled'] === 'true' && Boolean(openaiKey && openaiKey !== '••••••••')
+      setConfigured(ollamaReady || localReady || anthropicReady || openaiReady)
+    }).catch(() => setConfigured(false))
+  }, [open])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -33,6 +51,7 @@ export default function AiAssistant() {
 
     try {
       const data = await api.aiChat(q)
+      if (data.provider) setProviderName(data.provider)
       setMessages(m => [...m, { role: 'assistant', text: data.answer }])
     } catch (e: any) {
       setMessages(m => [...m, { role: 'assistant', text: e.message || 'Network error — could not reach AI service.', error: true }])
@@ -65,7 +84,7 @@ export default function AiAssistant() {
             <div className="flex items-center gap-2">
               <span className="text-blue-400 text-sm">✦</span>
               <span className="text-sm font-semibold text-white">AI Assistant</span>
-              <span className="text-xs text-gray-500">Claude</span>
+              <span className="text-xs text-gray-500">{providerName}</span>
             </div>
             {messages.length > 0 && (
               <button onClick={() => setMessages([])} className="text-xs text-gray-500 hover:text-white transition-colors">
@@ -75,7 +94,13 @@ export default function AiAssistant() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
-            {messages.length === 0 && (
+            {configured === false && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-yellow-400 text-xs">
+                No AI provider is enabled. Turn one on (Ollama, a local endpoint, Anthropic, or OpenAI) in{' '}
+                <strong>Settings → Security → AI Assistant</strong>.
+              </div>
+            )}
+            {messages.length === 0 && configured !== false && (
               <div className="text-gray-500 text-xs space-y-2">
                 <p>Ask about pktHub's registry, app health, or audit log:</p>
                 {[
@@ -121,14 +146,14 @@ export default function AiAssistant() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              disabled={loading}
-              placeholder="Ask about pktHub…"
+              disabled={loading || configured === false}
+              placeholder={configured === false ? 'Configure a provider first' : 'Ask about pktHub…'}
               rows={1}
               className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:opacity-50"
             />
             <button
               onClick={send}
-              disabled={loading || !input.trim()}
+              disabled={loading || !input.trim() || configured === false}
               className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-3 py-2 text-sm transition-colors"
             >
               →
