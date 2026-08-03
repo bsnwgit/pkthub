@@ -80,7 +80,7 @@ Backend modules, each mounted as its own router in `app/main.py`:
 | `ssl_api.py` | `/api/ssl` | Cert status + upload (PEM pair or PFX/P12) |
 | `backup_api.py` | `/api/backup` | DB/config backup, export, restore |
 | `maintenance_api.py` | `/api/maintenance` | Service restart (via API) and listen-port change |
-| `ai_api.py` | `/api/ai` | Claude-powered AI assistant scoped to pktHub's own registry/audit data |
+| `ai_api.py` | `/api/ai` | Multi-provider AI assistant (Ollama/local, Anthropic, or OpenAI) scoped to pktHub's own registry/audit data |
 
 Every on-disk path (`db_path`, backup directory) derives from `install_dir` at
 runtime (env var `PKTHUB_INSTALL_DIR` → the directory `config.yaml` was loaded
@@ -354,11 +354,12 @@ don't assume one drives the other:
 
 ## AI Assistant
 
-**Settings → Security → AI Assistant** lets an admin add an Anthropic API
-key (from console.anthropic.com — separate from any Claude Enterprise seat)
-and pick a model (Haiku by default; Sonnet or Opus also selectable). Once
-configured, an in-app chat panel (available throughout the authenticated
-app, backed by `POST /api/ai/chat`) answers questions using a snapshot of
+**Settings → Security → AI Assistant** lets an admin configure multiple providers,
+each with its own enable toggle — local/self-hosted (Ollama, or any OpenAI-compatible
+endpoint) are tried first, then cloud (Anthropic — from console.anthropic.com, separate
+from any Claude Enterprise seat, model Haiku/Sonnet/Opus selectable — and OpenAI). Once
+at least one is enabled and configured, an in-app chat panel (available throughout the
+authenticated app, backed by `POST /api/ai/chat`) answers questions using a snapshot of
 **pktHub's own state only** — the registered-app list with health/mode, and
 the 10 most recent audit log entries. It explicitly does not have access to
 any individual pktApp's own telemetry (SNMP devices, log lines, packet
