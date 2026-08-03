@@ -145,7 +145,10 @@ export const api = {
     request('/settings/bulk', {
       method: 'POST',
       body: JSON.stringify(
-        Object.entries(settings).map(([key, value]) => ({ key, value: String(value) }))
+        Object.entries(settings).map(([key, value]) => ({
+          key,
+          value: typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value),
+        }))
       ),
     }),
 
@@ -206,7 +209,7 @@ export const api = {
   listAlerts: () => request<any[]>('/alerts'),
 
   aiChat: (question: string) =>
-    request<{ answer: string; tokens_used: number }>('/ai/chat', { method: 'POST', body: JSON.stringify({ question }) }),
+    request<{ answer: string; provider?: string; tokens_used: number }>('/ai/chat', { method: 'POST', body: JSON.stringify({ question }) }),
   ackAlert: (id: number) => request<any>(`/alerts/${id}/ack`, { method: 'POST' }),
   alertHistory: (params?: {
     app_id?: number; event_type?: string; status?: string;
