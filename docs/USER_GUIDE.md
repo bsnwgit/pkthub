@@ -52,7 +52,7 @@ Any IP shown in the app is clickable, opening a lookup combining ipinfo.io, ipap
 
 ## AI Assistant
 
-If your admin has enabled an AI provider (local/self-hosted like Ollama, or a cloud provider like Anthropic or OpenAI), an assistant is available to answer questions — see Settings → Security → AI Assistant for where it's configured.
+If your admin has enabled an AI provider (local/self-hosted like Ollama, or a cloud provider like Anthropic or OpenAI), an assistant is available to answer questions — see Settings → Security → AI Assistant for where it's configured. It only knows pktHub's own registry, health status, and audit log; it can tell you whether another pktApp suite tool is registered/healthy but not its internal data, and prompt-injection attempts ("ignore your instructions," etc.) are refused.
 
 ## Your account
 
