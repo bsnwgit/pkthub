@@ -366,6 +366,14 @@ any individual pktApp's own telemetry (SNMP devices, log lines, packet
 captures, etc.) — for those it tells the user to use that app's own AI
 assistant, if it has one.
 
+A server-side pre-filter blocks prompt-injection/override attempts (e.g.
+"ignore your previous instructions," "reveal your system prompt") before
+they ever reach the AI provider, and a post-response check strips any
+accidental leak of the system prompt back to the user. Unlike the other
+pktApp assistants, there's no cross-app-name block here — discussing other
+apps' registration/health status is pktHub's actual job — but their
+internal data stays off-limits per the system prompt above.
+
 ## Maintenance
 
 **Settings → Maintenance** (admin only):
