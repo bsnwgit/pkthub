@@ -11,6 +11,11 @@ jwt_secret: "CHANGE_ME_generate_with_openssl_rand_hex_32"
 jwt_algorithm: "HS256"
 jwt_expire_minutes: 60
 
+# Credential encryption key (generate with the Fernet command below) — used
+# to encrypt stored secrets (user API keys) at rest.
+# python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+credential_key: "CHANGE_ME_generate_with_fernet_generate_key"
+
 # Initial admin user (created on first boot if no users exist)
 initial_admin_username: "admin"
 initial_admin_password: "CHANGE_ME"
