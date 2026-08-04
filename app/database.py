@@ -211,6 +211,50 @@ async def init_db():
         await db.commit()
 
         await _encrypt_legacy_api_keys(db)
+        await _encrypt_legacy_suite_tokens(db)
+
+
+async def _encrypt_legacy_suite_tokens(db):
+    """One-time data migration: registered_apps.suite_token (the token pkthub
+    uses to authenticate into every sibling app it proxies) used to be
+    stored in plaintext. Encrypt any row that isn't already a valid Fernet
+    token. Same _data_migrations marker table as _encrypt_legacy_api_keys."""
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS _data_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+    await db.commit()
+
+    marker = "encrypt_legacy_suite_tokens"
+    async with db.execute(
+        "SELECT 1 FROM _data_migrations WHERE name = ?", (marker,)
+    ) as cur:
+        if await cur.fetchone():
+            return
+
+    from app.crypto import decrypt_str, encrypt_str
+
+    async with db.execute(
+        "SELECT id, suite_token FROM registered_apps WHERE suite_token != ''"
+    ) as cur:
+        rows = await cur.fetchall()
+
+    for row_id, suite_token in rows:
+        try:
+            already_encrypted = bool(decrypt_str(suite_token))
+        except Exception:
+            already_encrypted = False
+        if already_encrypted:
+            continue
+        await db.execute(
+            "UPDATE registered_apps SET suite_token = ? WHERE id = ?",
+            (encrypt_str(suite_token), row_id),
+        )
+
+    await db.execute("INSERT INTO _data_migrations (name) VALUES (?)", (marker,))
+    await db.commit()
 
 
 async def _encrypt_legacy_api_keys(db):
