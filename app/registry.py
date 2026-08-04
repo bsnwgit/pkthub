@@ -11,6 +11,7 @@ from app.database import get_db
 from app.auth import require_admin, require_analyst_or_admin, get_current_user
 from app.models import AppRegisterRequest, AppUpdateRequest, AppOut, AppStatusUpdate, DirectAccessRequest
 from app.audit import write_audit
+from app.crypto import decrypt_str, encrypt_str
 
 router = APIRouter(prefix="/api/apps", tags=["registry"])
 
@@ -129,7 +130,7 @@ async def register_app(
            VALUES (?, ?, ?, ?, ?, 'observe', ?, ?, ?, ?)
            RETURNING *""",
         (body.name, display_name, body.base_url, app_type,
-         suite_token, json.dumps(manifest), json.dumps(supported_versions),
+         encrypt_str(suite_token), json.dumps(manifest), json.dumps(supported_versions),
          current_user["id"], body.return_url)
     )
     row = await cur.fetchone()
@@ -190,18 +191,19 @@ async def deregister_app(
         app = await cur.fetchone()
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
+    app_token = decrypt_str(app["suite_token"])
 
     try:
         async with httpx.AsyncClient(verify=False, timeout=10) as client:
             await client.post(
                 f"{app['base_url'].rstrip('/')}/api/suite/deregister",
-                json={"suite_token": app["suite_token"]},
-                headers={"X-Suite-Version": str(SUITE_VERSION), "X-Suite-Token": app["suite_token"]}
+                json={"suite_token": app_token},
+                headers={"X-Suite-Version": str(SUITE_VERSION), "X-Suite-Token": app_token}
             )
     except Exception:
         pass
 
-    await _set_settings_lock(app["base_url"], app["suite_token"], False)
+    await _set_settings_lock(app["base_url"], app_token, False)
 
     await db.execute("DELETE FROM registered_apps WHERE id = ?", (app_id,))
     await db.commit()
@@ -234,18 +236,19 @@ async def rotate_token(
         app = await cur.fetchone()
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
+    old_token = decrypt_str(app["suite_token"])
 
     try:
         async with httpx.AsyncClient(verify=False, timeout=10) as client:
             await client.post(
                 f"{app['base_url'].rstrip('/')}/api/suite/rotate-token",
-                json={"old_token": app["suite_token"], "new_token": new_token},
-                headers={"X-Suite-Version": str(SUITE_VERSION), "X-Suite-Token": app["suite_token"]}
+                json={"old_token": old_token, "new_token": new_token},
+                headers={"X-Suite-Version": str(SUITE_VERSION), "X-Suite-Token": old_token}
             )
     except Exception:
         pass
 
-    await db.execute("UPDATE registered_apps SET suite_token = ? WHERE id = ?", (new_token, app_id))
+    await db.execute("UPDATE registered_apps SET suite_token = ? WHERE id = ?", (encrypt_str(new_token), app_id))
     await db.commit()
     await write_audit(db, current_user, "app.rotate_token", f"app:{app['name']}", {})
     return {"message": "Token rotated"}
@@ -280,9 +283,10 @@ async def resync_token(
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Cannot reach app: {e}")
 
+    previous_token = decrypt_str(app["suite_token"])
     await db.execute(
         "UPDATE registered_apps SET suite_token = ? WHERE id = ?",
-        (new_token, app_id)
+        (encrypt_str(new_token), app_id)
     )
     # Resolve any active token_mismatch alert for this app
     await db.execute(
@@ -292,7 +296,7 @@ async def resync_token(
     )
     await db.commit()
     await write_audit(db, current_user, "app.resync_token", f"app:{app['name']}",
-                      {"previous_token_prefix": app["suite_token"][:8] + "..."})
+                      {"previous_token_prefix": previous_token[:8] + "..."})
     return {"ok": True, "message": "Token synced from app"}
 
 
@@ -319,7 +323,7 @@ async def get_widget_options(
         async with httpx.AsyncClient(verify=False, timeout=8) as client:
             resp = await client.get(
                 target_url,
-                headers={"X-Suite-Token": app["suite_token"], "X-Suite-Version": str(SUITE_VERSION)}
+                headers={"X-Suite-Token": decrypt_str(app["suite_token"]), "X-Suite-Version": str(SUITE_VERSION)}
             )
         if resp.status_code != 200:
             raise HTTPException(status_code=502, detail=f"App returned HTTP {resp.status_code}")
@@ -489,7 +493,7 @@ async def set_direct_access(
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
     base_url   = app["base_url"].rstrip("/")
-    suite_token = app["suite_token"]
+    suite_token = decrypt_str(app["suite_token"])
 
     if body.locked:
         # Pre-flight: confirm app has hub_redirect_url set
@@ -577,7 +581,7 @@ async def bulk_direct_access(
             async with httpx.AsyncClient(verify=False, timeout=10) as client:
                 r = await client.post(f"{app['base_url'].rstrip('/')}/api/suite/direct-access",
                     json={"locked": body.locked},
-                    headers={"X-Suite-Token": app["suite_token"], "X-Suite-Version": str(SUITE_VERSION)})
+                    headers={"X-Suite-Token": decrypt_str(app["suite_token"]), "X-Suite-Version": str(SUITE_VERSION)})
             ok = r.status_code == 200
         except Exception:
             pass

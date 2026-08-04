@@ -7,6 +7,7 @@ import os
 import aiosqlite
 
 from app.config import get_settings
+from app.crypto import decrypt_str
 from app.database import init_db, get_db
 from app.auth import router as auth_router, ensure_initial_admin
 from app.users import router as users_router
@@ -86,7 +87,7 @@ async def health_poller():
                     apps = await cur.fetchall()
             for app_row in apps:
                 asyncio.create_task(
-                    poll_health(app_row["id"], app_row["base_url"], app_row["suite_token"])
+                    poll_health(app_row["id"], app_row["base_url"], decrypt_str(app_row["suite_token"]))
                 )
         except Exception:
             pass
