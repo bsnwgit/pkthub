@@ -209,3 +209,48 @@ async def init_db():
             await db.execute("ALTER TABLE user_api_keys ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
 
         await db.commit()
+
+        await _encrypt_legacy_api_keys(db)
+
+
+async def _encrypt_legacy_api_keys(db):
+    """One-time data migration: user_api_keys.api_key used to be stored in
+    plaintext. Encrypt any row that isn't already a valid Fernet token. This
+    app has no _migrations version table (schema is inline ALTER-TABLE
+    checks), so a tiny marker table tracks whether this has already run."""
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS _data_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+    await db.commit()
+
+    marker = "encrypt_legacy_user_api_keys"
+    async with db.execute(
+        "SELECT 1 FROM _data_migrations WHERE name = ?", (marker,)
+    ) as cur:
+        if await cur.fetchone():
+            return
+
+    from app.crypto import decrypt_str, encrypt_str
+
+    async with db.execute(
+        "SELECT id, api_key FROM user_api_keys WHERE api_key != ''"
+    ) as cur:
+        rows = await cur.fetchall()
+
+    for row_id, api_key in rows:
+        try:
+            already_encrypted = bool(decrypt_str(api_key))
+        except Exception:
+            already_encrypted = False
+        if already_encrypted:
+            continue
+        await db.execute(
+            "UPDATE user_api_keys SET api_key = ? WHERE id = ?",
+            (encrypt_str(api_key), row_id),
+        )
+
+    await db.execute("INSERT INTO _data_migrations (name) VALUES (?)", (marker,))
+    await db.commit()

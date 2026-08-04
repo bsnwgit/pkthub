@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from app.auth import get_current_user
 from app.database import get_db
+from app.crypto import decrypt_str
 
 router = APIRouter(prefix="/api/ip-info", tags=["ip-info"])
 
@@ -43,7 +44,7 @@ async def _get_user_key(db: aiosqlite.Connection, username: str, provider: str) 
         (username, provider),
     ) as cur:
         row = await cur.fetchone()
-    return row[0] if row else ""
+    return decrypt_str(row[0]) if row else ""
 
 
 async def _get_ipinfo_enabled_fields(db: aiosqlite.Connection, username: str) -> list[str] | None:

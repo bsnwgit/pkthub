@@ -117,9 +117,10 @@ needed; never run it as `sudo ./install.sh` yourself):
    any `*.db*` files, logs, and an existing `config.yaml`
 4. Creates the venv and installs `requirements.txt`
 5. Generates `config.yaml` from `config.example.yaml` **only if one doesn't
-   already exist** — fills in a random `jwt_secret` and `initial_admin_password`,
-   writes the chosen port, and prints the admin password once. Re-running the
-   installer never overwrites an existing `config.yaml`.
+   already exist** — fills in a random `jwt_secret`, `credential_key`, and
+   `initial_admin_password`, writes the chosen port, and prints the admin
+   password once. Re-running the installer never overwrites an existing
+   `config.yaml`.
 6. Installs and starts the `pkthub` systemd service (`ExecStart` runs
    `python -m app.server`, not a fixed `uvicorn --port` invocation — see
    [Running & Managing the Service](#running--managing-the-service))
@@ -134,6 +135,7 @@ needed; never run it as `sudo ./install.sh` yourself):
 | `https` | `false` | Installs on HTTP — see [Enabling HTTPS](#enabling-https). Informational only: `app/server.py` actually decides HTTP vs HTTPS by checking whether a cert/key pair exists at `/etc/ssl/pkthub/`, regardless of this value |
 | `jwt_secret` | random, generated at install | |
 | `jwt_expire_minutes` | `60` | |
+| `credential_key` | random, generated at install | Fernet key encrypting stored secrets (user API keys) at rest — separate from `jwt_secret`, which only signs JWTs |
 | `initial_admin_username` / `_password` / `_email` | `admin` / random / `admin@example.com` | Only used the very first time the `users` table is empty |
 | `okta_domain` / `_client_id` / `_client_secret` | blank | Legacy OIDC fields, currently unused — Okta SSO is actually configured as **SAML** under Settings → Security → Auth, not via these keys |
 | `db_path` | `<install_dir>/pkthub.db` | Leave blank to use the default |
@@ -218,7 +220,7 @@ The very first user is always created as `admin` from `config.yaml`'s
 
 All four are called concurrently. Private/loopback/link-local/reserved/multicast addresses are rejected — external providers have nothing useful to say about them.
 
-Keys are **per-user**, not app-wide: each logged-in user stores their own under Settings → User Keys (`app/user_api_keys.py`), and lookups run under that user's own key/quota — no shared/admin key, no cross-user visibility. A fifth provider slot, IPQualityScore, can be saved and tested there but isn't consumed by the lookup yet.
+Keys are **per-user**, not app-wide: each logged-in user stores their own under Settings → User Keys (`app/user_api_keys.py`), and lookups run under that user's own key/quota — no shared/admin key, no cross-user visibility. Keys are Fernet-encrypted at rest (`app/crypto.py`, using a dedicated `credential_key` — separate from `jwt_secret`, which only signs JWTs) — decrypted only in memory when a lookup runs or the owning user views their own key. A fifth provider slot, IPQualityScore, can be saved and tested there but isn't consumed by the lookup yet.
 
 MXToolbox's other commands — email/DNS record checks (SPF, DMARC, DKIM, MX, DNS, TXT, SOA, BIMI, MTA-STS, TLSRPT, A, AAAA) and active probes (ping, traceroute, TCP/HTTP/HTTPS/SMTP connect, run from MXToolbox's own infrastructure against the target) — are reachable via `POST /api/mxtoolbox/lookup` (`{command, argument, port?}`, `app/mxtoolbox.py`). Backend only for now — no page in the UI links an IP to this lookup yet.
 
