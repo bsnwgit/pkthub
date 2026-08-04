@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from app.auth import get_current_user
 from app.database import get_db
+from app.crypto import decrypt_str
 
 router = APIRouter(prefix="/api/mxtoolbox", tags=["mxtoolbox"])
 
@@ -42,7 +43,7 @@ async def _get_user_key(db: aiosqlite.Connection, username: str, provider: str) 
         (username, provider),
     ) as cur:
         row = await cur.fetchone()
-    return row[0] if row else ""
+    return decrypt_str(row[0]) if row else ""
 
 
 @router.post("/lookup")

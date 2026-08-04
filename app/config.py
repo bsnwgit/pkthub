@@ -27,6 +27,9 @@ class Settings:
         self.jwt_secret = data.get("jwt_secret", "changeme")
         self.jwt_algorithm = data.get("jwt_algorithm", "HS256")
         self.jwt_expire_minutes = data.get("jwt_expire_minutes", 60)
+        # Fernet key for encrypting stored secrets (user API keys) at rest —
+        # separate from jwt_secret since the two serve unrelated purposes.
+        self.credential_key = data.get("credential_key", "")
         self.initial_admin_username = data.get("initial_admin_username", "admin")
         self.initial_admin_password = data.get("initial_admin_password", "changeme")
         self.initial_admin_email = data.get("initial_admin_email", "admin@localhost")

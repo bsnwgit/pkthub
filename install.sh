@@ -64,8 +64,11 @@ if [ ! -f config.yaml ]; then
 
     JWT_SECRET="$(openssl rand -hex 32)"
     ADMIN_PASSWORD="$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)"
+    # Fernet key for encrypting stored credentials (user API keys) at rest
+    CRED_KEY="$(venv/bin/python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")"
 
     sed -i "s#CHANGE_ME_generate_with_openssl_rand_hex_32#${JWT_SECRET}#" config.yaml
+    sed -i "s#CHANGE_ME_generate_with_fernet_generate_key#${CRED_KEY}#" config.yaml
     sed -i "s#initial_admin_password: \"CHANGE_ME\"#initial_admin_password: \"${ADMIN_PASSWORD}\"#" config.yaml
     sed -i "s/^port: 8760/port: ${PORT}/" config.yaml
 
