@@ -3,6 +3,7 @@ import aiosqlite
 import httpx
 import asyncio
 import json
+from app.crypto import decrypt_str
 from app.database import get_db
 from app.auth import require_analyst_or_admin
 
@@ -24,7 +25,7 @@ async def get_dashboard(
         audit_row = await cur.fetchone()
 
     async def fetch_app_summary(app):
-        suite_token = app["suite_token"]
+        suite_token = decrypt_str(app["suite_token"])
         base_url = app["base_url"].rstrip("/")
         headers = {
             "X-Suite-Token": suite_token,

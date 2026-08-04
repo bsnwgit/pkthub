@@ -6,6 +6,7 @@ import httpx
 import aiosqlite
 from jose import JWTError, jwt
 
+from app.crypto import decrypt_str
 from app.database import get_db
 from app.config import get_settings
 
@@ -230,7 +231,7 @@ async def proxy_request(
         k: v for k, v in request.headers.items()
         if k.lower() not in _STRIP_REQUEST_HEADERS
     }
-    headers["X-Suite-Token"]   = app["suite_token"]
+    headers["X-Suite-Token"]   = decrypt_str(app["suite_token"])
     headers["X-Suite-Version"] = str(SUITE_VERSION)
     headers["X-Suite-User"]    = username
     headers["X-Suite-Role"]    = role_map.get(role, "viewer")
@@ -401,7 +402,7 @@ async def proxy_display_widget(
         k: v for k, v in request.headers.items()
         if k.lower() not in _STRIP_REQUEST_HEADERS
     }
-    headers["X-Suite-Token"]   = app["suite_token"]
+    headers["X-Suite-Token"]   = decrypt_str(app["suite_token"])
     headers["X-Suite-Version"] = str(SUITE_VERSION)
     headers["X-Suite-User"]    = "noc-display"
     headers["X-Suite-Role"]    = "viewer"
