@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import HelpButton from '../components/HelpButton'
 
 // ─── Canvas reference dimensions ───────────────────────────────────────────────
 const CANVAS_W = 1920
@@ -348,6 +349,10 @@ export default function NOCEditorPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px', height: '52px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, background: '#0d1525' }}>
         <button onClick={() => navigate('/noc')} style={{ color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>← Back</button>
         <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 500 }}>{noc?.name}</span>
+        <HelpButton title="NOC Editor — How It Works">
+          <p>Drag widgets from a registered app's manifest onto the canvas — each one is a live iframe of that app's own dashboard view, positioned and sized on a {CANVAS_W}×{CANVAS_H} reference canvas that scales to fit whatever screen the display ends up on.</p>
+          <p>Multiple slides only matter in Rotating mode, where the display cycles through them on the per-slide dwell timer. Snap constrains dragging to a {SNAP_GRID}px grid for cleaner alignment.</p>
+        </HelpButton>
 
         {/* Slide tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, overflowX: 'auto', paddingLeft: '8px' }}>

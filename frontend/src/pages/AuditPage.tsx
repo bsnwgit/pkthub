@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { FileText, RefreshCw } from 'lucide-react'
+import HelpButton from '../components/HelpButton'
 
 const PAGE_SIZE_OPTIONS = [25, 50, 75, 100]
 // Backend caps `limit` at 500 and has no total-count field on this endpoint,
@@ -89,7 +90,13 @@ export default function AuditPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Audit Log</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-white">Audit Log</h1>
+            <HelpButton title="Audit Log — How It Works">
+              <p>Records pktHub-level actions only — login/logout, app registration and token rotation, user management, and NOC publish/mode changes. Activity inside a proxied app (e.g. changes made in pktSNMP) is logged by that app itself, not here.</p>
+              <p>The most recent 500 matching entries are fetched and paginated client-side, so filters narrow within that window rather than a true server-side search.</p>
+            </HelpButton>
+          </div>
           <p className="text-sm text-gray-400 mt-0.5">Platform activity — stored in pktHub only</p>
         </div>
         <button onClick={load} className="p-2 text-gray-400 hover:text-gray-200 rounded-lg border border-gray-700 hover:border-gray-500 transition-colors">
