@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { UserPlus, Trash2, Shield } from 'lucide-react'
+import HelpButton from '../components/HelpButton'
 
 const ROLE_COLOR: Record<string, string> = {
   admin: '#f87171', analyst: '#60a5fa', viewer: '#6b7280'
@@ -52,7 +53,13 @@ export default function UsersPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Users</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-white">Users</h1>
+            <HelpButton title="Users — How It Works">
+              <p>This only manages <span className="text-gray-300 font-medium">local accounts</span> — SAML/Okta SSO users are auto-provisioned on first login and managed in your identity provider, not here.</p>
+              <p><span className="text-gray-300 font-medium">admin</span> can register/deregister apps and manage users; <span className="text-gray-300 font-medium">analyst</span> can build and publish NOC displays; <span className="text-gray-300 font-medium">viewer</span> can only browse.</p>
+            </HelpButton>
+          </div>
           <p className="text-sm text-gray-400 mt-0.5">Manage pktHub user accounts and roles. The <span className="text-yellow-400">★</span> marks the default admin — auto-logged-in when every auth method is disabled.</p>
         </div>
         <button

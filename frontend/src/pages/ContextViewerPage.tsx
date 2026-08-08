@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 import { PktSuiteIcon } from '../components/Logo'
 import { Home, ChevronDown, Check, ShieldAlert, RefreshCw } from 'lucide-react'
+import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
   pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
@@ -130,6 +131,10 @@ export default function ContextViewerPage() {
           ) : (
             <span className="text-sm text-gray-500">Context Viewer</span>
           )}
+          <HelpButton title="Context Viewer — How It Works">
+            <p>This proxies a registered app's own UI through pktHub, using a session pktHub establishes for you — no separate login to that app.</p>
+            <p>If the token badge shows a mismatch, that app's stored suite token has drifted out of sync with what pktHub has on file — Resync fixes it without re-registering the app.</p>
+          </HelpButton>
         </div>
 
         {/* Right: username · app switcher · home */}
