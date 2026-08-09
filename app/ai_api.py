@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.auth import get_current_user
+from app.crypto import decrypt_str
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 log = logging.getLogger("pkthub.ai")
@@ -116,6 +117,17 @@ async def _get_setting(db: aiosqlite.Connection, key: str) -> str | None:
     return row["value"] if row else None
 
 
+async def _get_secret_setting(db: aiosqlite.Connection, key: str) -> str | None:
+    """Like _get_setting, but for a key that's encrypted at rest (see
+    settings_api._ENCRYPTED_AT_REST_KEYS). Falls back to the raw stored
+    value if it doesn't decrypt, so this keeps working unattended on a row
+    that predates the migrate_settings_encryption.py one-time migration."""
+    raw = await _get_setting(db, key)
+    if not raw:
+        return raw
+    return decrypt_str(raw) or raw
+
+
 async def _get_json_setting(db: aiosqlite.Connection, key: str, default: Any) -> Any:
     raw = await _get_setting(db, key)
     if not raw:
@@ -140,18 +152,20 @@ async def _resolve_provider(db: aiosqlite.Connection) -> dict[str, Any] | None:
 
     for p in await _get_json_setting(db, "ai_local_providers", []):
         if p.get("enabled") and p.get("base_url"):
+            raw_key = p.get("api_key") or ""
+            api_key = (decrypt_str(raw_key) or raw_key) if raw_key else ""
             return {
                 "kind": "openai_compatible",
                 "name": p.get("name") or "Local AI",
                 "base_url": p["base_url"],
-                "api_key": p.get("api_key") or "",
+                "api_key": api_key,
                 "model": p.get("model") or "",
             }
 
     anthropic_flag = await _get_setting(db, "ai_provider_anthropic_enabled")
     anthropic_enabled = True if anthropic_flag is None else anthropic_flag == "true"
     if anthropic_enabled:
-        api_key = await _get_setting(db, "anthropic_api_key")
+        api_key = await _get_secret_setting(db, "anthropic_api_key")
         if api_key and api_key != "••••••••":
             return {
                 "kind": "anthropic",
@@ -161,7 +175,7 @@ async def _resolve_provider(db: aiosqlite.Connection) -> dict[str, Any] | None:
             }
 
     if (await _get_setting(db, "ai_provider_openai_enabled")) == "true":
-        api_key = await _get_setting(db, "openai_api_key")
+        api_key = await _get_secret_setting(db, "openai_api_key")
         if api_key and api_key != "••••••••":
             return {
                 "kind": "openai",
