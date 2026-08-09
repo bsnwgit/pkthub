@@ -6,6 +6,7 @@ from typing import List
 from app.database import get_db
 from app.auth import require_admin
 from app.config import get_settings
+from app.crypto import encrypt_str
 from app.models import ConfigItem
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -100,7 +101,15 @@ DEFAULTS = {
 # Sentinel mask written over secret values in GET responses.
 # If the UI sends this value back on Save, treat it as "unchanged" and skip the write.
 _MASK = "••••••••"
-_SECRET_KEYS = {"anthropic_api_key", "openai_api_key"}
+_SECRET_KEYS = {
+    "anthropic_api_key", "openai_api_key",
+    "notify_email_password", "notify_pagerduty_integration_key",
+    "notify_tracecat_api_token", "notify_webhook_url",
+    "notify_slack_webhook_url", "notify_tracecat_webhook_url",
+}
+# These are encrypted at rest (app.crypto.encrypt_str) on write, in addition
+# to being masked in API responses like every key in _SECRET_KEYS.
+_ENCRYPTED_AT_REST_KEYS = _SECRET_KEYS
 
 
 def _mask_local_providers(raw: str) -> str:
@@ -142,7 +151,13 @@ async def _unmask_local_providers(db: aiosqlite.Connection, raw: str) -> str:
     result = []
     for p in new_value:
         if isinstance(p, dict) and p.get("api_key") == _MASK:
+            # Preserve the existing (already-encrypted) ciphertext unchanged —
+            # not a new value, nothing to (re-)encrypt here.
             p = {**p, "api_key": old_by_id.get(p.get("id"), "")}
+        elif isinstance(p, dict) and p.get("api_key"):
+            # A genuinely new plaintext key from the caller — encrypt before
+            # it's persisted, same as every other secret in _ENCRYPTED_AT_REST_KEYS.
+            p = {**p, "api_key": encrypt_str(p["api_key"])}
         result.append(p)
     return json.dumps(result)
 
@@ -195,11 +210,13 @@ async def set_setting(
     if key == "ai_local_providers":
         value = await _unmask_local_providers(db, value)
 
+    stored_value = encrypt_str(value) if (key in _ENCRYPTED_AT_REST_KEYS and value) else value
+
     await db.execute(
         """INSERT INTO platform_config (key, value, updated_at)
            VALUES (?, ?, datetime('now'))
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at""",
-        (key, value)
+        (key, stored_value)
     )
     await db.commit()
     return {"key": key, "value": value}
@@ -261,11 +278,13 @@ async def set_settings_bulk(
         if item.key == "ai_local_providers":
             value = await _unmask_local_providers(db, value)
 
+        stored_value = encrypt_str(value) if (item.key in _ENCRYPTED_AT_REST_KEYS and value) else value
+
         await db.execute(
             """INSERT INTO platform_config (key, value, updated_at)
                VALUES (?, ?, datetime('now'))
                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at""",
-            (item.key, value)
+            (item.key, stored_value)
         )
     await db.commit()
     return {"updated": len(items)}
