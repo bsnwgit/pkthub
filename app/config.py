@@ -16,6 +16,18 @@ def _resolve_install_dir(config_path: str) -> Path:
 
 _INSTALL_DIR = _resolve_install_dir(CONFIG_PATH)
 
+# Insecure placeholders that must never actually be used to sign JWTs,
+# encrypt stored secrets, or gate the admin account — whether from this
+# module's own in-code defaults, or from config.example.yaml being copied
+# verbatim without editing.
+_INSECURE_SECRET_VALUES = {
+    "", "changeme",
+    "CHANGE_ME_generate_with_openssl_rand_hex_32",
+    "CHANGE_ME_generate_with_fernet_generate_key",
+    "CHANGE_ME",
+}
+
+
 class Settings:
     def __init__(self, data: dict):
         self.install_dir = str(_INSTALL_DIR)
@@ -40,6 +52,31 @@ class Settings:
         self.health_poll_interval = data.get("health_poll_interval", 30)
         self.audit_retention_days = data.get("audit_retention_days", 90)
         self.trusted_cidrs: List[str] = data.get("trusted_cidrs", [])
+
+        self._validate_secrets()
+
+    def _validate_secrets(self) -> None:
+        """
+        Fail loudly at startup rather than silently running with a
+        publicly-known secret. jwt_secret/credential_key sign or encrypt
+        real data; initial_admin_password gates the admin account on first
+        run — none of them may be missing or left as a placeholder value
+        copied from config.example.yaml.
+        """
+        for field, value in (
+            ("jwt_secret", self.jwt_secret),
+            ("credential_key", self.credential_key),
+            ("initial_admin_password", self.initial_admin_password),
+        ):
+            if (value or "").strip() in _INSECURE_SECRET_VALUES:
+                raise RuntimeError(
+                    f"pktHub refuses to start: {field} is missing or still set to a "
+                    f"placeholder value from config.example.yaml. Set a real, unique "
+                    f"{field} in config.yaml before starting the service "
+                    f"(run install.sh, which generates these automatically, or see "
+                    f"config.example.yaml for how to generate one manually)."
+                )
+
 
 @lru_cache()
 def get_settings() -> Settings:
