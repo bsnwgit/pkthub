@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 import aiosqlite
 from app.database import get_db
 from app.auth import require_admin
+from app.crypto import decrypt_str
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
@@ -11,6 +12,17 @@ async def _get_setting(db: aiosqlite.Connection, key: str, default: str = "") ->
     async with db.execute("SELECT value FROM platform_config WHERE key = ?", (key,)) as cur:
         row = await cur.fetchone()
     return row["value"] if row else default
+
+
+async def _get_secret_setting(db: aiosqlite.Connection, key: str, default: str = "") -> str:
+    """Like _get_setting, but for a key that's encrypted at rest (see
+    settings_api._ENCRYPTED_AT_REST_KEYS). Falls back to the raw stored
+    value if it doesn't decrypt, so this keeps working unattended on a row
+    that predates the migrate_settings_encryption.py one-time migration."""
+    raw = await _get_setting(db, key, default)
+    if not raw:
+        return raw
+    return decrypt_str(raw) or raw
 
 
 @router.post("/test/{channel}")
@@ -24,7 +36,7 @@ async def test_notification(
         enabled = await _get_setting(db, "notify_slack_enabled") == "true"
         if not enabled:
             return {"status": "skipped", "detail": "Slack is not enabled"}
-        webhook_url = await _get_setting(db, "notify_slack_webhook_url")
+        webhook_url = await _get_secret_setting(db, "notify_slack_webhook_url")
         if not webhook_url:
             return {"status": "skipped", "detail": "Slack webhook URL is not configured"}
         try:
@@ -50,7 +62,7 @@ async def test_notification(
             port = int(await _get_setting(db, "notify_email_smtp_port") or "587")
             use_tls = await _get_setting(db, "notify_email_smtp_tls", "true") == "true"
             username = await _get_setting(db, "notify_email_username")
-            password = await _get_setting(db, "notify_email_password")
+            password = await _get_secret_setting(db, "notify_email_password")
             from_addr = await _get_setting(db, "notify_email_from")
             to_addr = await _get_setting(db, "notify_email_default_to")
             if not to_addr:
@@ -76,7 +88,7 @@ async def test_notification(
         enabled = await _get_setting(db, "notify_pagerduty_enabled") == "true"
         if not enabled:
             return {"status": "skipped", "detail": "PagerDuty is not enabled"}
-        key = await _get_setting(db, "notify_pagerduty_integration_key")
+        key = await _get_secret_setting(db, "notify_pagerduty_integration_key")
         if not key:
             return {"status": "skipped", "detail": "Integration key is not configured"}
         try:
@@ -104,7 +116,7 @@ async def test_notification(
         enabled = await _get_setting(db, "notify_webhook_enabled") == "true"
         if not enabled:
             return {"status": "skipped", "detail": "Webhook is not enabled"}
-        url = await _get_setting(db, "notify_webhook_url")
+        url = await _get_secret_setting(db, "notify_webhook_url")
         if not url:
             return {"status": "skipped", "detail": "Webhook URL is not configured"}
         method = await _get_setting(db, "notify_webhook_method", "POST")
@@ -123,10 +135,10 @@ async def test_notification(
         enabled = await _get_setting(db, "notify_tracecat_enabled") == "true"
         if not enabled:
             return {"status": "skipped", "detail": "TraceCat is not enabled"}
-        url = await _get_setting(db, "notify_tracecat_webhook_url")
+        url = await _get_secret_setting(db, "notify_tracecat_webhook_url")
         if not url:
             return {"status": "skipped", "detail": "TraceCat webhook URL is not configured"}
-        token = await _get_setting(db, "notify_tracecat_api_token")
+        token = await _get_secret_setting(db, "notify_tracecat_api_token")
         try:
             import httpx
             headers = {}

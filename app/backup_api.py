@@ -140,6 +140,15 @@ def _restore_from_tar(tar_path: str, files: Optional[set[str]]) -> dict:
             cfg_member = next((m for m in members if m.endswith("config.yaml")), None)
             if not db_member and not cfg_member:
                 return {"error": "Invalid bundle: no pkthub.db or config.yaml found"}
+            tmp_root = os.path.realpath(tmp)
+            for member in tar.getmembers():
+                member_path = os.path.realpath(os.path.join(tmp, member.name))
+                if os.path.commonpath([tmp_root, member_path]) != tmp_root:
+                    return {"error": f"Refusing to extract archive: unsafe path in member '{member.name}'"}
+                if member.issym() or member.islnk():
+                    link_target = os.path.realpath(os.path.join(os.path.dirname(member_path), member.linkname))
+                    if os.path.commonpath([tmp_root, link_target]) != tmp_root:
+                        return {"error": f"Refusing to extract archive: unsafe link target in member '{member.name}'"}
             tar.extractall(tmp)
 
         if wanted("pkthub.db"):

@@ -35,6 +35,15 @@ _STRIP_REQUEST_HEADERS = {
     # Strip Accept-Encoding: pktApp must return plain content so the HTML
     # rewriter can operate on readable bytes, not gzip-compressed bytes.
     "accept-encoding",
+    # Strip any client-supplied suite-identity headers — these are set
+    # authoritatively by pktHub itself below, after this filter runs. If a
+    # client header survives, Starlette forwards it as a *second*, separate
+    # header line (dict keys here are case-sensitive: "x-suite-user" from
+    # the client vs "X-Suite-User" set below are different keys), and a
+    # downstream app reading Headers.get() sees the *first* occurrence —
+    # i.e. the attacker's spoofed value — which is a full cross-app identity
+    # spoof / privilege escalation if left unstripped.
+    "x-suite-token", "x-suite-user", "x-suite-role", "x-suite-version", "x-suite-hub-url",
 }
 
 # Never pass these back to the browser from the upstream
