@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PktSuiteLockup } from './Logo'
 import {
-  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server, TriangleAlert, BookOpen
+  LayoutDashboard, Monitor, Settings, FileText, LogOut, MonitorPlay, Server, TriangleAlert, BookOpen,
+  ChevronDown, ChevronRight
 } from 'lucide-react'
 import clsx from 'clsx'
 import AiAssistant from './AiAssistant'
@@ -21,7 +22,20 @@ const navItems = [
 
 export default function Layout() {
   const { user, logout, isAdmin, isAnalyst } = useAuth()
+  const location = useLocation()
   const [regApps, setRegApps] = useState<{ id: number; name: string; display_name: string }[]>([])
+  const [regAppsExpanded, setRegAppsExpanded] = useState(
+    () => localStorage.getItem('pkthub_reg_app_settings_expanded') === '1'
+  )
+  const onRegAppSettingsRoute = location.pathname.startsWith('/app-settings/')
+
+  const toggleRegAppsExpanded = () => {
+    setRegAppsExpanded(prev => {
+      const next = !prev
+      localStorage.setItem('pkthub_reg_app_settings_expanded', next ? '1' : '0')
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!isAdmin) return
@@ -79,22 +93,31 @@ export default function Layout() {
           {isAdmin && regApps.length > 0 && (
             <>
               <div className="h-0.5 bg-gray-600 mx-1 my-2 rounded-full" />
-              <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                Reg App Settings
-              </div>
-              {regApps.map(app => (
+              <button
+                onClick={toggleRegAppsExpanded}
+                className={clsx(
+                  'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  onRegAppSettingsRoute && !regAppsExpanded
+                    ? 'bg-blue-500/15 text-blue-400'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                )}
+              >
+                <Settings size={16} />
+                <span className="flex-1 text-left truncate">Reg App Settings</span>
+                {regAppsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </button>
+              {regAppsExpanded && regApps.map(app => (
                 <NavLink
                   key={app.id}
                   to={`/app-settings/${app.id}`}
                   className={({ isActive }) => clsx(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-3 pl-9 pr-3 py-2 rounded-lg text-sm font-medium transition-colors',
                     isActive
                       ? 'bg-blue-500/15 text-blue-400'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   )}
                 >
-                  <Settings size={16} />
-                  <span className="truncate">{app.display_name} - Settings</span>
+                  <span className="truncate">{app.display_name}</span>
                 </NavLink>
               ))}
             </>
