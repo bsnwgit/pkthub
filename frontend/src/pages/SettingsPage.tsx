@@ -1941,6 +1941,17 @@ const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean; gapBefore?: b
   { id: 'maintenance',   label: 'Maintenance' },
 ]
 
+// ── Top-level sections — Common holds the tabs that used to sit left of the
+// divider (gapBefore); the app-specific section holds gapBefore and everything
+// after it. Split point is derived from TABS itself, not duplicated here.
+type SectionId = 'common' | 'app'
+const APP_SECTION_LABEL = 'pktHub'
+const FIRST_APP_TAB_INDEX = TABS.findIndex(t => t.gapBefore)
+const sectionOfTab = (id: TabId): SectionId => {
+  const idx = TABS.findIndex(t => t.id === id)
+  return idx >= 0 && idx < FIRST_APP_TAB_INDEX ? 'common' : 'app'
+}
+
 // ── Open-source notices — backend (requirements.txt) + frontend (package.json) ─
 const OSS_NOTICES: Array<{ name: string; license: string }> = [
   { name: 'FastAPI',          license: 'MIT' },
@@ -2342,6 +2353,14 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<TabId>(
     initialTab && TABS.some(t => t.id === initialTab) ? initialTab : 'general'
   )
+  const [section, setSection] = useState<SectionId>(
+    sectionOfTab(initialTab && TABS.some(t => t.id === initialTab) ? initialTab : 'general')
+  )
+  const selectSection = (s: SectionId) => {
+    setSection(s)
+    const firstVisible = TABS.filter(t => !t.adminOnly || isAdmin).find(t => sectionOfTab(t.id) === s)
+    if (firstVisible) setTab(firstVisible.id)
+  }
   const [securityTab, setSecurityTab] = useState<SecurityTabId>(
     initialSecurityTab && SECURITY_TABS.some(t => t.id === initialSecurityTab)
       ? initialSecurityTab
@@ -2478,20 +2497,38 @@ export default function SettingsPage() {
     <div className="p-6 space-y-4 max-w-5xl">
       <h1 className="text-xl font-bold text-white">Settings</h1>
 
+      {/* Section bar */}
+      <div className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => selectSection('common')}
+          className={`text-sm px-4 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+            section === 'common' ? 'bg-gray-700 text-white' : 'text-white hover:text-white'
+          }`}
+        >
+          Common
+        </button>
+        <button
+          onClick={() => selectSection('app')}
+          className={`text-sm px-4 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+            section === 'app' ? 'bg-gray-700 text-white' : 'text-white hover:text-white'
+          }`}
+        >
+          {APP_SECTION_LABEL}
+        </button>
+      </div>
+
       {/* Tab bar */}
       <div className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-xl p-1 w-fit overflow-x-auto">
-        {TABS.filter(t => !t.adminOnly || isAdmin).map(t => (
-          <Fragment key={t.id}>
-            {t.gapBefore && <div className="w-px self-stretch bg-gray-700 mx-2" />}
-            <button
-              onClick={() => setTab(t.id)}
-              className={`text-sm px-4 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-                tab === t.id ? 'bg-gray-700 text-white' : 'text-white hover:text-white'
-              }`}
-            >
-              {t.label}
-            </button>
-          </Fragment>
+        {TABS.filter(t => (!t.adminOnly || isAdmin) && sectionOfTab(t.id) === section).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`text-sm px-4 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+              tab === t.id ? 'bg-gray-700 text-white' : 'text-white hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 

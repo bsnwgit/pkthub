@@ -29,6 +29,7 @@ React SPA are all live in the running app — not placeholder scaffolding.
 - [Roles & Auth](#roles--auth)
 - [IP Intelligence Lookup](#ip-intelligence-lookup)
 - [App Registry & Suite Integration](#app-registry--suite-integration)
+- [Settings Layout](#settings-layout)
 - [Reg App Settings](#reg-app-settings)
 - [NOC Displays](#noc-displays)
 - [Alerting & Notifications](#alerting--notifications)
@@ -259,6 +260,27 @@ lock state and, if an app reports itself unlocked while the hub still expects
 `app.lock_drift_detected` audit entry — a fail-safe so a sibling app can never
 get silently stuck locked out from itself.
 
+## Settings Layout
+
+pktHub's own **Settings** page is organized into two **sections**, chosen
+from a section bar above the tab bar:
+
+| Section | Tabs |
+|---|---|
+| **Common** | General · Security (Users, Auth, Suite Integration, AI Assistant, SSL/TLS) · Data (Storage, Backups) · Notifications · User Keys · System |
+| **pktHub** | Audit · App Registry · NOC · Maintenance |
+
+Common holds the settings that are identical across every pkt* app;
+pktHub holds this app's own. Selecting a section swaps the tab bar
+underneath it, so only one group's tabs are visible at a time — these used
+to share a single long row separated by a thin divider. Deep links such as
+`/settings?tab=registry` still work and select the section automatically.
+
+This is separate from **Reg App Settings** below, which embeds *other*
+apps' Settings pages in pktHub's nav.
+
+---
+
 ## Reg App Settings
 
 Every registered app gets its own entry in the left nav, under a **REG APP
@@ -367,6 +389,13 @@ the 10 most recent audit log entries. It explicitly does not have access to
 any individual pktApp's own telemetry (SNMP devices, log lines, packet
 captures, etc.) — for those it tells the user to use that app's own AI
 assistant, if it has one.
+
+Each provider call gets up to **180 seconds** to return an answer. That
+ceiling exists for local models on modest hardware — a large model working
+through a complex, multi-part question can run well past a minute, and a
+tighter limit turned those into spurious failures. Cloud providers rarely
+come close. On overrun, the panel says the provider didn't finish in time
+and suggests a shorter question rather than showing a bare error.
 
 A server-side pre-filter blocks prompt-injection/override attempts (e.g.
 "ignore your previous instructions," "reveal your system prompt") before

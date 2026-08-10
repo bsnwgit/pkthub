@@ -18,6 +18,8 @@ Analysts see the audit log filtered to only their own entries; admins see everyt
 
 **Dashboard**, **App Registry** (`/apps`), **NOC Builder**, **Alerts**, **Audit**, **Context Viewer**. **Settings** is admin-only.
 
+Settings has a section bar at the top with **Common** (General, Security, Data, Notifications, User Keys, System — the same in every pkt* app) and **pktHub** (Audit, App Registry, NOC, Maintenance). The tab row below shows one section at a time, so switch sections if a tab looks missing. This is pktHub's own settings — the separate **Reg App Settings** entries further down the nav open other apps' Settings pages.
+
 ## Dashboard
 
 An overview of every registered pkt app's health.
