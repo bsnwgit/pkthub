@@ -26,6 +26,15 @@ Prompts for install directory (default `/opt/pkthub`, or `PKTHUB_INSTALL_DIR` en
 6. **Set up backups** and confirm a manual run succeeds.
 7. **Create accounts** for your team.
 
+## Finding your way around Settings
+
+pktHub's own Settings page has a section bar above its tab bar:
+
+- **Common** — General, Security (Users, Auth, Suite Integration, AI Assistant, SSL/TLS), Data (Storage, Backups), Notifications, User Keys, System. Identical across every pkt* app.
+- **pktHub** — Audit, App Registry, NOC, Maintenance. This app's own.
+
+Only the selected section's tabs appear in the row below, so switch sections if a tab isn't where you expect it; they previously shared one long row split by a thin divider. Deep links to a tab select the right section automatically. Don't confuse this with **Reg App Settings** below, which embeds other apps' Settings pages in pktHub's nav.
+
 ## Users & roles
 
 `admin` (full access, including Settings and user management), `analyst` (elevated operational role — can act on parts of the app registry, but sees only their own entries in the audit log), `viewer` (read-only). The very first user is always created as `admin` from `config.yaml`'s `initial_admin_*` fields on first boot.
