@@ -5,7 +5,7 @@ import { UserPlus, Trash2, Shield } from 'lucide-react'
 import HelpButton from '../components/HelpButton'
 
 const ROLE_COLOR: Record<string, string> = {
-  admin: '#f87171', analyst: '#60a5fa', viewer: '#6b7280'
+  admin: '#ff8478', analyst: '#8ad8ea', viewer: '#a9a294'
 }
 
 export default function UsersPage() {
@@ -65,14 +65,14 @@ export default function UsersPage() {
         <button
           onClick={() => setShowForm(v => !v)}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-          style={{ background: 'linear-gradient(90deg,#60a5fa,#4ade80)' }}
+          style={{ background: 'linear-gradient(90deg,#8ad8ea,#9aeabd)' }}
         >
           <UserPlus size={13} /> Add User
         </button>
       </div>
 
       {showForm && (
-        <div className="rounded-xl border border-blue-500/20 p-5 space-y-4" style={{ background: '#111827' }}>
+        <div className="rounded-xl border border-blue-500/20 p-5 space-y-4" style={{ background: '#0d1219' }}>
           <h2 className="text-sm font-semibold text-white">New User</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
@@ -101,7 +101,7 @@ export default function UsersPage() {
           <div className="flex gap-2">
             <button onClick={create} disabled={creating || !form.username || !form.password}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: '#60a5fa' }}>
+              style={{ background: '#8ad8ea' }}>
               {creating ? 'Creating…' : 'Create User'}
             </button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">
@@ -113,7 +113,7 @@ export default function UsersPage() {
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
 
-      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
+      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800">

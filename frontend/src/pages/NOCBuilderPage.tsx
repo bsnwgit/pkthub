@@ -79,7 +79,7 @@ export default function NOCBuilderPage() {
           <button
             onClick={() => setShowForm(v => !v)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-            style={{ background: 'linear-gradient(90deg,#a78bfa,#60a5fa)' }}
+            style={{ background: 'linear-gradient(90deg,#b0a0dd,#8ad8ea)' }}
           >
             <Plus size={13} /> New NOC Display
           </button>
@@ -87,7 +87,7 @@ export default function NOCBuilderPage() {
       </div>
 
       {showForm && canCreate && (
-        <div className="rounded-xl border border-purple-500/20 p-5 space-y-4" style={{ background: '#111827' }}>
+        <div className="rounded-xl border border-purple-500/20 p-5 space-y-4" style={{ background: '#0d1219' }}>
           <h2 className="text-sm font-semibold text-white">New NOC Display Layout</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -123,7 +123,7 @@ export default function NOCBuilderPage() {
           <div className="flex gap-2">
             <button onClick={create} disabled={creating || !form.name}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: '#a78bfa' }}>
+              style={{ background: '#b0a0dd' }}>
               {creating ? 'Creating…' : 'Create & Edit Layout'}
             </button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">
@@ -135,14 +135,14 @@ export default function NOCBuilderPage() {
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
       {!loading && nocList.length === 0 && (
-        <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#111827' }}>
+        <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#0d1219' }}>
           No NOC displays yet. Create one to get started.
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {nocList.map(k => (
-          <div key={k.id} className="rounded-xl border border-purple-500/15 p-4 space-y-3" style={{ background: '#111827' }}>
+          <div key={k.id} className="rounded-xl border border-purple-500/15 p-4 space-y-3" style={{ background: '#0d1219' }}>
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-white">{k.name}</h3>
@@ -169,9 +169,9 @@ export default function NOCBuilderPage() {
               <button
                 onClick={() => navigate(`/noc/${k.id}/edit`)}
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors border"
-                style={{ background: '#1e293b', borderColor: '#334155', color: '#94a3b8' }}
+                style={{ background: '#10141b', borderColor: '#39414c', color: '#a9a294' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#6366f1'; (e.currentTarget as HTMLElement).style.color = '#a5b4fc' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#334155'; (e.currentTarget as HTMLElement).style.color = '#94a3b8' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#39414c'; (e.currentTarget as HTMLElement).style.color = '#a9a294' }}
               >
                 <Pencil size={11} /> Edit Layout
               </button>

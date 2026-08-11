@@ -70,7 +70,7 @@ export default function AppSettingsPage() {
           key={refreshNonce}
           src={`/proxy/${id}/settings?chromeless=1&_r=${refreshNonce}`}
           className="flex-1 w-full"
-          style={{ border: '1px solid #1f2937', borderRadius: '0.75rem', background: '#0a1628' }}
+          style={{ border: '1px solid #211c14', borderRadius: '0.75rem', background: '#0a1628' }}
           title={`${app?.display_name || app?.name || 'App'} Settings`}
         />
       ) : !error ? (

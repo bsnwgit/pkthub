@@ -7,11 +7,17 @@ import { Home, ChevronDown, Check, ShieldAlert, RefreshCw } from 'lucide-react'
 import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
-  pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
-  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
+  pktflow: '#ab9017',
+  pktsnmp: '#007dab',
+  pktlog: '#d86353',
+  pktpcap: '#00a49e',
+  pktwifi: '#8561bd',
+  pktipam: '#007b43',
+  pktnode: '#466cc8',
+  pktsecurity: '#be7125',
 }
 function appColor(name: string) {
-  return APP_COLORS[(name || '').toLowerCase().replace(/[^a-z]/g, '')] || '#6b7280'
+  return APP_COLORS[(name || '').toLowerCase().replace(/[^a-z]/g, '')] || '#a9a294'
 }
 
 export default function ContextViewerPage() {
@@ -111,7 +117,7 @@ export default function ContextViewerPage() {
     setLoading(false)
   }
 
-  const color = selectedApp ? appColor(selectedApp.name) : '#6b7280'
+  const color = selectedApp ? appColor(selectedApp.name) : '#a9a294'
 
   return (
     <div className="flex flex-col h-screen" style={{ background: '#0a1628' }}>
@@ -147,8 +153,8 @@ export default function ContextViewerPage() {
               onClick={() => setDropdownOpen(v => !v)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors border"
               style={{
-                color: selectedApp ? color : '#9ca3af',
-                borderColor: selectedApp ? `${color}40` : '#374151',
+                color: selectedApp ? color : '#a9a294',
+                borderColor: selectedApp ? `${color}40` : '#2a2418',
                 background: selectedApp ? `${color}10` : 'transparent',
               }}
             >
@@ -159,7 +165,7 @@ export default function ContextViewerPage() {
             {dropdownOpen && (
               <div
                 className="absolute right-0 top-full mt-1 rounded-lg border border-gray-700 py-1 shadow-xl z-50 min-w-[160px]"
-                style={{ background: '#111827' }}
+                style={{ background: '#0d1219' }}
               >
                 {apps.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-gray-500">No apps registered</div>
@@ -174,7 +180,7 @@ export default function ContextViewerPage() {
                         className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors hover:bg-white/5"
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />
-                        <span className="flex-1" style={{ color: isActive ? c : '#d1d5db' }}>
+                        <span className="flex-1" style={{ color: isActive ? c : '#dcd6c9' }}>
                           {app.name}
                         </span>
                         {isActive && <Check size={12} style={{ color: c }} />}
@@ -230,7 +236,7 @@ export default function ContextViewerPage() {
               onClick={resyncToken}
               disabled={resyncing}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-colors"
-              style={{ background: '#dc2626' }}
+              style={{ background: '#e04a3c' }}
             >
               <RefreshCw size={14} className={resyncing ? 'animate-spin' : ''} />
               {resyncing ? 'Syncing…' : 'Re-sync Token from App'}

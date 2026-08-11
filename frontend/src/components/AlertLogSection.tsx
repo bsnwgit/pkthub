@@ -203,7 +203,7 @@ export default function AlertLogSection() {
     <>
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} apps={appNames} />}
 
-      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
+      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
         {/* Section header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
           <div className="flex items-center gap-2">
