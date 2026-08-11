@@ -15,7 +15,7 @@ export default function ConfirmModal({ open, title, message, confirmLabel = 'Con
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 rounded-xl border border-gray-700 p-6 max-w-md w-full mx-4 shadow-2xl" style={{ background: '#0d1117' }}>
+      <div className="relative z-10 rounded-xl border border-gray-700 p-6 max-w-md w-full mx-4 shadow-2xl" style={{ background: '#0d1219' }}>
         <div className="flex items-start justify-between mb-4">
           <h3 className="text-base font-semibold text-white">{title}</h3>
           <button onClick={onCancel} className="text-gray-500 hover:text-gray-300 ml-4"><X size={16} /></button>

@@ -61,11 +61,11 @@ export default function Layout() {
   })
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#0a1628' }}>
+    <div className="relative z-10 flex h-screen overflow-hidden text-white">
       {/* Sidebar */}
-      <aside className="flex flex-col w-60 shrink-0 border-r border-gray-800" style={{ background: '#0d1f3c' }}>
+      <aside className="flex flex-col w-60 shrink-0 border-r border-gray-800" style={{ background: 'linear-gradient(180deg, rgba(216,180,110,.025), transparent 40%)' }}>
         {/* Logo */}
-        <div className="flex items-center px-3 py-3 border-b border-gray-800">
+        <div className="flex items-center px-5 py-4 border-b border-gray-800">
           <PktSuiteLockup height={44} />
         </div>
 
@@ -73,15 +73,15 @@ export default function Layout() {
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
           {visible.map(item => (
             <div key={item.to}>
-              {item.dividerBefore && <div className="h-0.5 bg-gray-600 mx-1 my-2 rounded-full" />}
+              {item.dividerBefore && <div className="h-px bg-blue-500/25 mx-3 my-3" />}
               <NavLink
                 to={item.to}
                 end={item.exact}
                 className={({ isActive }) => clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
                   isActive
-                    ? 'bg-blue-500/15 text-blue-400'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
+                    : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
                 )}
               >
                 <item.icon size={16} />
@@ -92,14 +92,14 @@ export default function Layout() {
 
           {isAdmin && regApps.length > 0 && (
             <>
-              <div className="h-0.5 bg-gray-600 mx-1 my-2 rounded-full" />
+              <div className="h-px bg-blue-500/25 mx-3 my-3" />
               <button
                 onClick={toggleRegAppsExpanded}
                 className={clsx(
-                  'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-3 w-full px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
                   onRegAppSettingsRoute && !regAppsExpanded
-                    ? 'bg-blue-500/15 text-blue-400'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
+                    : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
                 )}
               >
                 <Settings size={16} />
@@ -111,10 +111,10 @@ export default function Layout() {
                   key={app.id}
                   to={`/app-settings/${app.id}`}
                   className={({ isActive }) => clsx(
-                    'flex items-center gap-3 pl-9 pr-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-3 pl-9 pr-3 py-2 text-[11px] tracking-[0.1em] transition-colors',
                     isActive
-                      ? 'bg-blue-500/15 text-blue-400'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                      ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
+                      : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
                   )}
                 >
                   <span className="truncate">{app.display_name}</span>
@@ -129,10 +129,10 @@ export default function Layout() {
           <NavLink
             to="/documentation"
             className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              'flex items-center gap-3 px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
               isActive
-                ? 'bg-blue-500/15 text-blue-400'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
+                : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
             )}
           >
             <BookOpen size={16} />

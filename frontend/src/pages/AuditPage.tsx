@@ -80,10 +80,10 @@ export default function AuditPage() {
   const pagedEntries = entries.slice((pageClamped - 1) * pageSize, pageClamped * pageSize)
 
   const ACTION_COLOR: Record<string, string> = {
-    login: '#60a5fa', logout: '#6b7280', register_app: '#4ade80',
-    deregister_app: '#f87171', rotate_token: '#f59e0b', create_user: '#4ade80',
-    delete_user: '#f87171', update_user: '#60a5fa', create_kiosk: '#a78bfa',
-    delete_kiosk: '#f87171', publish_kiosk: '#4ade80', mode_change: '#f59e0b',
+    login: '#8ad8ea', logout: '#a9a294', register_app: '#9aeabd',
+    deregister_app: '#ff8478', rotate_token: '#f3c265', create_user: '#9aeabd',
+    delete_user: '#ff8478', update_user: '#8ad8ea', create_kiosk: '#b0a0dd',
+    delete_kiosk: '#ff8478', publish_kiosk: '#9aeabd', mode_change: '#f3c265',
   }
 
   return (
@@ -146,7 +146,7 @@ export default function AuditPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
+      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800">
@@ -160,7 +160,7 @@ export default function AuditPage() {
               <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">No entries found.</td></tr>
             )}
             {pagedEntries.map((e, i) => {
-              const color = ACTION_COLOR[e.action] || '#6b7280'
+              const color = ACTION_COLOR[e.action] || '#a9a294'
               return (
                 <tr key={i} className="hover:bg-white/2 transition-colors">
                   <td className="px-4 py-2.5 text-xs text-gray-500 font-mono whitespace-nowrap">

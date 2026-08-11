@@ -6,27 +6,27 @@ import AlertLogSection from '../components/AlertLogSection'
 import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
-  pktflow: '#60a5fa',
-  pktsnmp: '#2dd4bf',
-  pktlog: '#4ade80',
-  pktpcap: '#a78bfa',
-  pktwifi: '#38bdf8',
-  pktipam: '#f472b6',
-  pktnode: '#facc15',
-  pktsecurity: '#f87171',
+  pktflow: '#ab9017',
+  pktsnmp: '#007dab',
+  pktlog: '#d86353',
+  pktpcap: '#00a49e',
+  pktwifi: '#8561bd',
+  pktipam: '#007b43',
+  pktnode: '#466cc8',
+  pktsecurity: '#be7125',
 }
 
 function appColor(name: string) {
   const key = name?.toLowerCase().replace(/[^a-z]/g, '')
-  return APP_COLORS[key] || '#6b7280'
+  return APP_COLORS[key] || '#a9a294'
 }
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; icon: any }> = {
-    healthy: { label: 'Healthy', color: '#4ade80', icon: CheckCircle },
-    degraded: { label: 'Degraded', color: '#f59e0b', icon: AlertTriangle },
-    unreachable: { label: 'Unreachable', color: '#f87171', icon: XCircle },
-    unknown: { label: 'Unknown', color: '#6b7280', icon: Clock },
+    healthy: { label: 'Healthy', color: '#9aeabd', icon: CheckCircle },
+    degraded: { label: 'Degraded', color: '#f3c265', icon: AlertTriangle },
+    unreachable: { label: 'Unreachable', color: '#ff8478', icon: XCircle },
+    unknown: { label: 'Unknown', color: '#a9a294', icon: Clock },
   }
   const s = map[status] || map.unknown
   const Icon = s.icon
@@ -52,10 +52,10 @@ export default function DashboardPage() {
   }, [])
 
   const stats = data ? [
-    { label: 'Total Apps', value: data.summary?.total_apps ?? 0, color: '#60a5fa' },
-    { label: 'Healthy', value: data.summary?.healthy ?? 0, color: '#4ade80' },
-    { label: 'Degraded', value: data.summary?.degraded ?? 0, color: '#f59e0b' },
-    { label: 'Unreachable', value: data.summary?.unreachable ?? 0, color: '#f87171' },
+    { label: 'Total Apps', value: data.summary?.total_apps ?? 0, color: '#8ad8ea' },
+    { label: 'Healthy', value: data.summary?.healthy ?? 0, color: '#9aeabd' },
+    { label: 'Degraded', value: data.summary?.degraded ?? 0, color: '#f3c265' },
+    { label: 'Unreachable', value: data.summary?.unreachable ?? 0, color: '#ff8478' },
   ] : []
 
   return (
@@ -87,7 +87,7 @@ export default function DashboardPage() {
       {data && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map(s => (
-            <div key={s.label} className="rounded-xl p-4 border border-gray-800" style={{ background: '#111827' }}>
+            <div key={s.label} className="rounded-xl p-4 border border-gray-800" style={{ background: '#0d1219' }}>
               <p className="text-xs text-gray-400">{s.label}</p>
               <p className="text-3xl font-bold mt-1" style={{ color: s.color }}>{s.value}</p>
             </div>
@@ -110,7 +110,7 @@ export default function DashboardPage() {
           <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>
         )}
         {data?.apps?.length === 0 && (
-          <div className="text-sm text-gray-500 py-8 text-center border border-gray-800 rounded-xl" style={{ background: '#111827' }}>
+          <div className="text-sm text-gray-500 py-8 text-center border border-gray-800 rounded-xl" style={{ background: '#0d1219' }}>
             No apps registered yet. Go to <button onClick={() => navigate('/apps')} className="text-blue-400 hover:underline">App Manager</button> to add one.
           </div>
         )}
@@ -121,7 +121,7 @@ export default function DashboardPage() {
               <div
                 key={app.id}
                 className="rounded-xl border p-4 cursor-pointer hover:border-opacity-60 transition-colors"
-                style={{ background: '#111827', borderColor: color + '33' }}
+                style={{ background: '#0d1219', borderColor: color + '33' }}
                 onClick={() => navigate(`/context?app=${app.id}`)}
               >
                 <div className="flex items-start justify-between mb-3">
