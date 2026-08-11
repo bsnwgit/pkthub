@@ -6,94 +6,111 @@ import { ExternalLink, ChevronDown, Settings as SettingsIcon } from 'lucide-reac
 import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
-  pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
-  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
+  pktflow: '#ab9017',
+  pktsnmp: '#007dab',
+  pktlog: '#d86353',
+  pktpcap: '#00a49e',
+  pktwifi: '#8561bd',
+  pktipam: '#007b43',
+  pktnode: '#466cc8',
+  pktsecurity: '#be7125',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
-  return APP_COLORS[key] || '#6b7280'
+  return APP_COLORS[key] || '#a9a294'
 }
 
 // ── Per-app inline SVG icons ──────────────────────────────────────────────────
 function PktLogIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="3.5" width="18" height="2.5" rx="1.25" fill={color} opacity="0.95" />
-      <rect x="2" y="9.75" width="13" height="2.5" rx="1.25" fill={color} opacity="0.70" />
-      <rect x="2" y="16" width="8" height="2.5" rx="1.25" fill={color} opacity="0.45" />
+      <path d="M3 5 H19" stroke={color} strokeWidth="1.3" strokeLinecap="round" opacity="0.45"/>
+      <path d="M3 9 H19" stroke={color} strokeWidth="1.3" strokeLinecap="round" opacity="0.7"/>
+      <path d="M3 13 H14" stroke={color} strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M3 17 H10" stroke={color} strokeWidth="1.3" strokeLinecap="round"/>
+      <circle cx="11.5" cy="17" r="1.3" fill={color}/>
     </svg>
   )
 }
 function PktFlowIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 7 H14 L10 3.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>
-      <path d="M14 7 L10 10.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>
-      <path d="M20 15 H8 L12 11.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
-      <path d="M8 15 L12 18.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
+      <path d="M3 7 H15" stroke={color} strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M12 4 L15 7 L12 10" stroke={color} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <path d="M19 15 H7" stroke={color} strokeWidth="1.3" strokeLinecap="round" opacity="0.7"/>
+      <path d="M10 12 L7 15 L10 18" stroke={color} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.7"/>
     </svg>
   )
 }
 function PktSnmpIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="11" cy="4.5" r="2.5" fill={color} opacity="0.95"/>
-      <circle cx="4"  cy="17"  r="2"   fill={color} opacity="0.80"/>
-      <circle cx="18" cy="17"  r="2"   fill={color} opacity="0.80"/>
-      <circle cx="11" cy="17"  r="2"   fill={color} opacity="0.60"/>
-      <line x1="11" y1="7"  x2="4"  y2="15" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
-      <line x1="11" y1="7"  x2="18" y2="15" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
-      <line x1="11" y1="7"  x2="11" y2="15" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.35"/>
+      <circle cx="11" cy="6" r="3.1" stroke={color} strokeWidth="1.3"/>
+      <circle cx="11" cy="6" r="1.1" fill={color}/>
+      <path d="M11 9.2 L4.5 15" stroke={color} strokeWidth="1.1" opacity="0.55"/>
+      <path d="M11 9.2 L17.5 15" stroke={color} strokeWidth="1.1" opacity="0.55"/>
+      <path d="M11 9.2 V15" stroke={color} strokeWidth="1.1" opacity="0.55"/>
+      <circle cx="4.5" cy="17" r="1.7" stroke={color} strokeWidth="1.1"/>
+      <circle cx="11" cy="17" r="1.7" stroke={color} strokeWidth="1.1"/>
+      <circle cx="17.5" cy="17" r="1.7" stroke={color} strokeWidth="1.1"/>
     </svg>
   )
 }
 function PktPcapIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="9" cy="9" r="6.3" stroke={color} strokeWidth="1.7"/>
-      <rect x="6" y="7.7" width="6" height="3.1" rx="0.6" stroke={color} strokeWidth="1"/>
-      <line x1="6.9" y1="8.5" x2="11.1" y2="8.5" stroke={color} strokeWidth="0.8" strokeLinecap="round"/>
-      <line x1="6.9" y1="9.5" x2="11.1" y2="9.5" stroke={color} strokeWidth="0.8" strokeLinecap="round"/>
-      <line x1="14" y1="14" x2="18.3" y2="18.3" stroke={color} strokeWidth="1.9" strokeLinecap="round"/>
+      <circle cx="9" cy="9" r="6" stroke={color} strokeWidth="1.3"/>
+      <rect x="5.8" y="7.4" width="6.4" height="3.4" stroke={color} strokeWidth="1"/>
+      <path d="M6.8 8.6 H11.2" stroke={color} strokeWidth="0.9" strokeLinecap="round"/>
+      <path d="M6.8 9.9 H10" stroke={color} strokeWidth="0.9" strokeLinecap="round" opacity="0.6"/>
+      <path d="M13.6 13.6 L18.4 18.4" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
 function PktWifiIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 8.5 C7 3.5, 15 3.5, 20 8.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.45"/>
-      <path d="M5.5 12 C9 8.75, 13 8.75, 16.5 12" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.70"/>
-      <path d="M9 15.5 C10.2 14.3, 11.8 14.3, 13 15.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.95"/>
-      <circle cx="11" cy="18.5" r="1.4" fill={color} opacity="0.95"/>
+      <rect x="8.4" y="15" width="5.2" height="5.2" stroke={color} strokeWidth="1.2"/>
+      <circle cx="11" cy="17.6" r="0.9" fill={color}/>
+      <path d="M7.6 12.6 a5 5 0 0 1 6.8 0" stroke={color} strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+      <path d="M5.3 9.6 a8.6 8.6 0 0 1 11.4 0" stroke={color} strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.65"/>
+      <path d="M3 6.6 a12.4 12.4 0 0 1 16 0" stroke={color} strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.4"/>
     </svg>
   )
 }
 function PktIpamIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="3" width="7" height="7" rx="1.5" fill={color} fillOpacity="0.18" stroke={color} strokeWidth="1.5"/>
-      <rect x="13" y="3" width="7" height="7" rx="1.5" fill={color} fillOpacity="0.18" stroke={color} strokeWidth="1.5"/>
-      <rect x="7.5" y="13" width="7" height="7" rx="1.5" fill={color} fillOpacity="0.35" stroke={color} strokeWidth="1.5"/>
-      <path d="M5.5 10 V13 M16.5 10 V13 M5.5 13 H16.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+      <rect x="3" y="3" width="4.6" height="4.6" stroke={color} strokeWidth="1.2" fill={color} fillOpacity="0.16"/>
+      <rect x="8.7" y="3" width="4.6" height="4.6" stroke={color} strokeWidth="1.1" opacity="0.5"/>
+      <rect x="14.4" y="3" width="4.6" height="4.6" stroke={color} strokeWidth="1.2" fill={color} fillOpacity="0.16"/>
+      <rect x="3" y="8.7" width="4.6" height="4.6" stroke={color} strokeWidth="1.1" opacity="0.5"/>
+      <rect x="8.7" y="8.7" width="4.6" height="4.6" stroke={color} strokeWidth="1.3" fill={color} fillOpacity="0.28"/>
+      <rect x="14.4" y="8.7" width="4.6" height="4.6" stroke={color} strokeWidth="1.1" opacity="0.5"/>
+      <rect x="3" y="14.4" width="4.6" height="4.6" stroke={color} strokeWidth="1.2" fill={color} fillOpacity="0.16"/>
+      <rect x="8.7" y="14.4" width="4.6" height="4.6" stroke={color} strokeWidth="1.1" opacity="0.5"/>
+      <rect x="14.4" y="14.4" width="4.6" height="4.6" stroke={color} strokeWidth="1.2" fill={color} fillOpacity="0.16"/>
     </svg>
   )
 }
 function PktNodeIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="3" width="16" height="10" rx="1.5" fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.5"/>
-      <line x1="11" y1="13" x2="11" y2="16.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.7"/>
-      <line x1="6" y1="19" x2="16" y2="19" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.85"/>
-      <circle cx="11" cy="8" r="2" fill={color} opacity="0.6"/>
+      <rect x="2.6" y="4" width="16.8" height="10.4" stroke={color} strokeWidth="1.3"/>
+      <path d="M5.4 7 H11" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.55"/>
+      <path d="M5.4 9.4 H8.6" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.55"/>
+      <circle cx="15.4" cy="10.6" r="1.5" stroke={color} strokeWidth="1"/>
+      <path d="M11 14.4 V17" stroke={color} strokeWidth="1.2"/>
+      <path d="M6.6 19 H15.4" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
 function PktSecurityIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M11 2.5 L18.5 5.5 V11 C18.5 15.5 15.3 18.7 11 19.8 C6.7 18.7 3.5 15.5 3.5 11 V5.5 Z"
-            fill={color} fillOpacity="0.15" stroke={color} strokeWidth="1.6" strokeLinejoin="round"/>
-      <path d="M7.7 11 L9.9 13.2 L14.5 8.4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/>
+      <path d="M11 2.6 L18.4 5.6 V11.2 C18.4 15.4 15 18.4 11 19.8 C7 18.4 3.6 15.4 3.6 11.2 V5.6 Z"
+            stroke={color} strokeWidth="1.3" strokeLinejoin="round" fill={color} fillOpacity="0.08"/>
+      <path d="M7.8 11 L10 13.2 L14.4 8.6" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
     </svg>
   )
 }
@@ -123,13 +140,13 @@ function AppLogo({ name, statusColor }: { name: string; statusColor: string }) {
         <AppLogoIcon name={name} color={color} />
       </div>
       <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
-           style={{ background: statusColor, borderColor: '#111827' }} />
+           style={{ background: statusColor, borderColor: '#0d1219' }} />
     </div>
   )
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  healthy: '#4ade80', degraded: '#f59e0b', unreachable: '#f87171', unknown: '#6b7280',
+  healthy: '#9aeabd', degraded: '#f3c265', unreachable: '#ff8478', unknown: '#a9a294',
 }
 
 // ── Read-only app registry view for all roles ─────────────────────────────────
@@ -199,7 +216,7 @@ export default function AppManagerPage() {
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
       {!loading && apps.length === 0 && (
-        <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#111827' }}>
+        <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#0d1219' }}>
           No apps registered.{isAdmin && ' Register one from Settings → Security → Suite Integration.'}
         </div>
       )}
@@ -208,7 +225,7 @@ export default function AppManagerPage() {
       <div className="space-y-3">
         {apps.map(app => {
           const color      = appColor(app.name)
-          const statusColor = STATUS_COLOR[app.health_status] || '#6b7280'
+          const statusColor = STATUS_COLOR[app.health_status] || '#a9a294'
           const isManaged  = app.access_mode === 'managed'
           const hasMismatch = alerts.some(
             (a: any) => a.app_id === app.id && a.event_type === 'token_mismatch' && a.status === 'active'
@@ -217,7 +234,7 @@ export default function AppManagerPage() {
           const logsOpen   = expandedApp === app.id
 
           return (
-            <div key={app.id} className="rounded-xl border overflow-hidden" style={{ background: '#111827', borderColor: color + '25' }}>
+            <div key={app.id} className="rounded-xl border overflow-hidden" style={{ background: '#0d1219', borderColor: color + '25' }}>
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   {/* Left: status dot + info */}
@@ -272,7 +289,7 @@ export default function AppManagerPage() {
 
               {/* Expandable audit log */}
               {logsOpen && (
-                <div className="border-t px-4 py-3" style={{ borderColor: color + '20', background: '#0d1117' }}>
+                <div className="border-t px-4 py-3" style={{ borderColor: color + '20', background: '#0d1219' }}>
                   <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Access Mode Audit Log</p>
                   {logsLoading[app.id] ? (
                     <p className="text-xs text-gray-600 py-2">Loading…</p>

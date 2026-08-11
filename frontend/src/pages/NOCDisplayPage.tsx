@@ -83,13 +83,13 @@ export default function NOCDisplayPage() {
   }, [noc, currentSlide, slides])
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center text-sm text-red-400" style={{ background: '#0a1628' }}>
+    <div className="min-h-screen flex items-center justify-center text-sm text-red-400" style={{ background: '#04060a' }}>
       {error === 'Not Found' ? 'Display token not found or revoked.' : error}
     </div>
   )
 
   if (!noc) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#04060a' }}>
       <PktSuiteIcon size={48} />
     </div>
   )
@@ -97,7 +97,7 @@ export default function NOCDisplayPage() {
   const slide = slides[currentSlide]
 
   return (
-    <div className="flex flex-col" style={{ background: '#0a1628', height: '100vh', overflow: 'hidden' }}>
+    <div className="flex flex-col" style={{ background: '#04060a', height: '100vh', overflow: 'hidden' }}>
 
       {/* Minimal header bar */}
       <div className="flex items-center justify-between px-6 border-b border-gray-800/60"
@@ -115,12 +115,12 @@ export default function NOCDisplayPage() {
               {slides.map((_: NOCSlide, i: number) => (
                 <div key={i} onClick={() => setCurrentSlide(i)}
                   className="w-1.5 h-1.5 rounded-full cursor-pointer transition-all"
-                  style={{ background: i === currentSlide ? '#a78bfa' : '#1e293b' }} />
+                  style={{ background: i === currentSlide ? '#b0a0dd' : '#10141b' }} />
               ))}
             </div>
           )}
           <div className="flex gap-1">
-            {['#60a5fa', '#2dd4bf', '#4ade80', '#a78bfa'].map(c => (
+            {['#8ad8ea', '#00a49e', '#9aeabd', '#b0a0dd'].map(c => (
               <div key={c} className="w-1 h-1 rounded-full" style={{ background: c }} />
             ))}
           </div>
@@ -164,7 +164,7 @@ export default function NOCDisplayPage() {
                   height: w.h,
                   border: 'none',
                   borderRadius: '8px',
-                  background: '#111827',
+                  background: '#0d1219',
                 }}
               />
             ))}

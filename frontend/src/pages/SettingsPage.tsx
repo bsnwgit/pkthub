@@ -895,7 +895,7 @@ const SEVERITY_OPTS = [
   { value: 'info',     label: 'Info' },
 ]
 const SEV_COLOR: Record<string, string> = {
-  critical: '#f87171', warning: '#f59e0b', info: '#60a5fa',
+  critical: '#ff8478', warning: '#f3c265', info: '#8ad8ea',
 }
 
 function AlertRulesSection() {
@@ -1041,7 +1041,7 @@ function AlertRulesSection() {
                   <td className="px-4 py-3 text-xs text-gray-400 font-mono">{r.event_type}</td>
                   <td className="px-4 py-3">
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
-                      style={{ color: SEV_COLOR[r.severity] || '#6b7280', background: (SEV_COLOR[r.severity] || '#6b7280') + '20' }}>
+                      style={{ color: SEV_COLOR[r.severity] || '#a9a294', background: (SEV_COLOR[r.severity] || '#a9a294') + '20' }}>
                       {r.severity}
                     </span>
                   </td>
@@ -1336,15 +1336,21 @@ const numOf = (s: Record<string,string>, k: string, fallback = 0) => parseInt(s[
 
 // ── App registry colors / status ──────────────────────────────────────────────
 const APP_COLORS: Record<string, string> = {
-  pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
-  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
+  pktflow: '#ab9017',
+  pktsnmp: '#007dab',
+  pktlog: '#d86353',
+  pktpcap: '#00a49e',
+  pktwifi: '#8561bd',
+  pktipam: '#007b43',
+  pktnode: '#466cc8',
+  pktsecurity: '#be7125',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
-  return APP_COLORS[key] || '#6b7280'
+  return APP_COLORS[key] || '#a9a294'
 }
 const HEALTH_COLOR: Record<string, string> = {
-  healthy: '#4ade80', degraded: '#f59e0b', unreachable: '#f87171', unknown: '#6b7280',
+  healthy: '#9aeabd', degraded: '#f3c265', unreachable: '#ff8478', unknown: '#a9a294',
 }
 
 // ── App Registry tab (config only — app management lives in main App Registry page) ─────────
@@ -1460,13 +1466,13 @@ function NOCSection({ settings, set, save }: {
         </Field>
       </Section>
 
-      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#111827' }}>
+      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
           <p className="text-sm font-semibold text-white">NOC Layouts</p>
           {canCreate && (
             <button onClick={() => setShowForm(v => !v)}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-              style={{ background: 'linear-gradient(90deg,#a78bfa,#60a5fa)' }}>
+              style={{ background: 'linear-gradient(90deg,#b0a0dd,#8ad8ea)' }}>
               <Plus size={13} /> New NOC Display
             </button>
           )}
@@ -1510,7 +1516,7 @@ function NOCSection({ settings, set, save }: {
             <div className="flex gap-2">
               <button onClick={create} disabled={creating || !form.name}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: '#a78bfa' }}>
+                style={{ background: '#b0a0dd' }}>
                 {creating ? 'Creating…' : 'Create'}
               </button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">Cancel</button>
@@ -2197,7 +2203,7 @@ function SuiteIntegrationTab() {
           )}
           <button onClick={() => { cancelForm(); setShowForm(v => !v) }}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-            style={{ background: 'linear-gradient(90deg,#60a5fa,#2dd4bf)' }}>
+            style={{ background: 'linear-gradient(90deg,#8ad8ea,#00a49e)' }}>
             <Plus size={13} /> {editingAppId !== null ? 'Edit App' : 'Register App'}
           </button>
         </div>
@@ -2264,7 +2270,7 @@ function SuiteIntegrationTab() {
             <button onClick={register}
               disabled={registering || !form.name || !form.base_url || (editingAppId === null && !form.suite_token)}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: '#60a5fa' }}>
+              style={{ background: '#8ad8ea' }}>
               {registering ? (editingAppId !== null ? 'Saving…' : 'Registering…') : (editingAppId !== null ? 'Save Changes' : 'Register')}
             </button>
             <button onClick={cancelForm} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200">Cancel</button>
