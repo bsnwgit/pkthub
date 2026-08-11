@@ -3,11 +3,11 @@
   <g transform="translate(6,8) scale(0.75)">
   <circle cx="32" cy="32" r="30" stroke="rgba(216,180,110,.16)"/>
   <circle cx="32" cy="32" r="30" stroke="rgba(216,180,110,.5)" stroke-dasharray="1.5 11"/>
-  <path d="M32 25 V17" stroke="rgba(216,180,110,.85)" stroke-width="1.3.2"/>
-  <path d="M36.5 38.5 L45 44" stroke="rgba(216,180,110,.85)" stroke-width="1.3.2"/>
-  <path d="M27.5 38.5 L19 44" stroke="rgba(138,216,234,.55)" stroke-width="1.3.2"/>
+  <path d="M32 25 V17" stroke="rgba(216,180,110,.85)" stroke-width="1.5"/>
+  <path d="M36.5 38.5 L45 44" stroke="rgba(216,180,110,.85)" stroke-width="1.5"/>
+  <path d="M27.5 38.5 L19 44" stroke="rgba(138,216,234,.55)" stroke-width="1.5"/>
   <circle cx="32" cy="32" r="11.5" stroke="rgba(216,180,110,.24)"/>
-  <circle cx="32" cy="32" r="7" stroke="#f5e2b6" stroke-width="1.3.3"/>
+  <circle cx="32" cy="32" r="7" stroke="#f5e2b6" stroke-width="1.6"/>
   <circle cx="32" cy="32" r="2.4" fill="#f5e2b6"/>
   <circle cx="32" cy="14" r="3.4" stroke="rgba(216,180,110,.85)"/>
   <circle cx="48" cy="46" r="3.4" stroke="rgba(216,180,110,.85)"/>
