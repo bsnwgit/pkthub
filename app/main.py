@@ -73,6 +73,12 @@ async def startup():
     async with aiosqlite.connect(settings.db_path) as db:
         db.row_factory = aiosqlite.Row
         await ensure_initial_admin(db)
+    from app.system_api import start_log_forwarding
+    await start_log_forwarding()
+
+    from app.retention import RetentionScheduler
+    await RetentionScheduler().start()
+
     asyncio.create_task(health_poller())
 
 async def health_poller():
