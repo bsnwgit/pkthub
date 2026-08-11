@@ -170,7 +170,7 @@ export default function NOCBuilderPage() {
                 onClick={() => navigate(`/noc/${k.id}/edit`)}
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors border"
                 style={{ background: '#10141b', borderColor: '#39414c', color: '#a9a294' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#6366f1'; (e.currentTarget as HTMLElement).style.color = '#a5b4fc' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#466cc8'; (e.currentTarget as HTMLElement).style.color = '#c4b7e9' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#39414c'; (e.currentTarget as HTMLElement).style.color = '#a9a294' }}
               >
                 <Pencil size={11} /> Edit Layout
@@ -208,7 +208,7 @@ export default function NOCBuilderPage() {
       </div>
 
       {/* Widget manifest info callout */}
-      <div className="rounded-xl border border-blue-800/30 p-4 text-sm" style={{ background: '#0f1f38' }}>
+      <div className="rounded-xl border border-blue-800/30 p-4 text-sm" style={{ background: '#080b11' }}>
         <p className="text-blue-300 font-medium mb-1">Widget Library</p>
         <p className="text-gray-400 text-xs">
           When a pktAPP app is registered, pktHub reads its <code className="text-blue-300">/api/widgets/manifest</code> endpoint

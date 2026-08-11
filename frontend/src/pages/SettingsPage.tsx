@@ -2203,7 +2203,7 @@ function SuiteIntegrationTab() {
           )}
           <button onClick={() => { cancelForm(); setShowForm(v => !v) }}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
-            style={{ background: 'linear-gradient(90deg,#8ad8ea,#2dd4bf)' }}>
+            style={{ background: 'linear-gradient(90deg,#8ad8ea,#00a49e)' }}>
             <Plus size={13} /> {editingAppId !== null ? 'Edit App' : 'Register App'}
           </button>
         </div>
