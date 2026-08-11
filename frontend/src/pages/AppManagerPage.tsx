@@ -6,12 +6,18 @@ import { ExternalLink, ChevronDown, Settings as SettingsIcon } from 'lucide-reac
 import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
-  pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
-  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
+  pktflow: '#ab9017',
+  pktsnmp: '#007dab',
+  pktlog: '#d86353',
+  pktpcap: '#00a49e',
+  pktwifi: '#8561bd',
+  pktipam: '#007b43',
+  pktnode: '#466cc8',
+  pktsecurity: '#be7125',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
-  return APP_COLORS[key] || '#6b7280'
+  return APP_COLORS[key] || '#a9a294'
 }
 
 // ── Per-app inline SVG icons ──────────────────────────────────────────────────
@@ -123,13 +129,13 @@ function AppLogo({ name, statusColor }: { name: string; statusColor: string }) {
         <AppLogoIcon name={name} color={color} />
       </div>
       <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
-           style={{ background: statusColor, borderColor: '#111827' }} />
+           style={{ background: statusColor, borderColor: '#0d1219' }} />
     </div>
   )
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  healthy: '#4ade80', degraded: '#f59e0b', unreachable: '#f87171', unknown: '#6b7280',
+  healthy: '#9aeabd', degraded: '#f3c265', unreachable: '#ff8478', unknown: '#a9a294',
 }
 
 // ── Read-only app registry view for all roles ─────────────────────────────────
@@ -199,7 +205,7 @@ export default function AppManagerPage() {
 
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
       {!loading && apps.length === 0 && (
-        <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#111827' }}>
+        <div className="text-sm text-gray-500 py-12 text-center border border-gray-800 rounded-xl" style={{ background: '#0d1219' }}>
           No apps registered.{isAdmin && ' Register one from Settings → Security → Suite Integration.'}
         </div>
       )}
@@ -208,7 +214,7 @@ export default function AppManagerPage() {
       <div className="space-y-3">
         {apps.map(app => {
           const color      = appColor(app.name)
-          const statusColor = STATUS_COLOR[app.health_status] || '#6b7280'
+          const statusColor = STATUS_COLOR[app.health_status] || '#a9a294'
           const isManaged  = app.access_mode === 'managed'
           const hasMismatch = alerts.some(
             (a: any) => a.app_id === app.id && a.event_type === 'token_mismatch' && a.status === 'active'
@@ -217,7 +223,7 @@ export default function AppManagerPage() {
           const logsOpen   = expandedApp === app.id
 
           return (
-            <div key={app.id} className="rounded-xl border overflow-hidden" style={{ background: '#111827', borderColor: color + '25' }}>
+            <div key={app.id} className="rounded-xl border overflow-hidden" style={{ background: '#0d1219', borderColor: color + '25' }}>
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   {/* Left: status dot + info */}

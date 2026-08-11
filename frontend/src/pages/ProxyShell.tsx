@@ -7,12 +7,18 @@ import { Home, LogOut, ChevronDown } from 'lucide-react'
 import HelpButton from '../components/HelpButton'
 
 const APP_COLORS: Record<string, string> = {
-  pktflow: '#60a5fa', pktsnmp: '#2dd4bf', pktlog: '#4ade80', pktpcap: '#a78bfa',
-  pktwifi: '#38bdf8', pktipam: '#f472b6', pktnode: '#facc15', pktsecurity: '#f87171',
+  pktflow: '#ab9017',
+  pktsnmp: '#007dab',
+  pktlog: '#d86353',
+  pktpcap: '#00a49e',
+  pktwifi: '#8561bd',
+  pktipam: '#007b43',
+  pktnode: '#466cc8',
+  pktsecurity: '#be7125',
 }
 function appColor(name: string) {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
-  return APP_COLORS[key] || '#6b7280'
+  return APP_COLORS[key] || '#a9a294'
 }
 
 export default function ProxyShell() {
@@ -32,7 +38,7 @@ export default function ProxyShell() {
     })
   }, [appId])
 
-  const color = app ? appColor(app.name) : '#60a5fa'
+  const color = app ? appColor(app.name) : '#8ad8ea'
   const proxyUrl = app ? `/proxy/${appId}/` : null
 
   return (
@@ -75,7 +81,7 @@ export default function ProxyShell() {
               <ChevronDown size={12} />
             </button>
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-gray-700 py-1 shadow-xl z-50" style={{ background: '#111827' }}>
+              <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-gray-700 py-1 shadow-xl z-50" style={{ background: '#0d1219' }}>
                 <div className="px-3 py-1.5 border-b border-gray-700">
                   <p className="text-xs text-gray-300">{user?.username}</p>
                   <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
