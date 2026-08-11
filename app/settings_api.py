@@ -72,6 +72,13 @@ DEFAULTS = {
     # Audit / Storage
     "audit_retention_days": "90",
     "alert_retention_days": "90",
+    # Log forwarding — ships pktHub's own app log to pktLog as RFC 5424 syslog
+    "log_forward_enabled": "false",
+    "log_forward_host": "",
+    "log_forward_port": "5514",
+    "log_forward_protocol": "udp",
+    "log_forward_level": "INFO",
+    "log_forward_app_name": "pkthub",
     "log_level": "INFO",
     # Backup
     "backup_auto_enabled": "false",
