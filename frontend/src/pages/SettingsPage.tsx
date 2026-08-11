@@ -1571,6 +1571,87 @@ function NOCSection({ settings, set, save }: {
 }
 
 // ── Backup section ────────────────────────────────────────────────────────────
+// ── Log forwarding ────────────────────────────────────────────────────────────
+// A forwarder that silently drops everything looks identical to one that works,
+// so this panel can prove the path end to end rather than only setting values.
+function LogForwardSection({ settings, set, save }: {
+  settings: Settings
+  set: (k: string, v: string | number | boolean) => void
+  save: ReturnType<typeof useSave>
+}) {
+  const str = (k: string, d = '') => settings[k] ?? d
+  const num = (k: string, d = 0) => parseInt(settings[k] ?? String(d)) || d
+  const bool = (k: string, d = false) => { const v = settings[k]; return v === undefined ? d : v === 'true' }
+
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState('')
+  const [ok, setOk] = useState<boolean | null>(null)
+
+  const host = str('log_forward_host')
+  const runTest = async () => {
+    setBusy(true); setResult(''); setOk(null)
+    try {
+      const r = await api.logForwardTest(host, num('log_forward_port', 5514), str('log_forward_protocol') || 'udp')
+      setOk(r.ok)
+      setResult(r.ok
+        ? `Sent 1 message to ${r.target} — check pktLog for "pktHub log forwarding test message"`
+        : `Failed: ${r.last_error || 'no bytes sent'}`)
+    } catch (e: any) {
+      setOk(false); setResult(e.message || 'Test failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section title="Log Forwarding" onSave={save.save} saving={save.saving} saved={save.saved} error={save.error}
+      help={{
+        title: 'Log Forwarding — How It Works',
+        content: <>
+          <p>Ships pktHub's own application log to a syslog collector — normally <span className="text-gray-300 font-medium">pktLog</span>, which listens on port <code className="text-gray-400">5514</code> — so this app's logs sit alongside the rest of the estate instead of only in its local Logs page.</p>
+          <p>Messages are sent as <span className="text-gray-300 font-medium">RFC 5424</span>. pktLog also parses RFC 3164, but 3164 timestamps carry no timezone and the collector has to guess the offset; 5424 carries a full offset so there is nothing to guess.</p>
+          <p>Delivery is fire-and-forget on a background thread — if the collector is unreachable, lines are dropped and counted rather than blocking or crashing pktHub. Use <span className="text-gray-300 font-medium">Send test message</span> to confirm the path end to end.</p>
+          <p><span className="text-amber-500 font-medium">pktLog drops syslog from unregistered sources.</span> This host's IP must also be present and enabled under pktLog's Settings → Collectors, or the messages are accepted on the wire and silently discarded.</p>
+        </>,
+      }}
+    >
+      <Field label="Forward app logs" hint="Send this app's log records to a syslog collector (e.g. pktLog)">
+        <Toggle value={bool('log_forward_enabled')} onChange={v => set('log_forward_enabled', v)} />
+      </Field>
+      <Field label="Collector host" hint="Hostname or IP of the pktLog / syslog collector">
+        <TextInput value={host} onChange={v => set('log_forward_host', v)} placeholder="10.0.0.10" />
+      </Field>
+      <Field label="Port" hint="pktLog listens on 5514 by default">
+        <NumberInput value={num('log_forward_port', 5514)} onChange={v => set('log_forward_port', v)} min={1} max={65535} />
+      </Field>
+      <Field label="Protocol" hint="UDP is fire-and-forget; TCP confirms delivery to the collector">
+        <SelectInput value={str('log_forward_protocol') || 'udp'} onChange={v => set('log_forward_protocol', v)}
+          options={[{ value: 'udp', label: 'UDP' }, { value: 'tcp', label: 'TCP' }]} />
+      </Field>
+      <Field label="Minimum level" hint="Records below this level are not forwarded">
+        <SelectInput value={str('log_forward_level') || 'INFO'} onChange={v => set('log_forward_level', v)}
+          options={[
+            { value: 'DEBUG', label: 'Debug' }, { value: 'INFO', label: 'Info' },
+            { value: 'WARNING', label: 'Warning' }, { value: 'ERROR', label: 'Error' },
+          ]} />
+      </Field>
+      <Field label="Application name" hint="Appears as the APP-NAME field in the syslog message">
+        <TextInput value={str('log_forward_app_name') || 'pkthub'} onChange={v => set('log_forward_app_name', v)} placeholder="pkthub" />
+      </Field>
+      <Field label="Test" hint="Sends one message using the values above, without saving them">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={runTest} disabled={busy || !host}
+            className="f-lbl f-lbl-gold border border-blue-500/40 px-4 py-2 hover:border-blue-500 hover:text-blue-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            {busy ? 'Sending…' : 'Send test message'}
+          </button>
+          {result && <span className={`text-xs ${ok ? 'text-green-400' : 'text-red-400'}`}>{result}</span>}
+          {!host && <span className="text-xs text-gray-500">Set a collector host first</span>}
+        </div>
+      </Field>
+    </Section>
+  )
+}
+
 function BackupSection({ settings, set, save }: {
   settings: Settings
   set: (k: string, v: string | number | boolean) => void
@@ -1999,10 +2080,11 @@ const SECURITY_TABS: Array<{ id: SecurityTabId; label: string; adminOnly?: boole
 ]
 
 // ── Data tab — its own left-hand vertical tab strip ───────────────────────────
-type DataTabId = 'storage' | 'backups'
+type DataTabId = 'storage' | 'backups' | 'logforward'
 const DATA_TABS: Array<{ id: DataTabId; label: string }> = [
   { id: 'storage', label: 'Storage' },
   { id: 'backups', label: 'Backups' },
+  { id: 'logforward', label: 'Log Forwarding' },
 ]
 
 // ── Suite Integration — admin actions for registered apps' suite tokens ──────
@@ -2465,6 +2547,10 @@ export default function SettingsPage() {
     }
   }
   const storageSave  = useSave(['audit_retention_days', 'alert_retention_days', 'log_level'], settings, load)
+  const logForwardSave = useSave([
+    'log_forward_enabled', 'log_forward_host', 'log_forward_port',
+    'log_forward_protocol', 'log_forward_level', 'log_forward_app_name',
+  ], settings, load)
   const backupSave   = useSave(['backup_auto_enabled', 'backup_interval_hours', 'backup_path', 'backup_retain_count'], settings, load)
   const registrySave = useSave(['default_app_mode', 'health_poll_interval', 'health_timeout', 'auto_rotate_days'], settings, load)
   const nocSave    = useSave(['noc_default_dwell', 'noc_widget_refresh', 'display_token_expire_days'], settings, load)
@@ -2796,6 +2882,7 @@ export default function SettingsPage() {
           <div className="flex-1 min-w-0">
             {dataTab === 'storage' && <StorageSection settings={settings} set={set} save={storageSave} />}
             {dataTab === 'backups' && <BackupSection settings={settings} set={set} save={backupSave} />}
+            {dataTab === 'logforward' && <LogForwardSection settings={settings} set={set} save={logForwardSave} />}
           </div>
         </div>
       )}

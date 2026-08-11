@@ -59,6 +59,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  logForwardTest: (host: string, port: number, protocol: string) =>
+    request<{ ok: boolean; sent: number; errors: number; last_error: string; target: string }>(
+      '/system/log-forward/test', { method: 'POST', body: JSON.stringify({ host, port, protocol }) }),
+  logForwardStatus: () =>
+    request<{ enabled: boolean; sent?: number; dropped?: number; errors?: number; last_error?: string; target?: string }>(
+      '/system/log-forward/status'),
+  logForwardReload: () =>
+    request<{ ok: boolean }>('/system/log-forward/reload', { method: 'POST' }),
   // Auth
   login: (username: string, password: string) =>
     request<{ access_token: string; role: string; username: string }>('/auth/login', {
