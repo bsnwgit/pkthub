@@ -71,8 +71,8 @@ function widgetIframeSrc(w: PlacedWidget, proxyBase: string): string {
 
 // ─── Shared styles ──────────────────────────────────────────────────────────────
 const inputSt: React.CSSProperties = {
-  background: '#1a2744', border: '1px solid #39414c', borderRadius: '6px',
-  padding: '6px 8px', fontSize: '13px', color: '#e2e8f0', outline: 'none',
+  background: '#10141b', border: '1px solid #39414c', borderRadius: '6px',
+  padding: '6px 8px', fontSize: '13px', color: '#e9e4d8', outline: 'none',
   width: '100%', boxSizing: 'border-box',
 }
 
@@ -336,19 +336,19 @@ export default function NOCEditorPage() {
   }
 
   if (loading) return (
-    <div style={{ height: '100vh', background: '#080d18', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#39414c', fontSize: '14px' }}>
+    <div style={{ height: '100vh', background: '#04060a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#39414c', fontSize: '14px' }}>
       Loading editor…
     </div>
   )
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#080d18', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#04060a', overflow: 'hidden' }}>
 
       {/* ── Top bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px', height: '52px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, background: '#0d1525' }}>
-        <button onClick={() => navigate('/noc')} style={{ color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>← Back</button>
-        <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 500 }}>{noc?.name}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px', height: '52px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, background: '#0d1219' }}>
+        <button onClick={() => navigate('/noc')} style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>← Back</button>
+        <span style={{ color: '#f2eee5', fontSize: '14px', fontWeight: 500 }}>{noc?.name}</span>
         <HelpButton title="NOC Editor — How It Works">
           <p>Drag widgets from a registered app's manifest onto the canvas — each one is a live iframe of that app's own dashboard view, positioned and sized on a {CANVAS_W}×{CANVAS_H} reference canvas that scales to fit whatever screen the display ends up on.</p>
           <p>Multiple slides only matter in Rotating mode, where the display cycles through them on the per-slide dwell timer. Snap constrains dragging to a {SNAP_GRID}px grid for cleaner alignment.</p>
@@ -360,7 +360,7 @@ export default function NOCEditorPage() {
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
               <button
                 onClick={() => { setCurrentSlideIdx(i); setSelectedWidgetId(null) }}
-                style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s', border: i === currentSlideIdx ? '1px solid #6366f1' : '1px solid transparent', background: i === currentSlideIdx ? '#4338ca' : '#10141b', color: i === currentSlideIdx ? '#fff' : '#a9a294' }}
+                style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s', border: i === currentSlideIdx ? '1px solid #466cc8' : '1px solid transparent', background: i === currentSlideIdx ? '#466cc8' : '#10141b', color: i === currentSlideIdx ? '#fff' : '#a9a294' }}
               >{s.title}</button>
               {slides.length > 1 && (
                 <button onClick={() => removeSlide(i)} style={{ color: '#39414c', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px' }}>×</button>
@@ -373,7 +373,7 @@ export default function NOCEditorPage() {
         {/* Display mode pill */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px 8px', flexShrink: 0 }}>
           {(['static','rotating','manual'] as const).map(m => (
-            <button key={m} onClick={() => setDisplayMode(m)} style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', border: 'none', transition: 'all 0.15s', background: displayMode === m ? 'rgba(167,139,250,0.18)' : 'transparent', color: displayMode === m ? '#b0a0dd' : '#64748b' }}>
+            <button key={m} onClick={() => setDisplayMode(m)} style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', border: 'none', transition: 'all 0.15s', background: displayMode === m ? 'rgba(167,139,250,0.18)' : 'transparent', color: displayMode === m ? '#b0a0dd' : '#a9a294' }}>
               {m.charAt(0).toUpperCase() + m.slice(1)}
             </button>
           ))}
@@ -399,7 +399,7 @@ export default function NOCEditorPage() {
           <button onClick={fitCanvas} title="Fit canvas to screen" style={{ color: '#b0a0dd', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: '0 6px', lineHeight: 1 }}>Fit</button>
           <span style={{ color: '#39414c', fontSize: '11px', userSelect: 'none' }}>·</span>
           <button onClick={zoomOut} title="Zoom out" style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 4px' }}>−</button>
-          <span style={{ fontSize: '11px', color: '#64748b', minWidth: '36px', textAlign: 'center', fontFamily: 'monospace', userSelect: 'none' }}>{Math.round(zoom * 100)}%</span>
+          <span style={{ fontSize: '11px', color: '#a9a294', minWidth: '36px', textAlign: 'center', fontFamily: 'monospace', userSelect: 'none' }}>{Math.round(zoom * 100)}%</span>
           <button onClick={zoomIn} title="Zoom in" style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 4px' }}>+</button>
         </div>
 
@@ -413,7 +413,7 @@ export default function NOCEditorPage() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* ── Left: Widget library ── */}
-        <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.07)', background: '#0a1422', overflowY: 'auto', padding: '12px 10px' }}>
+        <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.07)', background: '#04060a', overflowY: 'auto', padding: '12px 10px' }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: '#39414c', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px', paddingLeft: '4px' }}>Widget Library</div>
           {apps.map(app => {
             const clr = appColor(app.name)
@@ -431,7 +431,7 @@ export default function NOCEditorPage() {
                     onDragStart={() => onLibraryDragStart(app.id, m)}
                     title={m.description ?? m.title}
                     style={{ padding: '7px 10px', marginBottom: '4px', borderRadius: '6px', fontSize: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: '#a9a294', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLDivElement).style.color = '#e2e8f0' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLDivElement).style.color = '#e9e4d8' }}
                     onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLDivElement).style.color = '#a9a294' }}
                   >
                     <span style={{ fontSize: '9px', color: '#39414c' }}>⠿</span>
@@ -452,7 +452,7 @@ export default function NOCEditorPage() {
           onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}
           onMouseMove={onCanvasMouseMove} onMouseUp={onCanvasMouseUp} onMouseLeave={onCanvasMouseUp}
           onClick={() => setSelectedWidgetId(null)}
-          style={{ flex: 1, overflow: 'auto', minWidth: 0, backgroundColor: '#020810', padding: '20px', boxSizing: 'border-box' }}
+          style={{ flex: 1, overflow: 'auto', minWidth: 0, backgroundColor: '#04060a', padding: '20px', boxSizing: 'border-box' }}
         >
           {/* Zoom wrapper — sized to match the visual canvas footprint so scroll is correct */}
           <div style={{ width: `${CANVAS_W * zoom}px`, height: `${CANVAS_H * zoom}px`, position: 'relative', flexShrink: 0 }}>
@@ -467,7 +467,7 @@ export default function NOCEditorPage() {
                 transformOrigin: 'top left',
                 backgroundImage: 'radial-gradient(circle, rgba(51,65,85,0.6) 1px, transparent 1px)',
                 backgroundSize: '24px 24px',
-                backgroundColor: '#0b1627',
+                backgroundColor: '#080b11',
                 border: '2px solid rgba(99,102,241,0.5)',
                 boxSizing: 'border-box',
                 cursor: 'default',
@@ -492,7 +492,7 @@ export default function NOCEditorPage() {
                       border: isSel ? `2px solid ${clr}` : '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '4px', overflow: 'hidden', cursor: 'move',
                       boxShadow: isSel ? `0 0 0 1px ${clr}33, 0 4px 20px rgba(0,0,0,0.5)` : '0 2px 12px rgba(0,0,0,0.4)',
-                      background: '#060e1e', userSelect: 'none', transition: 'border-color 0.1s',
+                      background: '#04060a', userSelect: 'none', transition: 'border-color 0.1s',
                     }}
                   >
                     {frameSrc ? (
@@ -514,7 +514,7 @@ export default function NOCEditorPage() {
                         <button
                           onMouseDown={e => e.stopPropagation()}
                           onClick={ev => { ev.stopPropagation(); removeWidget(w.id) }}
-                          style={{ color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                          style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
                         >×</button>
                       </div>
                     )}
@@ -533,7 +533,7 @@ export default function NOCEditorPage() {
         </div>
 
         {/* ── Right: Config panel ── */}
-        <div style={{ width: '240px', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.07)', background: '#0a1422', overflowY: 'auto', padding: '12px' }}>
+        <div style={{ width: '240px', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.07)', background: '#04060a', overflowY: 'auto', padding: '12px' }}>
 
           {/* Selected widget config */}
           {selectedWidget ? (
@@ -547,7 +547,7 @@ export default function NOCEditorPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   {(['x','y'] as const).map(f => (
                     <label key={f} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>{f.toUpperCase()}</span>
+                      <span style={{ fontSize: '10px', color: '#a9a294' }}>{f.toUpperCase()}</span>
                       <input
                         type="number" min={0}
                         max={f === 'x' ? CANVAS_W - selectedWidget.w : CANVAS_H - selectedWidget.h}
@@ -573,7 +573,7 @@ export default function NOCEditorPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   {(['w','h'] as const).map(f => (
                     <label key={f} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>{f === 'w' ? 'W' : 'H'}</span>
+                      <span style={{ fontSize: '10px', color: '#a9a294' }}>{f === 'w' ? 'W' : 'H'}</span>
                       <input
                         type="number"
                         min={f === 'w' ? selMinW : selMinH}
@@ -606,7 +606,7 @@ export default function NOCEditorPage() {
                       : (p.options ?? [])
                     return (
                       <label key={p.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
-                        <span style={{ fontSize: '10px', color: '#64748b' }}>{p.label}</span>
+                        <span style={{ fontSize: '10px', color: '#a9a294' }}>{p.label}</span>
                         <select
                           value={String(selectedWidget.config?.[p.key] ?? '')}
                           onChange={e => updateWidgetConfig(selectedWidget.id, p.key, e.target.value)}
@@ -632,17 +632,17 @@ export default function NOCEditorPage() {
               {/* Slide config */}
               <div style={{ fontSize: '10px', fontWeight: 600, color: '#39414c', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Slide</div>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '10px', color: '#64748b' }}>Title</span>
+                <span style={{ fontSize: '10px', color: '#a9a294' }}>Title</span>
                 <input type="text" value={currentSlide?.title ?? ''} onChange={e => updateSlide({ title: e.target.value })} style={inputSt} />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
-                <span style={{ fontSize: '10px', color: '#64748b' }}>Dwell (seconds)</span>
+                <span style={{ fontSize: '10px', color: '#a9a294' }}>Dwell (seconds)</span>
                 <input type="number" min={5} value={currentSlide?.dwell_seconds ?? 30} onChange={e => updateSlide({ dwell_seconds: Math.max(5, parseInt(e.target.value) || 30) })} style={inputSt} />
               </label>
 
               {/* Canvas info */}
               <div style={{ padding: '10px', borderRadius: '6px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', marginBottom: '10px' }}>
-                <div style={{ fontSize: '10px', color: '#6366f1', fontWeight: 600, marginBottom: '6px', letterSpacing: '0.04em' }}>Canvas</div>
+                <div style={{ fontSize: '10px', color: '#466cc8', fontWeight: 600, marginBottom: '6px', letterSpacing: '0.04em' }}>Canvas</div>
                 <div style={{ fontSize: '11px', color: '#39414c' }}>1920 × 1080 px</div>
                 <div style={{ fontSize: '11px', color: '#39414c', marginTop: '3px' }}>{currentSlide?.widgets.length ?? 0} widget{(currentSlide?.widgets.length ?? 0) !== 1 ? 's' : ''}</div>
               </div>

@@ -49,7 +49,7 @@ function HistoryModal({ onClose, apps }: HistoryModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 rounded-xl border border-gray-700 flex flex-col max-h-[85vh] w-full max-w-4xl mx-4 shadow-2xl"
-           style={{ background: '#0d1117' }}>
+           style={{ background: '#0d1219' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ function HistoryModal({ onClose, apps }: HistoryModalProps) {
             <div className="text-xs text-gray-600 py-8 text-center">No alerts match the current filters.</div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="sticky top-0" style={{ background: '#0d1117' }}>
+              <thead className="sticky top-0" style={{ background: '#0d1219' }}>
                 <tr className="border-b border-gray-800">
                   <th className="text-left px-5 py-2.5 text-gray-500 font-medium">Time</th>
                   <th className="text-left px-3 py-2.5 text-gray-500 font-medium">App</th>

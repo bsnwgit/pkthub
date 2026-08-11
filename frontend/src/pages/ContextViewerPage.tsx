@@ -120,11 +120,11 @@ export default function ContextViewerPage() {
   const color = selectedApp ? appColor(selectedApp.name) : '#a9a294'
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: '#0a1628' }}>
+    <div className="flex flex-col h-screen" style={{ background: '#04060a' }}>
       {/* Thin 44px top bar — matches ProxyShell style */}
       <header
         className="flex items-center justify-between px-4 shrink-0 border-b border-gray-800/80 z-50"
-        style={{ height: 44, background: '#0d1f3c' }}
+        style={{ height: 44, background: '#080b11' }}
       >
         {/* Left: icon + app name */}
         <div className="flex items-center gap-3">
@@ -221,7 +221,7 @@ export default function ContextViewerPage() {
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 text-center px-6"
             style={{ background: 'rgba(10,22,40,0.95)', backdropFilter: 'blur(4px)' }}
           >
-            <div className="p-3 rounded-full" style={{ background: '#7f1d1d' }}>
+            <div className="p-3 rounded-full" style={{ background: '#a8342a' }}>
               <ShieldAlert size={32} className="text-red-300" />
             </div>
             <div>

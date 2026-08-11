@@ -278,7 +278,7 @@ export default function AppManagerPage() {
 
               {/* Expandable audit log */}
               {logsOpen && (
-                <div className="border-t px-4 py-3" style={{ borderColor: color + '20', background: '#0d1117' }}>
+                <div className="border-t px-4 py-3" style={{ borderColor: color + '20', background: '#0d1219' }}>
                   <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Access Mode Audit Log</p>
                   {logsLoading[app.id] ? (
                     <p className="text-xs text-gray-600 py-2">Loading…</p>
