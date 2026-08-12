@@ -61,9 +61,14 @@ DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 # means local users hit spurious failures on harder questions.
 PROVIDER_TIMEOUT_SECONDS = 180
 _INJECTION_RE = re.compile(
-    r"ignore\s+(all|any|the)?\s*(previous|prior|above|earlier)?\s*(instructions|rules|prompt)"
-    r"|disregard\s+(all|any|the)?\s*(previous|prior|above|earlier)?\s*(instructions|rules|prompt)"
-    r"|forget\s+(all|any|the)?\s*(previous|prior|above|earlier)?\s*(instructions|rules|prompt)"
+    # Each optional word carries its own trailing \s+, and the groups are
+    # non-capturing. Written as `\s+(word)?\s*(word)?\s*` a run of spaces can be
+    # split between the quantifiers many ways, and the engine tries them all:
+    # measured at 72s on 2,000 spaces, 39 minutes on 6,000, 3.6 hours on 12,000.
+    # This form gives exactly one way to match a whitespace run.
+    r"ignore\s+(?:(?:all|any|the)\s+)?(?:(?:previous|prior|above|earlier)\s+)?(?:instructions|rules|prompt)"
+    r"|disregard\s+(?:(?:all|any|the)\s+)?(?:(?:previous|prior|above|earlier)\s+)?(?:instructions|rules|prompt)"
+    r"|forget\s+(?:(?:all|any|the)\s+)?(?:(?:previous|prior|above|earlier)\s+)?(?:instructions|rules|prompt)"
     r"|you\s+are\s+now\s+(a|an)"
     r"|pretend\s+(you\s+are|to\s+be)"
     r"|new\s+system\s+prompt"
@@ -78,6 +83,9 @@ _INJECTION_RE = re.compile(
 )
 
 
+_MAX_QUESTION_CHARS = 4000
+
+
 def _scope_violation(question: str) -> str | None:
     """Deterministic pre-check run before the LLM ever sees the question.
     Returns a refusal message if the question should be blocked, else None.
@@ -86,6 +94,11 @@ def _scope_violation(question: str) -> str | None:
     apps by name (registry/health), so there's no cross-app-name block here —
     only the prompt-injection/override check.
     """
+    if len(question) > _MAX_QUESTION_CHARS:
+        return (
+            f"That question is too long — please keep it under "
+            f"{_MAX_QUESTION_CHARS:,} characters."
+        )
     if _INJECTION_RE.search(question):
         return (
             "I can only help with pktHub itself — the app registry, health status, and "
