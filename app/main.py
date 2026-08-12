@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -106,7 +106,15 @@ if os.path.exists(FRONTEND_DIST):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        static_file = os.path.join(FRONTEND_DIST, full_path)
+        # Normalize-then-prefix-check. This handler is unauthenticated and
+        # config.yaml sits above the dist directory, so "../../config.yaml"
+        # previously returned the JWT signing key and the credential
+        # encryption key to anyone who asked.
+        _dist_root = os.path.normpath(FRONTEND_DIST)
+        _candidate = os.path.normpath(os.path.join(_dist_root, full_path))
+        if not (_candidate == _dist_root or _candidate.startswith(_dist_root + os.sep)):
+            raise HTTPException(status_code=404, detail="Not found")
+        static_file = _candidate
         if full_path and os.path.isfile(static_file):
             return FileResponse(static_file)
         index = os.path.join(FRONTEND_DIST, "index.html")
