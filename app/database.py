@@ -212,6 +212,47 @@ async def init_db():
 
         await _encrypt_legacy_api_keys(db)
         await _encrypt_legacy_suite_tokens(db)
+        await _drop_ai_assistant_config(db)
+
+
+async def _drop_ai_assistant_config(db):
+    """One-time data migration: the in-app AI Assistant has been removed, so
+    its provider configuration is deleted rather than left orphaned.
+
+    These rows hold third-party API keys (Anthropic, OpenAI, and a per-entry
+    key inside the ai_local_providers JSON blob). With no code left that
+    reads them, leaving them behind would strand credentials in the database.
+    Same _data_migrations marker table as the encryption migrations above."""
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS _data_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+    await db.commit()
+
+    marker = "drop_ai_assistant_config"
+    async with db.execute(
+        "SELECT 1 FROM _data_migrations WHERE name = ?", (marker,)
+    ) as cur:
+        if await cur.fetchone():
+            return
+
+    # Matched by pattern rather than an enumerated key list, deliberately.
+    # Key names drifted between apps as the assistant was built out, so an
+    # enumerated list silently purges nothing on an install whose names don't
+    # happen to match. The ai\_% prefix is anchored so ordinary keys that merely
+    # contain the letters (domain_name, available_slots, email_from) survive.
+    await db.execute(
+        r"""DELETE FROM platform_config WHERE
+                   key LIKE 'ai\_%' ESCAPE '\'
+                OR key LIKE '%anthropic%'
+                OR key LIKE '%openai%'
+                OR key LIKE '%ollama%'
+                OR key LIKE '%claude%'"""
+    )
+    await db.execute("INSERT INTO _data_migrations (name) VALUES (?)", (marker,))
+    await db.commit()
 
 
 async def _encrypt_legacy_suite_tokens(db):

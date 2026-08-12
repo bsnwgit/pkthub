@@ -10,4 +10,3 @@ bcrypt==3.2.2
 python-multipart==0.0.32
 aiosqlite==0.20.0
 websockets==12.0
-anthropic>=0.30.0
