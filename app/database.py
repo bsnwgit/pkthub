@@ -238,13 +238,18 @@ async def _drop_ai_assistant_config(db):
         if await cur.fetchone():
             return
 
+    # Matched by pattern rather than an enumerated key list, deliberately.
+    # Key names drifted between apps as the assistant was built out, so an
+    # enumerated list silently purges nothing on an install whose names don't
+    # happen to match. The ai\_% prefix is anchored so ordinary keys that merely
+    # contain the letters (domain_name, available_slots, email_from) survive.
     await db.execute(
-        """DELETE FROM platform_config WHERE key IN (
-               'ai_provider_ollama_enabled', 'ai_provider_ollama_base_url',
-               'ai_provider_ollama_model', 'ai_local_providers',
-               'ai_provider_anthropic_enabled', 'anthropic_api_key', 'ai_model',
-               'ai_provider_openai_enabled', 'openai_api_key', 'openai_model'
-           )"""
+        r"""DELETE FROM platform_config WHERE
+                   key LIKE 'ai\_%' ESCAPE '\'
+                OR key LIKE '%anthropic%'
+                OR key LIKE '%openai%'
+                OR key LIKE '%ollama%'
+                OR key LIKE '%claude%'"""
     )
     await db.execute("INSERT INTO _data_migrations (name) VALUES (?)", (marker,))
     await db.commit()
