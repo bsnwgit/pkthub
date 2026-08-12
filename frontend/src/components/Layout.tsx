@@ -7,7 +7,6 @@ import {
   ChevronDown, ChevronRight
 } from 'lucide-react'
 import clsx from 'clsx'
-import AiAssistant from './AiAssistant'
 import { api } from '../api/client'
 
 const navItems = [
@@ -162,8 +161,6 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
-
-      <AiAssistant />
     </div>
   )
 }

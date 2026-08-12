@@ -52,10 +52,6 @@ A log of administrative actions taken in pktHub. Analysts see only their own ent
 
 Any IP shown in the app is clickable, opening a lookup combining ipinfo.io, ipapi.is, AbuseIPDB, and MXToolbox data, using **your own** per-user API keys (Settings → User Keys). Private/loopback/reserved addresses aren't looked up — external providers have nothing useful to say about them.
 
-## AI Assistant
-
-If your admin has enabled an AI provider (local/self-hosted like Ollama, or a cloud provider like Anthropic or OpenAI), an assistant is available to answer questions — see Settings → Security → AI Assistant for where it's configured. It only knows pktHub's own registry, health status, and audit log; it can tell you whether another pktApp suite tool is registered/healthy but not its internal data, and prompt-injection attempts ("ignore your instructions," etc.) are refused.
-
 ## Your account
 
 Manage your own password from the user menu. Your personal IP-lookup API keys live under Settings → User Keys, private to your account.

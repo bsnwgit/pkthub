@@ -23,7 +23,6 @@ from app.ssl_api import router as ssl_router
 from app.backup_api import router as backup_router
 from app.app_alerts import router as app_alerts_router
 from app.maintenance_api import router as maintenance_router
-from app.ai_api import router as ai_router
 from app.user_api_keys import router as user_api_keys_router
 from app.ip_info import router as ip_info_router
 from app.mxtoolbox import router as mxtoolbox_router
@@ -56,7 +55,6 @@ app.include_router(backup_router)
 app.include_router(app_alerts_router)
 app.include_router(maintenance_router)
 app.include_router(system_router)
-app.include_router(ai_router)
 app.include_router(user_api_keys_router)
 app.include_router(ip_info_router)
 app.include_router(mxtoolbox_router)
