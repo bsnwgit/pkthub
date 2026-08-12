@@ -7,8 +7,7 @@
 NOC/SOC management hub — part of the pkt suite. Registers and proxies the
 sibling pkt* apps (pktSNMP, pktFlow, pktLog, pktPCAP, pktWiFi, pktIPAM) behind
 a single login, provides a NOC display builder for wallboards, and centralizes
-user management, audit logging, alerting, and (optionally) an AI assistant
-across the registered apps.
+user management, audit logging, and alerting across the registered apps.
 
 pktHub is a fully wired FastAPI + React application: real bcrypt/JWT admin
 auth, all of registry/users/audit/settings/proxy/NOC/alerting, and a built
@@ -33,7 +32,6 @@ React SPA are all live in the running app — not placeholder scaffolding.
 - [Reg App Settings](#reg-app-settings)
 - [NOC Displays](#noc-displays)
 - [Alerting & Notifications](#alerting--notifications)
-- [AI Assistant](#ai-assistant)
 - [Maintenance](#maintenance)
 - [Backup & Restore](#backup--restore)
 - [Troubleshooting](#troubleshooting)
@@ -81,7 +79,6 @@ Backend modules, each mounted as its own router in `app/main.py`:
 | `ssl_api.py` | `/api/ssl` | Cert status + upload (PEM pair or PFX/P12) |
 | `backup_api.py` | `/api/backup` | DB/config backup, export, restore |
 | `maintenance_api.py` | `/api/maintenance` | Service restart (via API) and listen-port change |
-| `ai_api.py` | `/api/ai` | Multi-provider AI assistant (Ollama/local, Anthropic, or OpenAI) scoped to pktHub's own registry/audit data |
 
 Every on-disk path (`db_path`, backup directory) derives from `install_dir` at
 runtime (env var `PKTHUB_INSTALL_DIR` → the directory `config.yaml` was loaded
@@ -267,7 +264,6 @@ from a section bar above the tab bar:
 
 | Section | Tabs |
 |---|---|
-| **Common** | General · Security (Users, Auth, Suite Integration, AI Assistant, SSL/TLS) · Data (Storage, Backups) · Notifications · User Keys · System |
 | **pktHub** | Audit · App Registry · NOC · Maintenance |
 
 Common holds the settings that are identical across every pkt* app;
@@ -376,35 +372,6 @@ don't assume one drives the other:
   PagerDuty/Webhook/TraceCat. Configure them as a forward-looking event
   taxonomy, not as working automated alert routing.
 
-## AI Assistant
-
-**Settings → Security → AI Assistant** lets an admin configure multiple providers,
-each with its own enable toggle — local/self-hosted (Ollama, or any OpenAI-compatible
-endpoint) are tried first, then cloud (Anthropic — from console.anthropic.com, separate
-from any Claude Enterprise seat, model Haiku/Sonnet/Opus selectable — and OpenAI). Once
-at least one is enabled and configured, an in-app chat panel (available throughout the
-authenticated app, backed by `POST /api/ai/chat`) answers questions using a snapshot of
-**pktHub's own state only** — the registered-app list with health/mode, and
-the 10 most recent audit log entries. It explicitly does not have access to
-any individual pktApp's own telemetry (SNMP devices, log lines, packet
-captures, etc.) — for those it tells the user to use that app's own AI
-assistant, if it has one.
-
-Each provider call gets up to **180 seconds** to return an answer. That
-ceiling exists for local models on modest hardware — a large model working
-through a complex, multi-part question can run well past a minute, and a
-tighter limit turned those into spurious failures. Cloud providers rarely
-come close. On overrun, the panel says the provider didn't finish in time
-and suggests a shorter question rather than showing a bare error.
-
-A server-side pre-filter blocks prompt-injection/override attempts (e.g.
-"ignore your previous instructions," "reveal your system prompt") before
-they ever reach the AI provider, and a post-response check strips any
-accidental leak of the system prompt back to the user. Unlike the other
-pktApp assistants, there's no cross-app-name block here — discussing other
-apps' registration/health status is pktHub's actual job — but their
-internal data stays off-limits per the system prompt above.
-
 ## Maintenance
 
 **Settings → Maintenance** (admin only):
@@ -454,7 +421,6 @@ storage connection test) — a different tab from Backups.
   [App Registry & Suite Integration](#app-registry--suite-integration)). If
   it hasn't, check the app's own suite-token/lock state directly rather than
   only looking at pktHub's registry entry.
-- **AI Assistant chat showed a blank error like `"Ollama error:"` with no
   detail (fixed 2026-08-03)**: connection/timeout failures reaching a
   provider now name the provider and its base URL instead of stringifying
   to nothing — httpx's own connection/timeout exceptions often carry no

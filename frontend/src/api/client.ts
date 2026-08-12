@@ -216,8 +216,6 @@ export const api = {
   // App Alert Log
   listAlerts: () => request<any[]>('/alerts'),
 
-  aiChat: (question: string) =>
-    request<{ answer: string; provider?: string; tokens_used: number }>('/ai/chat', { method: 'POST', body: JSON.stringify({ question }) }),
   ackAlert: (id: number) => request<any>(`/alerts/${id}/ack`, { method: 'POST' }),
   alertHistory: (params?: {
     app_id?: number; event_type?: string; status?: string;
