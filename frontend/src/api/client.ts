@@ -1,5 +1,17 @@
 const BASE = '/api'
 
+// One entry of a registered app's own left-nav, as published by that app at
+// GET /api/nav/manifest and cached by the hub's health poller. The hub mirrors
+// these under APPS in its sidebar and opens each as a chromeless embed, so the
+// menu is the app's menu rather than a copy that can drift from it.
+export interface AppNavItem {
+  path: string            // relative to the app root — '/', '/geo', '/settings'
+  label: string
+  icon?: string           // the glyph the app's own sidebar draws for this row
+  divider_before?: boolean
+  admin_only?: boolean
+}
+
 export interface UserApiKey {
   provider: string
   label: string

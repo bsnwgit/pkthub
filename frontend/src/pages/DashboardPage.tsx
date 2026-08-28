@@ -67,7 +67,7 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-white">Dashboard</h1>
             <HelpButton title="Dashboard — How It Works">
               <p>Health status is polled from each registered app's own health endpoint every refresh — <span className="text-gray-300 font-medium">Degraded</span> means it responded but reported a problem, <span className="text-gray-300 font-medium">Unreachable</span> means pktHub couldn't reach it at all.</p>
-              <p>Click an app card to jump into its Context Viewer — a proxied view of that app inside pktHub without a separate login.</p>
+              <p>Click an app card to open that app inside pktHub, on its own first page and without a separate login. An app that publishes a menu also has it mirrored under <span className="text-gray-300 font-medium">Apps</span> in the sidebar, so you can move around it without coming back here.</p>
             </HelpButton>
           </div>
           <p className="text-sm text-gray-400 mt-0.5">Platform overview — live health across all registered pktApps</p>
@@ -122,7 +122,7 @@ export default function DashboardPage() {
                 key={app.id}
                 className="rounded-xl border p-4 cursor-pointer hover:border-opacity-60 transition-colors"
                 style={{ background: '#0d1219', borderColor: color + '33' }}
-                onClick={() => navigate(`/context?app=${app.id}`)}
+                onClick={() => navigate(`/app/${app.id}/`)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">

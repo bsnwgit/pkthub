@@ -21,13 +21,16 @@ def _parse_app(row) -> AppOut:
     manifest = json.loads(row["widget_manifest"]) if row["widget_manifest"] else []
     versions = json.loads(row["supported_versions"]) if row["supported_versions"] else [1]
     status = row["status"] or "observe"
+    nav = []
+    if "nav_manifest" in row.keys() and row["nav_manifest"]:
+        nav = json.loads(row["nav_manifest"])
     return AppOut(
         id=row["id"], name=row["name"], display_name=row["display_name"],
         base_url=row["base_url"], app_type=row["app_type"],
         status=status, mode=status,   # mode mirrors status for frontend compat
         health_status=row["health_status"] or "unknown",
         last_health_check=row["last_health_check"],
-        widget_manifest=manifest, supported_versions=versions,
+        widget_manifest=manifest, nav_manifest=nav, supported_versions=versions,
         registered_at=row["registered_at"],
         return_url=row["return_url"] if "return_url" in row.keys() else None,
         access_mode=row["access_mode"] if "access_mode" in row.keys() else "direct",
@@ -340,6 +343,7 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
     health = "unreachable"
     app_direct_ui_locked = None
     widget_manifest = None
+    nav_manifest = None
 
     # ── Health check ──────────────────────────────────────────────────────────
     try:
@@ -369,6 +373,21 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
                 widget_manifest = mresp.json()
     except Exception:
         pass  # widget manifest is optional — pktApps without it just show no widgets
+
+    # ── Nav manifest fetch — advisory, same contract as the widget manifest ────
+    # An app that publishes one gets its own menu mirrored under APPS in the hub
+    # sidebar; an app that doesn't is still reachable from its Dashboard card,
+    # it just opens on its root page with no menu to move around by.
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            nresp = await client.get(
+                f"{base_url.rstrip('/')}/api/nav/manifest",
+                headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
+            )
+            if nresp.status_code == 200:
+                nav_manifest = nresp.json()
+    except Exception:
+        pass  # nav manifest is optional
 
     # ── Token verification — only when app is reachable ─────────────────────────────────────────
     token_ok = None
@@ -420,6 +439,12 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
             await db.execute(
                 "UPDATE registered_apps SET widget_manifest = ? WHERE id = ?",
                 (_json.dumps(widget_manifest), app_id)
+            )
+
+        if nav_manifest is not None:
+            await db.execute(
+                "UPDATE registered_apps SET nav_manifest = ? WHERE id = ?",
+                (_json.dumps(nav_manifest), app_id)
             )
 
         # ── Alert generation ────────────────────────────────────────────────

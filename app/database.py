@@ -53,6 +53,7 @@ async def init_db():
                 health_status TEXT DEFAULT 'unknown',
                 last_health_check TEXT,
                 widget_manifest TEXT DEFAULT '[]',
+                nav_manifest TEXT DEFAULT '[]',
                 supported_versions TEXT DEFAULT '[1]',
                 registered_at TEXT DEFAULT (datetime('now')),
                 registered_by INTEGER REFERENCES users(id),
@@ -69,6 +70,8 @@ async def init_db():
             await db.execute("ALTER TABLE registered_apps ADD COLUMN access_mode TEXT DEFAULT 'direct'")
         if "lock_verified_at" not in cols:
             await db.execute("ALTER TABLE registered_apps ADD COLUMN lock_verified_at TEXT DEFAULT NULL")
+        if "nav_manifest" not in cols:
+            await db.execute("ALTER TABLE registered_apps ADD COLUMN nav_manifest TEXT DEFAULT '[]'")
 
         # Migration: rename kiosk_layouts → noc_layouts (July 2026 NOC rename)
         async with db.execute(
