@@ -12,8 +12,8 @@ import AuditPage from './pages/AuditPage'
 import AppAlertsPage from './pages/AppAlertsPage'
 import AppSettingsPage from './pages/AppSettingsPage'
 import ProxyShell from './pages/ProxyShell'
+import AppViewPage from './pages/AppViewPage'
 import NOCDisplayPage from './pages/NOCDisplayPage'
-import ContextViewerPage from './pages/ContextViewerPage'
 import DocumentationPage from './pages/DocumentationPage'
 import Layout from './components/Layout'
 
@@ -42,7 +42,6 @@ export default function App() {
 
           {/* Full-screen pages — no nav shell */}
           <Route path="/noc/:id/edit" element={<RequireAuth><NOCEditorPage /></RequireAuth>} />
-          <Route path="/context" element={<RequireAuth><ContextViewerPage /></RequireAuth>} />
 
           {/* Authenticated app shell */}
           <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
@@ -54,6 +53,9 @@ export default function App() {
             <Route path="users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
             <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
             <Route path="app-settings/:appId" element={<RequireAdmin><AppSettingsPage /></RequireAdmin>} />
+            {/* A registered app's own page, embedded chromeless in the hub shell —
+                one route per entry in that app's published nav manifest. */}
+            <Route path="app/:appId/*" element={<AppViewPage />} />
             <Route path="documentation" element={<DocumentationPage />} />
           </Route>
 

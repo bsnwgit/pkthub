@@ -66,8 +66,8 @@ export default function NOCBuilderPage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-white">NOC Builder</h1>
-            <HelpButton title="NOC Builder — How It Works">
+            <h1 className="text-xl font-bold text-white">NOC Screens</h1>
+            <HelpButton title="NOC Screens — How It Works">
               <p>Each layout is a canvas of widgets pulled live from registered apps' own dashboards — build it in the editor, then Publish to get a public, unauthenticated link for a wall display or TV.</p>
               <p><span className="text-gray-300 font-medium">Static</span> mode shows one live-refreshing layout; <span className="text-gray-300 font-medium">Rotating</span> cycles through multiple slides on a timer you set per slide.</p>
               <p>Unpublishing immediately invalidates the display link — anyone with it loses access until you publish again.</p>
