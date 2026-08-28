@@ -29,7 +29,7 @@ React SPA are all live in the running app — not placeholder scaffolding.
 - [IP Intelligence Lookup](#ip-intelligence-lookup)
 - [App Registry & Suite Integration](#app-registry--suite-integration)
 - [Settings Layout](#settings-layout)
-- [Reg App Settings](#reg-app-settings)
+- [Registered apps in the hub's own nav](#registered-apps-in-the-hubs-own-nav)
 - [NOC Displays](#noc-displays)
 - [Alerting & Notifications](#alerting--notifications)
 - [Maintenance](#maintenance)
@@ -84,13 +84,29 @@ Every on-disk path (`db_path`, backup directory) derives from `install_dir` at
 runtime (env var `PKTHUB_INSTALL_DIR` → the directory `config.yaml` was loaded
 from → cwd) — no absolute path is ever hardcoded in source.
 
-**Frontend navigation** (top nav in `Layout.tsx`): Dashboard, Context Viewer,
-NOC Builder, App Registry (`/apps` — a read-only health view of every
-registered app, open to all roles), Audit Log, and Settings (admin only).
+**Frontend navigation** (side nav in `Layout.tsx`), in order:
+
+| | |
+|---|---|
+| Dashboard | health across every registered app |
+| **APPS** | collapsible; one collapsible group per registered app that publishes a nav manifest — that app's own menu, mirrored. See [Registered apps in the hub's own nav](#registered-apps-in-the-hubs-own-nav) |
+| App Registry (`/apps`) | read-only health view of every registered app, all roles |
+| App Alerts | analyst and admin |
+| *— rule —* | everything above is about the registered apps, everything below is the hub's own tooling |
+| NOC Screens | wallboard layouts |
+| Audit Log | analyst and admin |
+| Settings | admin only |
+| **REG APP SETTINGS** | collapsible; admin only, and only for apps that publish *no* nav manifest — one that does exposes its own Settings row inside its APPS group instead |
+
 The `/apps` page is monitoring-only; actually registering, editing, rotating
 tokens for, or deregistering a sibling app lives under
 **Settings → Security → Suite Integration**, gated admin-only there because
 those actions touch credentials.
+
+Sidebar state persists in `localStorage`: `pkthub_apps_section_expanded` for
+the APPS band, `pkthub_app_nav_expanded` for which single app group is open
+(one at a time — opening another closes it), and
+`pkthub_reg_app_settings_expanded` for the Reg App Settings tree.
 
 ## Installation
 
@@ -228,10 +244,9 @@ pktHub is the hub side of the suite-token mechanism every other pkt app
 implements. There are two different places this shows up in the UI — don't
 confuse them:
 
-- **`/apps`** ("App Registry" in the nav) and the standalone **Context
-  Viewer** (`/context`) are read-only, day-to-day views open to every role:
-  see each registered app's health, jump into its proxied UI, and see its
-  recent alerts.
+- **`/apps`** ("App Registry" in the nav) is the read-only, day-to-day view
+  open to every role: see each registered app's health, jump into its proxied
+  UI, and see its recent alerts.
 - **Settings → Security → Suite Integration** (admin only) is where the
   actual registry management happens:
   1. The sibling app generates its own suite token (that app's
@@ -278,28 +293,44 @@ apps' Settings pages in pktHub's nav.
 
 ---
 
-## Reg App Settings
+## Registered apps in the hub's own nav
 
-Every registered app gets its own entry in the left nav, under a **REG APP
-SETTINGS** divider below Hub Settings — e.g. "pktSNMP - Settings". Clicking
-one shows that app's **actual, live Settings page**, embedded full-screen to
-the right of pktHub's own menu (no duplicate sidebar/header — pktHub's menu
-is the only chrome on screen). This is not a re-implementation: it's the
-real app, proxied in, so it can never drift out of sync with what that app's
-Settings page actually looks like or does.
+Under an **APPS** divider in the left nav, each registered app that publishes
+a nav manifest gets a collapsible group holding **that app's own menu** —
+same labels, same glyphs, same separators. Selecting a row shows that app's
+**actual, live page**, embedded to the right of pktHub's menu with no
+duplicate sidebar or header, so pktHub's menu is the only chrome on screen.
+This is not a re-implementation: it's the real app, proxied in, so it can
+never drift out of sync with what that page actually looks like or does.
+
+One group is open at a time — opening another closes the first.
+
+**The manifest.** Each app serves its menu at `GET /api/nav/manifest`, behind
+the same `X-Suite-Token` gate as its widget endpoints, as a list of
+`{path, label, icon, admin_only, divider_before}`. pktHub's health poller
+reads it on every cycle and caches it in `registered_apps.nav_manifest`, so a
+page added to an app appears in the hub within a poll interval with no hub
+change. The manifest can be computed rather than static — pktCert omits its
+Approvals row unless separation of duties is actually switched on, matching
+what its own sidebar does. An app that publishes no manifest gets no group;
+it's still reachable from its Dashboard card, and its Settings still appear
+under **Reg App Settings**.
 
 **How it works under the hood** (relevant if you're building this into a new
 pkt* app, or debugging why it doesn't work for one):
 1. pktHub authenticates the embed the same way it authenticates the NOC
-   Builder's widget iframes and the Context Viewer's "open full app" view —
-   a scoped proxy-session cookie, then `GET /proxy/:appId/settings?chromeless=1`.
+   Builder's widget iframes — a scoped proxy-session cookie, then
+   `GET /proxy/:appId/<path>?chromeless=1`.
 2. The sibling app's own React Router needs to recognize it's running under
    that `/proxy/:appId/` path prefix (as its `basename`), or every route
    fails to match and falls through to a `*` redirect — usually landing on
-   Dashboard instead of Settings.
+   Dashboard instead of the requested page.
 3. The sibling app's Layout component needs a `chromeless` mode (driven by
    the `?chromeless=1` query param) that skips its own sidebar/header and
-   renders just the page content.
+   renders just the page content. Give that wrapper a **definite** height
+   (`h-screen overflow-auto`, not `min-h-screen`): a page that fills its
+   container sizes itself with `h-full`, which collapses to zero against an
+   auto-height parent and renders blank — maps and canvases especially.
 4. The sibling app's auth store needs to recognize it's being accessed via
    a suite token (check `GET /api/suite/whoami` — `via_suite_token: true`)
    and synthesize a logged-in session client-side, instead of showing its
@@ -316,10 +347,13 @@ pkt* app, or debugging why it doesn't work for one):
    correctly takes precedence per the HTML spec (only the first `<base>` in
    a document is used) when the page is actually being proxied.
 
-All 8 apps in the suite (pktFlow, pktSNMP, pktLog, pktWiFi, pktIPAM, pktNode,
-pktPCAP, pktSecurity) already implement points 1–5 above — treat their
-`App.tsx` / `Layout.tsx` / `store/auth.tsx` / `index.html` as the reference
-pattern for any new pkt* app.
+All 9 apps in the suite (pktCert, pktFlow, pktSNMP, pktLog, pktWiFi, pktIPAM,
+pktNode, pktPCAP, pktSecurity) implement points 1–5 above and publish a nav
+manifest from `app/api/nav.py` — treat their `App.tsx` / `Layout.tsx` /
+`store/auth.tsx` / `index.html` / `app/api/nav.py` as the reference pattern
+for any new pkt* app. Each app's `NAV_MANIFEST` and the `NAV` const in its
+own `Layout.tsx` are separate declarations of one menu, and each carries a
+comment pointing at the other; a page added to one belongs in both.
 
 **"Remotely Managed" lock** — separate from and narrower than the
 `direct`/`managed` **Managed Mode** described above (which locks a sibling
@@ -335,7 +369,7 @@ so there's no lockout-of-itself paradox.
 
 ## NOC Displays
 
-**NOC Builder** lets you lay out widgets from any registered app onto a
+**NOC Screens** lets you lay out widgets from any registered app onto a
 wallboard-style display; the public `/display/:token` route renders it
 full-screen for a TV, with no login required. (This feature was originally
 called "kiosk" internally — the `kiosk_layouts` DB table was renamed to

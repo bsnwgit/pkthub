@@ -90,6 +90,7 @@ class AppOut(BaseModel):
     health_status: str
     last_health_check: Optional[str] = None
     widget_manifest: List[Any] = []
+    nav_manifest: List[Any] = []   # the app's own left-nav, mirrored in the hub's APPS section
     supported_versions: List[int] = [1]
     registered_at: str
     return_url: Optional[str] = None
