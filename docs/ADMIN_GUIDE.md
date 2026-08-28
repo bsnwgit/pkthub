@@ -1,6 +1,6 @@
 # pktHub — Administrator Guide
 
-Covers installing, configuring, and operating pktHub — the central hub for the pkt suite. For day-to-day usage (App Registry, NOC Builder, Alerts), see [USER_GUIDE.md](USER_GUIDE.md). See the [README](../README.md) for the full technical reference.
+Covers installing, configuring, and operating pktHub — the central hub for the pkt suite. For day-to-day usage (App Registry, NOC Screens, Alerts), see [USER_GUIDE.md](USER_GUIDE.md). See the [README](../README.md) for the full technical reference.
 
 ## Installation
 
@@ -21,7 +21,7 @@ Prompts for install directory (default `/opt/pkthub`, or `PKTHUB_INSTALL_DIR` en
 1. **Change the admin password.**
 2. **Register your sibling pkt apps** (Settings → Security → Suite Integration → Register App) — see App Registry below.
 3. **Decide access mode per app**: `direct` (that app's own login still works standalone) or `managed` (locks direct login, forcing access only through pktHub). Configure defaults for newly registered apps under Settings → App Registry.
-4. **Build a NOC display** (NOC Builder) if you want a wallboard view — remember its public `/display/:token` URL needs no login, so only share it with screens/people you're comfortable giving unauthenticated access.
+4. **Build a NOC display** (NOC Screens) if you want a wallboard view — remember its public `/display/:token` URL needs no login, so only share it with screens/people you're comfortable giving unauthenticated access.
 5. **Configure alert notification channels.**
 6. **Set up backups** and confirm a manual run succeeds.
 7. **Create accounts** for your team.
@@ -49,7 +49,7 @@ Settings → Security → Auth:
 
 pktHub is the hub side of the suite-token mechanism every pkt app implements. Two different places show this — don't confuse them:
 
-- **`/apps`** (App Registry, all roles) and **Context Viewer** (`/context`) are read-only day-to-day views: health, proxied access, recent alerts.
+- **`/apps`** (App Registry, all roles) is the read-only day-to-day view: health, proxied access, recent alerts. The **APPS** section of the left nav mirrors each registered app's own menu, opening its real pages inside the hub shell.
 - **Settings → Security → Suite Integration** (admin only) is where registration actually happens:
   1. On the sibling app, copy its suite token (that app's own Settings → Security/Integrations → Suite Integration → **Copy Token**) and note its base URL.
   2. In pktHub: Settings → Security → Suite Integration → **Register App**, paste the token + base URL.
@@ -60,17 +60,21 @@ pktHub is the hub side of the suite-token mechanism every pkt app implements. Tw
 
 Each registered app has an access mode: `direct` (its own login still works) or `managed` (locks direct login — "Managed Mode" / the "Enable All" bulk action — forcing access only through pktHub's proxy/SSO). pktHub polls each managed app's reported lock state; if an app reports itself unlocked while the hub still expects `managed`, it's automatically reverted to `direct` and an `app.lock_drift_detected` audit entry is written — so a sibling app can never get silently stuck locked out of itself.
 
-## Reg App Settings (proxy-embedded Settings pages)
+## APPS (proxy-embedded pages) and Reg App Settings
 
-Every registered app gets its own nav entry under a "REG APP SETTINGS" divider, showing that app's **real, live Settings page**, embedded full-screen — not a re-implementation, so it can never drift from what the app actually looks like. If you're troubleshooting why this doesn't work for a newly-added app, or building the pattern into a new pkt* app yourself, the mechanism is:
+Each registered app that publishes a nav manifest gets a collapsible group under the **APPS** divider, carrying that app's own menu. Selecting a row shows that app's **real, live page**, embedded beside pktHub's menu — not a re-implementation, so it can never drift from what the app actually looks like. An app that publishes no manifest gets no group, and instead keeps a Settings entry under the "REG APP SETTINGS" divider.
 
-1. pktHub authenticates the embed with a scoped proxy-session cookie, then `GET /proxy/:appId/settings?chromeless=1`.
-2. The sibling app's own router must recognize it's running under that `/proxy/:appId/` path prefix (as its `basename`) — otherwise every route fails to match and falls through to a redirect, usually landing on Dashboard instead of Settings.
-3. The sibling app's Layout needs a `chromeless` mode (driven by `?chromeless=1`) that skips its own sidebar/header.
+The manifest is `GET /api/nav/manifest` on the app, gated by `X-Suite-Token` like its widget endpoints, returning `{path, label, icon, admin_only, divider_before}` entries. pktHub's health poller caches it into `registered_apps.nav_manifest`, so a menu change on an app reaches the hub within one poll interval with no hub-side change. `admin_only` filters what the hub *draws*; the real authorisation is the app's own check against the role pktHub asserts in `X-Suite-Role`.
+
+If you're troubleshooting why this doesn't work for a newly-added app, or building the pattern into a new pkt* app yourself, the mechanism is:
+
+1. pktHub authenticates the embed with a scoped proxy-session cookie, then `GET /proxy/:appId/<path>?chromeless=1`.
+2. The sibling app's own router must recognize it's running under that `/proxy/:appId/` path prefix (as its `basename`) — otherwise every route fails to match and falls through to a redirect, usually landing on Dashboard instead of the requested page.
+3. The sibling app's Layout needs a `chromeless` mode (driven by `?chromeless=1`) that skips its own sidebar/header. Give that wrapper a definite height (`h-screen overflow-auto`, not `min-h-screen`) — a page that fills its container sizes itself with `h-full`, which collapses to zero against an auto-height parent and renders blank.
 4. The sibling app's auth store must check `GET /api/suite/whoami` for `via_suite_token: true` and synthesize a logged-in session client-side, instead of showing its own login page.
 5. Any app-relative asset referenced with a **literal absolute path** (`src="/logo.png"`) will 404 when proxied, since a leading-`/` path resolves against pktHub's own origin regardless of any `<base>` tag. Fix: reference assets with **relative** paths and ensure the app's `index.html` has `<base href="/" />` — pktHub's proxy injects its own `<base href="/proxy/:appId/">` ahead of that, which correctly wins per the HTML spec (only the first `<base>` in a document is used) while proxied, without breaking direct access.
 
-All 8 apps in the suite already implement points 1–5 — use their `App.tsx`/`Layout.tsx`/`store/auth.tsx`/`index.html` as the reference pattern for any new pkt* app.
+All 9 apps in the suite implement points 1–5 and publish a nav manifest from `app/api/nav.py` — use their `App.tsx`/`Layout.tsx`/`store/auth.tsx`/`index.html`/`app/api/nav.py` as the reference pattern for any new pkt* app.
 
 ### "Remotely Managed" Settings lock
 
@@ -82,7 +86,7 @@ Separate from and narrower than the `direct`/`managed` access mode above (which 
 
 ## NOC Displays
 
-Built in NOC Builder, rendered full-screen with no login at the public `/display/:token` URL — treat that token like a shareable secret; anyone with the link can view the display. (Internally this was originally called "kiosk" — the `kiosk_layouts` table was renamed `noc_layouts`, same feature, in case you run into the old name in a stale doc or DB dump.)
+Built in NOC Screens, rendered full-screen with no login at the public `/display/:token` URL — treat that token like a shareable secret; anyone with the link can view the display. (Internally this was originally called "kiosk" — the `kiosk_layouts` table was renamed `noc_layouts`, same feature, in case you run into the old name in a stale doc or DB dump.)
 
 ## Maintenance
 

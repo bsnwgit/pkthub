@@ -275,7 +275,7 @@ export default function AppManagerPage() {
 
                   {/* Right: action buttons — available to every role */}
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => navigate(`/context?app=${app.id}`)} title="Open in Context"
+                    <button onClick={() => navigate(`/app/${app.id}/`)} title="Open app"
                       className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
                       <ExternalLink size={14} />
                     </button>
