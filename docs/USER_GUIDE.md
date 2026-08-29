@@ -44,6 +44,36 @@ An app that doesn't publish a menu has no group under APPS. It still opens from 
 
 Lay out widgets pulled from any registered app onto a wallboard-style display. Once built, the display is reachable at a public `/display/:token` URL with **no login required** — designed to be put up on a TV or wallboard. Share that link only with people/screens you're comfortable having unauthenticated access to that specific dashboard.
 
+### The widget library
+
+The editor's left panel lists every widget each registered app publishes, grouped by app and then by the app's own category (Overview, Traffic, Alerts, and so on). Use the search box to filter across every app at once — it matches on title, category and description, so searching `throughput` or `expiring` finds the right widget without knowing which app owns it. Click an app's name to collapse its section while you work elsewhere; a search always expands what it matches.
+
+The count beside "Widget Library" is the total available. The **⟳** button re-fetches the manifests from every app — use it if you've just added widgets to an app, or added/removed hardware, and don't want to wait for the next health poll.
+
+### When a widget shows nothing
+
+A tile that shows no data tells you which kind of nothing it is, so a blank panel on a wall is never ambiguous:
+
+| | Meaning |
+|---|---|
+| **⚙ amber** | The widget needs a filter set — pick the device/subnet/AP in the Filters panel |
+| **○ grey** | The query ran and there genuinely is nothing, with the reason stated ("No radio is reporting a noise floor" rather than "No data") |
+| **⚠ red** | The query failed, naming the error — this is a fault, not an empty result |
+
+The distinction matters most on an unattended display: a blank tile reads as "all quiet", which is exactly the wrong message if the widget is actually broken.
+
+### Refresh interval
+
+Every widget reloads itself on the interval set in **Settings → NOC → Widget refresh** (default 30s, range 5s–1h). It applies to both the editor preview and published displays.
+
+### Widget filters
+
+Selecting a placed widget shows its **Filters** in the right panel — the choices that widget declares, such as which device, interface, subnet, access point or metric it should show, and over what time window.
+
+These lists are read live from the owning app, so a device enrolled or decommissioned after the screen was built appears (or disappears) the next time you open the picker — press **⟳** to refresh them mid-session. Some filters narrow by another: pick the device before the interface list can populate, and the editor says so rather than sitting on "Loading…". Changing a parent filter clears the ones below it, so a widget can't be left pointing at an interface belonging to a different device.
+
+If a widget on a live display refers to something that has since been deleted, it says so on the tile rather than rendering blank — a blank tile on a wallboard reads as "all quiet", which is exactly the wrong message.
+
 ## Alerts
 
 Recent alerts surfaced from registered apps in one place.

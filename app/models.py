@@ -171,6 +171,10 @@ class NOCOut(BaseModel):
     published_at: Optional[str] = None
     created_at: str
     updated_at: str
+    # Settings -> NOC -> "Widget refresh". Sent with the layout so the public
+    # display, which has no session to read settings with, can pass it on to
+    # each widget iframe.
+    widget_refresh: int = 30
 
 # --- Settings ---
 class ConfigItem(BaseModel):

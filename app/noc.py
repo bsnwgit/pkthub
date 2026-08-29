@@ -9,14 +9,31 @@ from app.models import NOCCreate, NOCUpdate, NOCOut
 
 router = APIRouter(prefix="/api/noc", tags=["noc"])
 
-def _parse_noc(row) -> NOCOut:
+DEFAULT_WIDGET_REFRESH = 30
+
+
+async def _widget_refresh(db: aiosqlite.Connection) -> int:
+    """Settings → NOC → Widget refresh, bounded. Falls back to the default if
+    unset or unparseable — a bad value must not stop a screen rendering."""
+    try:
+        async with db.execute(
+            "SELECT value FROM platform_config WHERE key = 'noc_widget_refresh'"
+        ) as cur:
+            row = await cur.fetchone()
+        return max(5, min(int(row[0]), 3600)) if row and row[0] else DEFAULT_WIDGET_REFRESH
+    except (TypeError, ValueError, Exception):
+        return DEFAULT_WIDGET_REFRESH
+
+
+def _parse_noc(row, widget_refresh: int = DEFAULT_WIDGET_REFRESH) -> NOCOut:
     return NOCOut(
         id=row["id"], name=row["name"], description=row["description"] or "",
         layout=json.loads(row["layout"] or "[]"),
         display_mode=row["display_mode"], dwell_seconds=row["dwell_seconds"],
         display_token=row["display_token"], is_published=bool(row["is_published"]),
         published_at=row["published_at"],
-        created_at=row["created_at"], updated_at=row["updated_at"]
+        created_at=row["created_at"], updated_at=row["updated_at"],
+        widget_refresh=widget_refresh
     )
 
 @router.get("", response_model=List[NOCOut])
@@ -54,7 +71,7 @@ async def get_noc(
         row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="NOC not found")
-    return _parse_noc(row)
+    return _parse_noc(row, await _widget_refresh(db))
 
 @router.patch("/{noc_id}", response_model=NOCOut)
 async def update_noc(
@@ -130,4 +147,4 @@ async def display_noc(token: str, db: aiosqlite.Connection = Depends(get_db)):
         row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="NOC not found or not published")
-    return _parse_noc(row)
+    return _parse_noc(row, await _widget_refresh(db))

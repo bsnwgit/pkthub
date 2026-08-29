@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 import aiosqlite
 import httpx
+import posixpath
 import secrets
 import json
 from datetime import datetime
@@ -16,6 +17,10 @@ from app.crypto import decrypt_str, encrypt_str
 router = APIRouter(prefix="/api/apps", tags=["registry"])
 
 SUITE_VERSION = 1
+
+# Widget param pickers are served from this namespace on every pktApp. The
+# widget-options proxy refuses anything outside it — see get_widget_options.
+_OPTIONS_PREFIX = "/api/widgets/options/"
 
 def _parse_app(row) -> AppOut:
     manifest = json.loads(row["widget_manifest"]) if row["widget_manifest"] else []
@@ -312,16 +317,33 @@ async def get_widget_options(
 ):
     """Proxy a widget's `options_path` (from its manifest entry) so the NOC
     editor can populate a param picker (e.g. device/subnet/AP list) without
-    the browser needing direct network access or a suite token of its own."""
+    the browser needing direct network access or a suite token of its own.
+
+    `path` may carry a query string — dependent pickers narrow their options by
+    an already-chosen param (…/interfaces?device_id=3). It is confined to the
+    widget-options namespace: this proxy attaches the app's suite token, which
+    is the trusted-proxy secret, so an unconstrained path would let any analyst
+    read *any* GET endpoint on *any* registered app with that privilege. Every
+    manifest in the suite already serves its pickers from this prefix."""
     if "://" in path:
         raise HTTPException(status_code=400, detail="path must be relative to the app")
+
+    raw_path, _, query = path.partition("?")
+    # Resolve the path before checking the prefix, so "/api/widgets/options/../../users"
+    # is rejected rather than passing on its literal spelling.
+    norm = posixpath.normpath("/" + raw_path.lstrip("/"))
+    if not norm.startswith(_OPTIONS_PREFIX):
+        raise HTTPException(
+            status_code=400,
+            detail=f"path must be under {_OPTIONS_PREFIX}"
+        )
 
     async with db.execute("SELECT * FROM registered_apps WHERE id = ?", (app_id,)) as cur:
         app = await cur.fetchone()
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
 
-    target_url = f"{app['base_url'].rstrip('/')}/{path.lstrip('/')}"
+    target_url = f"{app['base_url'].rstrip('/')}{norm}" + (f"?{query}" if query else "")
     try:
         async with httpx.AsyncClient(verify=False, timeout=8) as client:
             resp = await client.get(
@@ -335,6 +357,43 @@ async def get_widget_options(
         raise
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Cannot reach app: {e}")
+
+
+@router.post("/refresh-manifests", response_model=dict)
+async def refresh_manifests(
+    current_user: dict = Depends(require_analyst_or_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Re-fetch every registered app's widget manifest now, rather than waiting
+    for the next health poll. The NOC editor calls this so an app that has just
+    gained widgets shows them in the library without a restart or a poll wait."""
+    async with db.execute("SELECT * FROM registered_apps ORDER BY registered_at") as cur:
+        apps = await cur.fetchall()
+
+    results = []
+    for app in apps:
+        count = None
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                resp = await client.get(
+                    f"{app['base_url'].rstrip('/')}/api/widgets/manifest",
+                    headers={"X-Suite-Token": decrypt_str(app["suite_token"]),
+                             "X-Suite-Version": str(SUITE_VERSION)}
+                )
+            if resp.status_code == 200:
+                manifest = resp.json()
+                if isinstance(manifest, list):
+                    await db.execute(
+                        "UPDATE registered_apps SET widget_manifest = ? WHERE id = ?",
+                        (json.dumps(manifest), app["id"])
+                    )
+                    count = len(manifest)
+        except Exception:
+            pass  # an unreachable app keeps its cached manifest — same contract as poll_health
+        results.append({"app_id": app["id"], "name": app["name"], "widgets": count})
+
+    await db.commit()
+    return {"results": results}
 
 
 async def poll_health(app_id: int, base_url: str, suite_token: str):

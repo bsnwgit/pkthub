@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ReactNode } from 'react'
 
@@ -19,8 +19,13 @@ import Layout from './components/Layout'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">Loading…</div>
-  if (!user) return <Navigate to="/login" replace />
+  // Carry the current route so login returns here rather than the dashboard.
+  if (!user) {
+    const next = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?next=${next}`} replace />
+  }
   return <>{children}</>
 }
 
