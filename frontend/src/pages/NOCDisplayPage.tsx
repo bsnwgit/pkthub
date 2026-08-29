@@ -23,10 +23,12 @@ interface NOCWidget {
   config?: Record<string, string | number | boolean>
 }
 
-function widgetSrc(w: NOCWidget, token: string): string {
+function widgetSrc(w: NOCWidget, token: string, refresh?: number): string {
   const cfg = w.config || {}
   const qs  = new URLSearchParams()
   Object.entries(cfg).forEach(([k, v]) => { if (v !== '' && v !== undefined) qs.set(k, String(v)) })
+  // Settings -> NOC -> Widget refresh, carried on the public display payload.
+  if (refresh) qs.set('refresh', String(refresh))
   const q = qs.toString()
   return `/proxy-display/${token}/${w.app_id}${w.view_path}${q ? '?' + q : ''}`
 }
@@ -154,7 +156,7 @@ export default function NOCDisplayPage() {
             {slide.widgets.map((w: NOCWidget) => (
               <iframe
                 key={`${currentSlide}-${w.id}`}
-                src={widgetSrc(w, token!)}
+                src={widgetSrc(w, token!, noc?.widget_refresh)}
                 title={w.title || w.widget_id}
                 style={{
                   position: 'absolute',

@@ -55,9 +55,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (res.status === 401) {
     clearMemoryToken()
     localStorage.removeItem('pkthub_token')
-    // Redirect to login unless already there (prevents infinite loop on login page)
+    // Redirect to login unless already there (prevents infinite loop on login page).
+    // Carry where we were: this is a hard navigation, so React Router's history is
+    // gone and the login page would otherwise always land back on the dashboard —
+    // losing the NOC screen (or any other page) on every session re-establish.
     if (window.location.pathname !== '/login') {
-      window.location.replace('/login')
+      const next = window.location.pathname + window.location.search
+      window.location.replace('/login?next=' + encodeURIComponent(next))
       return new Promise<T>(() => {}) // suspend — page is navigating away
     }
     throw new Error('Unauthorized')
@@ -121,6 +125,9 @@ export const api = {
     request<any>(`/apps/${id}/resync-token`, { method: 'POST' }),
   getWidgetOptions: (appId: number, path: string) =>
     request<{ value: string; label: string }[]>(`/apps/${appId}/widget-options?path=${encodeURIComponent(path)}`),
+  refreshManifests: () =>
+    request<{ results: { app_id: number; name: string; widgets: number | null }[] }>(
+      '/apps/refresh-manifests', { method: 'POST' }),
 
   // Users
   listUsers: () => request<any[]>('/users'),

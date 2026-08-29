@@ -88,6 +88,54 @@ Separate from and narrower than the `direct`/`managed` access mode above (which 
 
 Built in NOC Screens, rendered full-screen with no login at the public `/display/:token` URL — treat that token like a shareable secret; anyone with the link can view the display. (Internally this was originally called "kiosk" — the `kiosk_layouts` table was renamed `noc_layouts`, same feature, in case you run into the old name in a stale doc or DB dump.)
 
+### The widget manifest
+
+What the NOC builder can offer is exactly what the apps declare. Each app serves `GET /api/widgets/manifest` (gated by `X-Suite-Token`, like its nav manifest) returning a list of:
+
+```
+{id, title, description, category, view_path, default_w, default_h, min_w, min_h, params}
+```
+
+`category` groups the entry inside that app's section of the library; an entry without one falls into "Other", so the field is optional and older apps keep working. `view_path` is a server-rendered HTML page on the app, embedded as an iframe through pktHub's proxy — the app owns the rendering, so a widget can never drift from the data behind it.
+
+pktHub's health poller caches the manifest into `registered_apps.widget_manifest`, so a widget added to an app appears in the hub within one poll interval with no hub-side change. `POST /api/apps/refresh-manifests` (analyst or admin) re-fetches all of them immediately; the editor's **⟳** button calls it.
+
+### Widget states
+
+Widget views distinguish three reasons for showing nothing, because on a wallboard a blank tile reads as "all quiet":
+
+- **cfg** — a declared param has not been chosen yet
+- **empty** — the query ran and returned nothing; the message says why
+- **err** — the query raised
+
+Query helpers record failures in a per-request `ContextVar` rather than swallowing them, and the shared page shell renders the error state *instead of* the body. That matters: previously every query sat in a `try/except` returning an empty list, so a broken widget was indistinguishable from an empty one. Turning this on immediately surfaced several long-standing faults — pktLog widgets querying a `syslog_messages` table that never existed, and a `sqlite3.Row.get()` call in pktFlow that had been silently failing.
+
+Anything that renders its own markup rather than going through the shared shell bypasses this — pktFlow's Geo Map is the one such case.
+
+### Widget refresh interval
+
+**Settings → NOC → Widget refresh** (default 30s, bounded 5s–3600s). pktHub sends it on the NOC payload — including the unauthenticated display payload, which has no session with which to read settings — and both the editor and the display append it to each widget iframe as `?refresh=<seconds>`.
+
+Each app captures it as a router-level dependency into a `ContextVar`, so the page shell can use it without any of the ~150 view functions taking a parameter. An app that receives no `refresh` falls back to 30s.
+
+### Returning to the right page after re-auth
+
+A 401 from any API call triggers a hard `window.location.replace` to the login page, which discards the router history. Both that handler and `RequireAuth` now carry the current path as `?next=`, and the login page returns there.
+
+`next` is accepted only as a same-origin *relative* path — an absolute or protocol-relative URL would make the login page an open redirect, and pktHub is the front door to the whole suite.
+
+### Widget params and live discovery
+
+A manifest entry may declare `params` — the filters shown when a widget is selected. Each is `{key, label, type: "select"}` plus either a fixed `options` list or an `options_path`.
+
+An `options_path` is a relative path on the owning app that returns `[{value, label}]`. pktHub proxies it via `GET /api/apps/{id}/widget-options?path=…`, attaching the suite token so the browser never needs one. **That proxy is confined to `/api/widgets/options/`** — it lends the app's trusted-proxy secret, so an unconstrained path would let any analyst read any GET endpoint on any registered app with that privilege. The path is normalised before the prefix check, so traversal out of the namespace is rejected. Every app in the suite already serves its pickers from that prefix; a new picker must live there too.
+
+This is what keeps a screen current as infrastructure changes: the picker answers from live state, so hardware added or removed after a screen was built needs no manifest edit and no hub change. The same applies to metrics — pktSNMP's metric picker lists whatever OIDs the poller has actually seen, so a newly-polled OID becomes selectable on its own.
+
+An `options_path` may reference another param of the same widget as `{key}` — for example `/api/widgets/options/interfaces?device_id={device_id}`. pktHub substitutes from the widget's saved config, refuses to fetch until the parent is chosen, and clears dependent params when the parent changes so a widget can't end up pointing at a child that belongs to a different parent.
+
+Widgets that take an entity id should check it still exists and say so plainly when it doesn't — a blank tile on a wallboard reads as "all quiet". The apps' `_gone()` helpers are the pattern.
+
 ## Maintenance
 
 Settings → Maintenance (admin only): **Restart** restarts the pktHub service itself; **Port** writes a new port into `config.yaml` immediately but only takes effect after the next restart — the API doesn't restart anything on its own.
