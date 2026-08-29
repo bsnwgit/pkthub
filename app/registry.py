@@ -585,9 +585,26 @@ async def set_direct_access(
             async with httpx.AsyncClient(verify=False, timeout=8) as client:
                 chk = await client.get(f"{base_url}/api/suite/direct-access",
                     headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
+            # The app answered, so it is reachable — report what it actually said.
+            # Only pktLog serves this route today; on every other sibling it 404s,
+            # and calling that "cannot reach app" sends the reader looking for a
+            # network fault that was never there.
+            if chk.status_code in (404, 405):
+                raise HTTPException(status_code=400,
+                    detail="This app does not serve /api/suite/direct-access, so it cannot be put into Managed mode yet. The app needs the suite direct-access endpoints first.")
+            if chk.status_code in (401, 403):
+                raise HTTPException(status_code=502,
+                    detail=f"The app rejected pktHub's suite token (HTTP {chk.status_code}). Rotate the token for this app and try again.")
             if chk.status_code != 200:
-                raise HTTPException(status_code=503, detail="Cannot reach app to verify redirect URL")
-            app_state   = chk.json()
+                raise HTTPException(status_code=502,
+                    detail=f"The app returned HTTP {chk.status_code} when asked for its redirect URL.")
+            try:
+                app_state = chk.json()
+            except ValueError:
+                # A 200 that isn't JSON means the app's SPA catch-all answered —
+                # the route is missing rather than broken.
+                raise HTTPException(status_code=502,
+                    detail="The app answered the redirect-URL check with a non-JSON body — /api/suite/direct-access is most likely missing and its frontend served the request instead.")
             redirect_url = app_state.get("hub_redirect_url", "")
             if not redirect_url:
                 raise HTTPException(status_code=400,
