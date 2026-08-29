@@ -100,11 +100,24 @@ async def health_poller():
 # Serve React frontend — catch-all for SPA routing
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
+# First path segments the server owns outright — no SPA route lives under them.
+# The catch-all answers every other unmatched GET with index.html, so a backend
+# route that goes missing used to return HTML with a 200; the frontend's fetch
+# wrapper only parses JSON once res.ok, and failed with "JSON.parse: unexpected
+# character" instead of reporting a 404. "proxy" is deliberately absent:
+# /proxy/{id} with no trailing slash misses the proxy route and is the SPA's
+# own ProxyShell page.
+SERVER_OWNED_PREFIXES = ("api", "proxy-display")
+
 if os.path.exists(FRONTEND_DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        # A miss under a server-owned prefix is a real 404, not a deep link.
+        if full_path.split("/", 1)[0] in SERVER_OWNED_PREFIXES:
+            raise HTTPException(status_code=404, detail="Not found")
+
         # Normalize-then-prefix-check. This handler is unauthenticated and
         # config.yaml sits above the dist directory, so "../../config.yaml"
         # previously returned the JWT signing key and the credential
