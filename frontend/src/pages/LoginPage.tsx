@@ -24,15 +24,28 @@ function clearCookie(name: string) {
   document.cookie = `${name}=; max-age=0; path=/; samesite=lax`
 }
 
+
+// Where to land after authenticating. Only a same-origin *relative* path is
+// accepted — an absolute or protocol-relative URL here would make the login page
+// an open redirect, and this app is the front door to the whole suite.
+function safeNext(raw: string | null): string {
+  if (!raw) return '/'
+  if (!raw.startsWith('/')) return '/'                 // absolute / scheme-relative
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/'
+  if (raw.startsWith('/login')) return '/'             // never bounce back to itself
+  return raw
+}
+
 export default function LoginPage() {
   const { login, user } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const next = safeNext(searchParams.get('next'))
 
   // If auto-login (all auth methods disabled) already established a session
   // in the background, leave immediately instead of showing a login form.
   useEffect(() => {
-    if (user) navigate('/', { replace: true })
+    if (user) navigate(next, { replace: true })
   }, [user])
 
   const [username, setUsername]     = useState('')
@@ -80,7 +93,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(username, password)
-      navigate('/')
+      navigate(next, { replace: true })
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
