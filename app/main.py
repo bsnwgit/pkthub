@@ -28,8 +28,9 @@ from app.ip_info import router as ip_info_router
 from app.mxtoolbox import router as mxtoolbox_router
 from app.docs_api import router as docs_router
 from app.system_api import router as system_router
+from app.version import get_version
 
-app = FastAPI(title="pktHub", version="1.0.0", docs_url="/api/docs")
+app = FastAPI(title="pktHub", version=get_version(), docs_url="/api/docs")
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,7 +63,7 @@ app.include_router(docs_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "pkthub", "version": "1.0.0"}
+    return {"status": "ok", "service": "pkthub", "version": get_version()}
 
 @app.on_event("startup")
 async def startup():
