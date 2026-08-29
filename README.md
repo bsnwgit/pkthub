@@ -279,6 +279,7 @@ from a section bar above the tab bar:
 
 | Section | Tabs |
 |---|---|
+| **Common** | General · Security (Users, Auth, Suite Integration, SSL/TLS) · Data (Storage, Backups, Log Forwarding) · Notifications · User Keys · System |
 | **pktHub** | Audit · App Registry · NOC · Maintenance |
 
 Common holds the settings that are identical across every pkt* app;
@@ -455,10 +456,6 @@ storage connection test) — a different tab from Backups.
   [App Registry & Suite Integration](#app-registry--suite-integration)). If
   it hasn't, check the app's own suite-token/lock state directly rather than
   only looking at pktHub's registry entry.
-  detail (fixed 2026-08-03)**: connection/timeout failures reaching a
-  provider now name the provider and its base URL instead of stringifying
-  to nothing — httpx's own connection/timeout exceptions often carry no
-  message text.
 
 ## Development
 
