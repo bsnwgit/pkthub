@@ -4,10 +4,13 @@
   <img src="lockup-256h.png" alt="pktHub" height="64">
 </p>
 
-NOC/SOC management hub — part of the pkt suite. Registers and proxies the
-sibling pkt* apps (pktSNMP, pktFlow, pktLog, pktPCAP, pktWiFi, pktIPAM) behind
-a single login, provides a NOC display builder for wallboards, and centralizes
-user management, audit logging, and alerting across the registered apps.
+NOC/SOC management hub — the front door to the pkt suite. Registers and
+proxies the sibling pkt* apps behind a single login, builds NOC wallboard
+displays from any of their data, and centralizes user management, audit
+logging and alerting across every registered app.
+
+One sign-in, one alert stream, one place to see whether the estate is healthy —
+each app keeps its own data and UI, and pktHub puts them behind one door.
 
 pktHub is a fully wired FastAPI + React application: real bcrypt/JWT admin
 auth, all of registry/users/audit/settings/proxy/NOC/alerting, and a built
@@ -17,8 +20,42 @@ React SPA are all live in the running app — not placeholder scaffolding.
 
 ---
 
+---
+
+## The pkt suite
+
+pktHub is the front door; each app below runs standalone and registers with the
+hub to share sign-in, alerting and NOC widgets.
+
+| | |
+|---|---|
+| **[pktFlow](https://github.com/bsnwgit/pktflow)** | NetFlow, sFlow and IPFIX collection — traffic analytics, flow search, geo and topology views |
+| **[pktSNMP](https://github.com/bsnwgit/pktsnmp)** | SNMP polling and trap receiving for any OID — device health and metric history |
+| **[pktLog](https://github.com/bsnwgit/pktlog)** | Syslog over UDP, TCP and TLS — parsing, enrichment and full-text search |
+| **[pktIPAM](https://github.com/bsnwgit/pktipam)** | IP address management reconciling declared subnets against live DHCP, DNS and device data |
+| **[pktNode](https://github.com/bsnwgit/pktnode)** | Endpoint management for Mac, Windows and Linux via a lightweight Go agent |
+| **[pktCert](https://github.com/bsnwgit/pktCert)** | TLS certificate discovery and lifecycle, plus an internal CA |
+| **[pktPCAP](https://github.com/bsnwgit/pktpcap)** | Browser-based packet capture analysis — no Wireshark install |
+
+More at **[pktsolution.com](https://pktsolution.com)**.
+
+## Why pktHub
+
+Running several monitoring tools usually means several logins, several alert
+inboxes, and no single view of whether anything is actually wrong.
+
+- **One sign-in** — local accounts or Okta SAML, with `admin`/`analyst`/`viewer`
+  roles applied consistently across every registered app
+- **One alert stream** — alerts from every app surfaced together
+- **Each app's real UI** — proxied and embedded, not reimplemented, so it can
+  never drift from the app itself
+- **NOC wallboards** — build a display from any app's data and put it on a TV
+  at a public URL with no login
+- **Self-hosted** — your data stays on your hardware; no external service
+
 ## Table of Contents
 
+- [Why pktHub](#why-pkthub)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Installation](#installation)
@@ -42,7 +79,7 @@ React SPA are all live in the running app — not placeholder scaffolding.
 ## Quick Start
 
 ```bash
-git clone git@github.com:bsnwgit/pkthub.git
+git clone https://github.com/bsnwgit/pkthub.git
 cd pkthub
 ./install.sh
 ```
@@ -113,7 +150,7 @@ the APPS band, `pkthub_app_nav_expanded` for which single app group is open
 Requirements: Python 3.10+, Node/npm (for the frontend build), `openssl` CLI.
 
 ```bash
-git clone git@github.com:bsnwgit/pkthub.git
+git clone https://github.com/bsnwgit/pkthub.git
 cd pkthub
 ./install.sh
 ```
@@ -371,10 +408,29 @@ so there's no lockout-of-itself paradox.
 
 **NOC Screens** lets you lay out widgets from any registered app onto a
 wallboard-style display; the public `/display/:token` route renders it
-full-screen for a TV, with no login required. (This feature was originally
-called "kiosk" internally — the `kiosk_layouts` DB table was renamed to
-`noc_layouts` — same feature, if you run into the old name in a stale doc or
-DB dump elsewhere.)
+full-screen for a TV, with no login required.
+
+Around **150 widgets** are available across the suite — charts, KPI tiles,
+inventory tables, alert feeds and trend views — grouped by app and category
+and searchable across all of them at once. Each app declares what it offers
+via `GET /api/widgets/manifest`, so the library grows as the apps do, with no
+change needed here.
+
+Widgets that need a target (a device, subnet, access point, interface, metric)
+read their choices live from the owning app, so hardware added or removed
+after a screen was built appears or drops out on its own. A widget pinned to
+something since deleted says so rather than rendering blank.
+
+A tile showing nothing tells you which kind of nothing: **needs configuring**
+(amber), **genuinely empty** with the reason stated (grey), or **query failed**
+(red). On an unattended wall a blank tile reads as "all quiet", which is
+exactly wrong if the widget is broken.
+
+Widgets reload on the interval set in Settings → NOC → Widget refresh.
+
+(This feature was originally called "kiosk" internally — the `kiosk_layouts`
+DB table was renamed to `noc_layouts` — same feature, if you run into the old
+name in a stale doc or DB dump elsewhere.)
 
 ## Alerting & Notifications
 
