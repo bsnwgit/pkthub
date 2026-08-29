@@ -102,6 +102,80 @@ _SECRET_KEYS = {
 _ENCRYPTED_AT_REST_KEYS = _SECRET_KEYS
 
 
+@router.get("")
+async def get_all_settings(
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    async with db.execute("SELECT key, value FROM platform_config") as cur:
+        rows = await cur.fetchall()
+    stored = {r["key"]: r["value"] for r in rows}
+    merged = {**DEFAULTS, **stored}
+
+    for k in _SECRET_KEYS:
+        if merged.get(k):
+            merged[k] = _MASK
+
+    return merged
+
+
+@router.get("/{key}")
+async def get_setting(
+    key: str,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    async with db.execute("SELECT value FROM platform_config WHERE key = ?", (key,)) as cur:
+        row = await cur.fetchone()
+    value = row["value"] if row else DEFAULTS.get(key)
+    if value is None and key not in DEFAULTS:
+        raise HTTPException(status_code=404, detail="Setting not found")
+    if key in _SECRET_KEYS and value:
+        value = _MASK
+    return {"key": key, "value": value}
+
+
+@router.put("/{key}")
+async def set_setting(
+    key: str,
+    body: ConfigItem,
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    if key in _SECRET_KEYS and body.value == _MASK:
+        return {"key": key, "value": body.value, "skipped": "mask value"}
+
+    value = body.value
+
+    stored_value = encrypt_str(value) if (key in _ENCRYPTED_AT_REST_KEYS and value) else value
+
+    await db.execute(
+        """INSERT INTO platform_config (key, value, updated_at)
+           VALUES (?, ?, datetime('now'))
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at""",
+        (key, stored_value)
+    )
+    await db.commit()
+    return {"key": key, "value": value}
+
+
+@router.get("/storage/test")
+async def test_storage_connection(
+    current_user: dict = Depends(require_admin),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Verify the SQLite database is accessible and readable."""
+    try:
+        async with db.execute("SELECT COUNT(*) as count FROM audit_log") as cur:
+            row = await cur.fetchone()
+        async with db.execute("PRAGMA integrity_check") as cur:
+            ic = await cur.fetchone()
+        ok = ic and ic[0] == "ok"
+        return {"ok": ok, "message": "SQLite (built-in) — connection verified" if ok else "Integrity check failed"}
+    except Exception as exc:
+        return {"ok": False, "message": str(exc)}
+
+
 @router.post("/storage/cleanup")
 async def run_storage_cleanup(
     current_user: dict = Depends(require_admin),
