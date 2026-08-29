@@ -29,6 +29,9 @@ interface WidgetManifestEntry {
   min_w?: number
   min_h?: number
   params?: WidgetParam[]
+  // Optional grouping label within the owning app's section of the library.
+  // Apps that predate it fall back to UNGROUPED, so the contract stays additive.
+  category?: string
 }
 interface AppWithWidgets {
   id: number
@@ -57,22 +60,25 @@ const APP_COLORS: Record<string, string> = {
   pktsecurity: '#be7125',
 }
 function appColor(name: string): string {
-  return APP_COLORS[name.toLowerCase().replace(/[^a-z]/g, '')] ?? '#a9a294'
+  return APP_COLORS[name.toLowerCase().replace(/[^a-z]/g, '')] ?? '#d2ccc0'
 }
 
 // ─── Widget iframe src ── appends config params as query string ─────────────
-function widgetIframeSrc(w: PlacedWidget, proxyBase: string): string {
+function widgetIframeSrc(w: PlacedWidget, proxyBase: string, refresh?: number): string {
   const cfg = w.config || {}
   const qs  = new URLSearchParams()
   Object.entries(cfg).forEach(([k, v]) => { if (v !== '' && v !== undefined) qs.set(k, String(v)) })
+  // Settings -> NOC -> Widget refresh. Each widget page reloads itself on this
+  // interval; without it every tile falls back to its own hardcoded 30s.
+  if (refresh) qs.set('refresh', String(refresh))
   const q = qs.toString()
   return `${proxyBase}${w.view_path}${q ? '?' + q : ''}`
 }
 
 // ─── Shared styles ──────────────────────────────────────────────────────────────
 const inputSt: React.CSSProperties = {
-  background: '#10141b', border: '1px solid #39414c', borderRadius: '6px',
-  padding: '6px 8px', fontSize: '13px', color: '#e9e4d8', outline: 'none',
+  background: '#1c2430', border: '1px solid #7f8a9b', borderRadius: '6px',
+  padding: '6px 8px', fontSize: '13px', color: '#f2eee6', outline: 'none',
   width: '100%', boxSizing: 'border-box',
 }
 
@@ -84,6 +90,64 @@ const SNAP_GRID = 24
 
 function uid()      { return 'w-'     + Math.random().toString(36).slice(2, 9) }
 function slideUid() { return 'slide-' + Math.random().toString(36).slice(2, 9) }
+
+// ─── Library grouping ───────────────────────────────────────────────────────────
+const UNGROUPED = 'Other'
+
+/** Split an app's manifest into ordered category buckets, preserving the order
+ *  the app declared them in so each app controls how its own library reads. */
+function groupByCategory(entries: WidgetManifestEntry[]): [string, WidgetManifestEntry[]][] {
+  const buckets = new Map<string, WidgetManifestEntry[]>()
+  entries.forEach(m => {
+    const key = m.category?.trim() || UNGROUPED
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(m)
+    else buckets.set(key, [m])
+  })
+  return [...buckets.entries()]
+}
+
+/** Match on title, category and description so searching "throughput" or
+ *  "interface" finds a widget whose title alone wouldn't say so. */
+function matchesQuery(m: WidgetManifestEntry, q: string): boolean {
+  if (!q) return true
+  const hay = `${m.title} ${m.category ?? ''} ${m.description ?? ''}`.toLowerCase()
+  return q.split(/\s+/).every(term => hay.includes(term))
+}
+
+// ─── Dependent param pickers ───────────────────────────────────────────────────
+/** An options_path may reference other params of the same widget as `{key}` —
+ *  e.g. `/api/widgets/options/interfaces?device_id={device_id}`. Substituting
+ *  from the widget's own config is what lets one manifest entry cover whatever
+ *  devices, interfaces or metrics the app happens to have at the time: the app
+ *  answers from live state, so hardware added or removed later needs no manifest
+ *  change here. Returns null while any referenced param is still unset. */
+function resolveOptionsPath(
+  template: string,
+  config: Record<string, string | number | boolean> | undefined,
+): string | null {
+  let unresolved = false
+  const path = template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const v = config?.[key]
+    if (v === undefined || v === '') { unresolved = true; return '' }
+    return encodeURIComponent(String(v))
+  })
+  return unresolved ? null : path
+}
+
+/** The params a picker's path depends on, so the editor knows when to re-fetch. */
+function optionsDeps(template: string): string[] {
+  return [...template.matchAll(/\{(\w+)\}/g)].map(m => m[1])
+}
+
+// ─── Compositor layer promotion ────────────────────────────────────────────────
+// On some macOS/GPU combinations the browser fails to paint this page's main
+// layer entirely: the DOM is correct and hit-testable, but nothing appears
+// except elements that already have their own compositor layer (the scaled
+// canvas, and drag images). Promoting the chrome to its own layer puts it on
+// the same path that demonstrably paints. Harmless everywhere else — these are
+// three static, non-scrolling panels.
+const LAYER: React.CSSProperties = { transform: 'translateZ(0)', willChange: 'transform' }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
 export default function NOCEditorPage() {
@@ -103,6 +167,9 @@ export default function NOCEditorPage() {
   const [proxyReady, setProxyReady] = useState<Set<number>>(new Set())
   const [zoom, setZoom] = useState(0.5)
   const [snapEnabled, setSnapEnabled] = useState(false)
+  const [libQuery,     setLibQuery]     = useState('')
+  const [collapsedApps,setCollapsedApps]= useState<Set<number>>(new Set())
+  const [refreshing,   setRefreshing]   = useState(false)
 
   const canvasRef     = useRef<HTMLDivElement>(null)
   const canvasAreaRef = useRef<HTMLDivElement>(null)
@@ -197,7 +264,7 @@ export default function NOCEditorPage() {
   const currentSlide   = slides[currentSlideIdx] ?? slides[0]
   const selectedWidget = currentSlide?.widgets.find(w => w.id === selectedWidgetId) ?? null
   const selectedApp    = selectedWidget ? apps.find(a => a.id === selectedWidget.app_id) : null
-  const selColor       = selectedApp ? appColor(selectedApp.name) : '#a9a294'
+  const selColor       = selectedApp ? appColor(selectedApp.name) : '#d2ccc0'
 
   // Min-size for selected widget config panel clamping
   const selectedWidgetManifest = selectedWidget
@@ -206,20 +273,29 @@ export default function NOCEditorPage() {
   const selMinW = selectedWidgetManifest?.min_w ?? 150
   const selMinH = selectedWidgetManifest?.min_h ?? 100
 
-  // ── Dynamic param options (device/subnet/AP pickers etc.) ────────────────
+  // ── Dynamic param options (device/subnet/AP/metric pickers etc.) ─────────
+  // Keyed by the *resolved* path, so a picker that narrows by another param
+  // caches one entry per parent value rather than one per widget.
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, WidgetParamOption[]>>({})
+
+  // Config of the selected widget, serialised — dependent pickers must re-fetch
+  // when the param they narrow by changes.
+  const selectedConfigKey = JSON.stringify(selectedWidget?.config ?? {})
+
   useEffect(() => {
     const dynamicParams = (selectedWidgetManifest?.params ?? []).filter(p => p.options_path)
     if (!selectedWidget || dynamicParams.length === 0) return
     dynamicParams.forEach(p => {
-      const cacheKey = `${selectedWidget.app_id}:${p.options_path}`
+      const resolved = resolveOptionsPath(p.options_path!, selectedWidget.config)
+      if (!resolved) return                       // parent param not chosen yet
+      const cacheKey = `${selectedWidget.app_id}:${resolved}`
       if (dynamicOptions[cacheKey]) return
-      api.getWidgetOptions(selectedWidget.app_id, p.options_path!)
+      api.getWidgetOptions(selectedWidget.app_id, resolved)
         .then(opts => setDynamicOptions(prev => ({ ...prev, [cacheKey]: opts })))
         .catch(() => setDynamicOptions(prev => ({ ...prev, [cacheKey]: [] })))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWidget?.app_id, selectedWidgetManifest])
+  }, [selectedWidget?.app_id, selectedWidgetManifest, selectedConfigKey])
 
   // ── Slide management ─────────────────────────────────────────────────────
   const addSlide = () => {
@@ -257,10 +333,41 @@ export default function NOCEditorPage() {
     setSelectedWidgetId(null)
   }
 
-  // ── DnD from library ─────────────────────────────────────────────────────
+  // ── Library ──────────────────────────────────────────────────────────────
   const onLibraryDragStart = (appId: number, m: WidgetManifestEntry) => {
     dragDataRef.current = { appId, manifest: m }
   }
+
+  const toggleAppCollapsed = (appId: number) =>
+    setCollapsedApps(prev => {
+      const next = new Set(prev)
+      if (next.has(appId)) next.delete(appId)
+      else next.add(appId)
+      return next
+    })
+
+  /** Pull fresh manifests from every app — an app that has just gained widgets
+   *  otherwise stays stale in the library until the next hub health poll. Also
+   *  drops the cached param options, so devices/interfaces added or removed
+   *  since the editor opened are picked up without a reload. */
+  const refreshLibrary = async () => {
+    setRefreshing(true)
+    try {
+      await api.refreshManifests()
+      const appList = await api.listApps()
+      setApps((appList as any[]).filter(
+        (a: any) => Array.isArray(a.widget_manifest) && a.widget_manifest.length > 0
+      ))
+      setDynamicOptions({})
+    } catch { /* leave the cached library in place */ } finally { setRefreshing(false) }
+  }
+
+  // Search narrows each app to its matching widgets; apps left with none drop out.
+  const q = libQuery.trim().toLowerCase()
+  const filteredApps = apps
+    .map(a => ({ ...a, widget_manifest: a.widget_manifest.filter(m => matchesQuery(m, q)) }))
+    .filter(a => a.widget_manifest.length > 0)
+  const totalWidgets = apps.reduce((n, a) => n + a.widget_manifest.length, 0)
 
   const onCanvasDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -336,18 +443,18 @@ export default function NOCEditorPage() {
   }
 
   if (loading) return (
-    <div style={{ height: '100vh', background: '#04060a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#39414c', fontSize: '14px' }}>
+    <div style={{ height: '100vh', background: '#0e131c', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7f8a9b', fontSize: '14px' }}>
       Loading editor…
     </div>
   )
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#04060a', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0e131c', overflow: 'hidden' }}>
 
       {/* ── Top bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px', height: '52px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, background: '#0d1219' }}>
-        <button onClick={() => navigate('/noc')} style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>← Back</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px', height: '52px', borderBottom: '1px solid rgba(255,255,255,0.15)', flexShrink: 0, background: '#19212d', ...LAYER }}>
+        <button onClick={() => navigate('/noc')} style={{ color: '#d2ccc0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>← Back</button>
         <span style={{ color: '#f2eee5', fontSize: '14px', fontWeight: 500 }}>{noc?.name}</span>
         <HelpButton title="NOC Editor — How It Works">
           <p>Drag widgets from a registered app's manifest onto the canvas — each one is a live iframe of that app's own dashboard view, positioned and sized on a {CANVAS_W}×{CANVAS_H} reference canvas that scales to fit whatever screen the display ends up on.</p>
@@ -360,10 +467,10 @@ export default function NOCEditorPage() {
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
               <button
                 onClick={() => { setCurrentSlideIdx(i); setSelectedWidgetId(null) }}
-                style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s', border: i === currentSlideIdx ? '1px solid #466cc8' : '1px solid transparent', background: i === currentSlideIdx ? '#466cc8' : '#10141b', color: i === currentSlideIdx ? '#fff' : '#a9a294' }}
+                style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s', border: i === currentSlideIdx ? '1px solid #466cc8' : '1px solid transparent', background: i === currentSlideIdx ? '#466cc8' : '#1c2430', color: i === currentSlideIdx ? '#fff' : '#d2ccc0' }}
               >{s.title}</button>
               {slides.length > 1 && (
-                <button onClick={() => removeSlide(i)} style={{ color: '#39414c', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px' }}>×</button>
+                <button onClick={() => removeSlide(i)} style={{ color: '#7f8a9b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px' }}>×</button>
               )}
             </div>
           ))}
@@ -371,18 +478,18 @@ export default function NOCEditorPage() {
         </div>
 
         {/* Display mode pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px 8px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '20px', padding: '3px 8px', flexShrink: 0 }}>
           {(['static','rotating','manual'] as const).map(m => (
-            <button key={m} onClick={() => setDisplayMode(m)} style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', border: 'none', transition: 'all 0.15s', background: displayMode === m ? 'rgba(167,139,250,0.18)' : 'transparent', color: displayMode === m ? '#b0a0dd' : '#a9a294' }}>
+            <button key={m} onClick={() => setDisplayMode(m)} style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', border: 'none', transition: 'all 0.15s', background: displayMode === m ? 'rgba(167,139,250,0.18)' : 'transparent', color: displayMode === m ? '#b0a0dd' : '#d2ccc0' }}>
               {m.charAt(0).toUpperCase() + m.slice(1)}
             </button>
           ))}
           {displayMode === 'rotating' && (
             <>
-              <span style={{ color: '#39414c', fontSize: '11px', margin: '0 2px' }}>·</span>
+              <span style={{ color: '#7f8a9b', fontSize: '11px', margin: '0 2px' }}>·</span>
               <input type="number" min={5} value={nocDwell} onChange={e => setNOCDwell(Math.max(5, parseInt(e.target.value) || 30))}
                 style={{ width: '40px', background: 'transparent', border: 'none', fontSize: '11px', color: '#b0a0dd', outline: 'none', textAlign: 'center' }} />
-              <span style={{ fontSize: '11px', color: '#39414c' }}>s</span>
+              <span style={{ fontSize: '11px', color: '#7f8a9b' }}>s</span>
             </>
           )}
         </div>
@@ -391,16 +498,16 @@ export default function NOCEditorPage() {
         <button
           onClick={() => setSnapEnabled(s => !s)}
           title="Snap to 24px grid"
-          style={{ color: snapEnabled ? '#b0a0dd' : '#39414c', background: snapEnabled ? 'rgba(167,139,250,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${snapEnabled ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}
+          style={{ color: snapEnabled ? '#b0a0dd' : '#7f8a9b', background: snapEnabled ? 'rgba(167,139,250,0.12)' : 'rgba(255,255,255,0.10)', border: `1px solid ${snapEnabled ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.18)'}`, borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}
         >Snap</button>
 
         {/* Zoom controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px 8px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '20px', padding: '3px 8px', flexShrink: 0 }}>
           <button onClick={fitCanvas} title="Fit canvas to screen" style={{ color: '#b0a0dd', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: '0 6px', lineHeight: 1 }}>Fit</button>
-          <span style={{ color: '#39414c', fontSize: '11px', userSelect: 'none' }}>·</span>
-          <button onClick={zoomOut} title="Zoom out" style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 4px' }}>−</button>
-          <span style={{ fontSize: '11px', color: '#a9a294', minWidth: '36px', textAlign: 'center', fontFamily: 'monospace', userSelect: 'none' }}>{Math.round(zoom * 100)}%</span>
-          <button onClick={zoomIn} title="Zoom in" style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 4px' }}>+</button>
+          <span style={{ color: '#7f8a9b', fontSize: '11px', userSelect: 'none' }}>·</span>
+          <button onClick={zoomOut} title="Zoom out" style={{ color: '#d2ccc0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 4px' }}>−</button>
+          <span style={{ fontSize: '11px', color: '#d2ccc0', minWidth: '36px', textAlign: 'center', fontFamily: 'monospace', userSelect: 'none' }}>{Math.round(zoom * 100)}%</span>
+          <button onClick={zoomIn} title="Zoom in" style={{ color: '#d2ccc0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 4px' }}>+</button>
         </div>
 
         {saveMsg && <span style={{ fontSize: '12px', color: saveMsg === 'Saved' ? '#9aeabd' : '#ff8478', flexShrink: 0 }}>{saveMsg}</span>}
@@ -413,37 +520,85 @@ export default function NOCEditorPage() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* ── Left: Widget library ── */}
-        <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.07)', background: '#04060a', overflowY: 'auto', padding: '12px 10px' }}>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: '#39414c', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px', paddingLeft: '4px' }}>Widget Library</div>
-          {apps.map(app => {
-            const clr = appColor(app.name)
-            const ready = proxyReady.has(app.id)
-            return (
-              <div key={app.id} style={{ marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', paddingLeft: '4px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: ready ? clr : '#39414c', display: 'inline-block', flexShrink: 0, transition: 'background 0.3s' }} />
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: clr, letterSpacing: '0.03em' }}>{app.name}</span>
-                </div>
-                {app.widget_manifest.map(m => (
-                  <div
-                    key={m.id}
-                    draggable
-                    onDragStart={() => onLibraryDragStart(app.id, m)}
-                    title={m.description ?? m.title}
-                    style={{ padding: '7px 10px', marginBottom: '4px', borderRadius: '6px', fontSize: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: '#a9a294', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLDivElement).style.color = '#e9e4d8' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLDivElement).style.color = '#a9a294' }}
+        <div style={{ width: '248px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.15)', background: '#0e131c', display: 'flex', flexDirection: 'column', ...LAYER }}>
+
+          {/* Library header — title, count, manifest resync */}
+          <div style={{ padding: '12px 10px 8px', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', paddingLeft: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 600, color: '#7f8a9b', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+                Widget Library
+              </span>
+              <span style={{ fontSize: '10px', color: '#7f8a9b', fontFamily: 'monospace' }}>{totalWidgets}</span>
+              <button
+                onClick={refreshLibrary}
+                disabled={refreshing}
+                title="Re-fetch widget manifests from every registered app"
+                style={{ color: refreshing ? '#7f8a9b' : '#d2ccc0', background: 'none', border: 'none', cursor: refreshing ? 'default' : 'pointer', fontSize: '12px', lineHeight: 1, padding: '0 2px' }}
+              >⟳</button>
+            </div>
+            <input
+              type="text"
+              value={libQuery}
+              onChange={e => setLibQuery(e.target.value)}
+              placeholder="Search widgets…"
+              style={{ ...inputSt, padding: '5px 8px', fontSize: '12px' }}
+            />
+          </div>
+
+          {/* Library body */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+            {filteredApps.map(app => {
+              const clr        = appColor(app.name)
+              const ready      = proxyReady.has(app.id)
+              // A search result is always expanded — collapsing only applies to browsing.
+              const collapsed  = !q && collapsedApps.has(app.id)
+              const categories = groupByCategory(app.widget_manifest)
+
+              return (
+                <div key={app.id} style={{ marginBottom: '12px' }}>
+                  <button
+                    onClick={() => toggleAppCollapsed(app.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', padding: '2px 4px', width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                   >
-                    <span style={{ fontSize: '9px', color: '#39414c' }}>⠿</span>
-                    {m.title}
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-          {apps.length === 0 && (
-            <div style={{ fontSize: '12px', color: '#39414c', padding: '8px 4px', textAlign: 'center' }}>No apps with widgets</div>
-          )}
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: ready ? clr : '#7f8a9b', display: 'inline-block', flexShrink: 0, transition: 'background 0.3s' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: clr, letterSpacing: '0.03em', flex: 1 }}>{app.name}</span>
+                    <span style={{ fontSize: '10px', color: '#7f8a9b', fontFamily: 'monospace' }}>{app.widget_manifest.length}</span>
+                    <span style={{ fontSize: '9px', color: '#7f8a9b' }}>{collapsed ? '▸' : '▾'}</span>
+                  </button>
+
+                  {!collapsed && categories.map(([cat, entries]) => (
+                    <div key={cat} style={{ marginBottom: '6px' }}>
+                      {/* A single unnamed bucket needs no header — it is the whole app */}
+                      {!(categories.length === 1 && cat === UNGROUPED) && (
+                        <div style={{ fontSize: '9px', color: '#7f8a9b', letterSpacing: '0.07em', textTransform: 'uppercase', margin: '6px 0 4px', paddingLeft: '6px' }}>{cat}</div>
+                      )}
+                      {entries.map(m => (
+                        <div
+                          key={m.id}
+                          draggable
+                          onDragStart={() => onLibraryDragStart(app.id, m)}
+                          title={m.description ?? m.title}
+                          style={{ padding: '7px 10px', marginBottom: '4px', borderRadius: '6px', fontSize: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.15)', color: '#d2ccc0', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.18)'; (e.currentTarget as HTMLDivElement).style.color = '#f2eee6' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.16)'; (e.currentTarget as HTMLDivElement).style.color = '#f2eee6' }}
+                        >
+                          <span style={{ fontSize: '9px', color: '#7f8a9b', flexShrink: 0 }}>⠿</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+
+            {apps.length === 0 && (
+              <div style={{ fontSize: '12px', color: '#7f8a9b', padding: '8px 4px', textAlign: 'center' }}>No apps with widgets</div>
+            )}
+            {apps.length > 0 && filteredApps.length === 0 && (
+              <div style={{ fontSize: '12px', color: '#7f8a9b', padding: '8px 4px', textAlign: 'center' }}>No widgets match “{libQuery.trim()}”</div>
+            )}
+          </div>
         </div>
 
         {/* ── Center: Canvas area ── */}
@@ -452,7 +607,7 @@ export default function NOCEditorPage() {
           onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}
           onMouseMove={onCanvasMouseMove} onMouseUp={onCanvasMouseUp} onMouseLeave={onCanvasMouseUp}
           onClick={() => setSelectedWidgetId(null)}
-          style={{ flex: 1, overflow: 'auto', minWidth: 0, backgroundColor: '#04060a', padding: '20px', boxSizing: 'border-box' }}
+          style={{ flex: 1, overflow: 'auto', minWidth: 0, backgroundColor: '#0e131c', padding: '20px', boxSizing: 'border-box' }}
         >
           {/* Zoom wrapper — sized to match the visual canvas footprint so scroll is correct */}
           <div style={{ width: `${CANVAS_W * zoom}px`, height: `${CANVAS_H * zoom}px`, position: 'relative', flexShrink: 0 }}>
@@ -465,9 +620,9 @@ export default function NOCEditorPage() {
                 height: `${CANVAS_H}px`,
                 transform: `scale(${zoom})`,
                 transformOrigin: 'top left',
-                backgroundImage: 'radial-gradient(circle, rgba(51,65,85,0.6) 1px, transparent 1px)',
+                backgroundImage: 'radial-gradient(circle, rgba(96,113,138,0.75) 1px, transparent 1px)',
                 backgroundSize: '24px 24px',
-                backgroundColor: '#080b11',
+                backgroundColor: '#121822',
                 border: '2px solid rgba(99,102,241,0.5)',
                 boxSizing: 'border-box',
                 cursor: 'default',
@@ -477,10 +632,10 @@ export default function NOCEditorPage() {
             >
               {currentSlide?.widgets.map(w => {
                 const wApp = apps.find(a => a.id === w.app_id)
-                const clr  = wApp ? appColor(wApp.name) : '#a9a294'
+                const clr  = wApp ? appColor(wApp.name) : '#d2ccc0'
                 const isSel = w.id === selectedWidgetId
                 const proxyBase = wApp && proxyReady.has(w.app_id) ? `/proxy/${w.app_id}` : null
-                const frameSrc  = proxyBase ? widgetIframeSrc(w, proxyBase) : null
+                const frameSrc  = proxyBase ? widgetIframeSrc(w, proxyBase, noc?.widget_refresh) : null
 
                 return (
                   <div
@@ -489,10 +644,10 @@ export default function NOCEditorPage() {
                     onClick={ev => ev.stopPropagation()}
                     style={{
                       position: 'absolute', left: w.x, top: w.y, width: w.w, height: w.h,
-                      border: isSel ? `2px solid ${clr}` : '1px solid rgba(255,255,255,0.1)',
+                      border: isSel ? `2px solid ${clr}` : '1px solid rgba(255,255,255,0.2)',
                       borderRadius: '4px', overflow: 'hidden', cursor: 'move',
                       boxShadow: isSel ? `0 0 0 1px ${clr}33, 0 4px 20px rgba(0,0,0,0.5)` : '0 2px 12px rgba(0,0,0,0.4)',
-                      background: '#04060a', userSelect: 'none', transition: 'border-color 0.1s',
+                      background: '#0e131c', userSelect: 'none', transition: 'border-color 0.1s',
                     }}
                   >
                     {frameSrc ? (
@@ -502,7 +657,7 @@ export default function NOCEditorPage() {
                         title={w.title}
                       />
                     ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#39414c', fontSize: '12px' }}>
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7f8a9b', fontSize: '12px' }}>
                         {w.title}
                       </div>
                     )}
@@ -514,7 +669,7 @@ export default function NOCEditorPage() {
                         <button
                           onMouseDown={e => e.stopPropagation()}
                           onClick={ev => { ev.stopPropagation(); removeWidget(w.id) }}
-                          style={{ color: '#a9a294', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                          style={{ color: '#d2ccc0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
                         >×</button>
                       </div>
                     )}
@@ -533,21 +688,21 @@ export default function NOCEditorPage() {
         </div>
 
         {/* ── Right: Config panel ── */}
-        <div style={{ width: '240px', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.07)', background: '#04060a', overflowY: 'auto', padding: '12px' }}>
+        <div style={{ width: '240px', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.15)', background: '#0e131c', overflowY: 'auto', padding: '12px', ...LAYER }}>
 
           {/* Selected widget config */}
           {selectedWidget ? (
             <>
-              <div style={{ fontSize: '10px', fontWeight: 600, color: '#39414c', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Widget</div>
+              <div style={{ fontSize: '10px', fontWeight: 600, color: '#7f8a9b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Widget</div>
               <div style={{ fontSize: '12px', color: selColor, marginBottom: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedWidget.title}</div>
 
               {/* Position */}
               <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontSize: '10px', color: '#39414c', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Position</div>
+                <div style={{ fontSize: '10px', color: '#7f8a9b', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Position</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   {(['x','y'] as const).map(f => (
                     <label key={f} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: '#a9a294' }}>{f.toUpperCase()}</span>
+                      <span style={{ fontSize: '10px', color: '#d2ccc0' }}>{f.toUpperCase()}</span>
                       <input
                         type="number" min={0}
                         max={f === 'x' ? CANVAS_W - selectedWidget.w : CANVAS_H - selectedWidget.h}
@@ -569,11 +724,11 @@ export default function NOCEditorPage() {
 
               {/* Size */}
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '10px', color: '#39414c', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Size</div>
+                <div style={{ fontSize: '10px', color: '#7f8a9b', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Size</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   {(['w','h'] as const).map(f => (
                     <label key={f} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: '#a9a294' }}>{f === 'w' ? 'W' : 'H'}</span>
+                      <span style={{ fontSize: '10px', color: '#d2ccc0' }}>{f === 'w' ? 'W' : 'H'}</span>
                       <input
                         type="number"
                         min={f === 'w' ? selMinW : selMinH}
@@ -598,22 +753,46 @@ export default function NOCEditorPage() {
               {(selectedWidgetManifest?.params ?? []).length > 0 && (
                 <>
                   <div style={{ paddingTop: '14px', paddingBottom: '4px' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 600, color: '#a9a294', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filters</p>
+                    <p style={{ fontSize: '10px', fontWeight: 600, color: '#d2ccc0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filters</p>
                   </div>
                   {selectedWidgetManifest!.params!.map(p => {
+                    const resolved = p.options_path
+                      ? resolveOptionsPath(p.options_path, selectedWidget.config)
+                      : null
                     const opts = p.options_path
-                      ? (dynamicOptions[`${selectedWidget.app_id}:${p.options_path}`] ?? [])
+                      ? (resolved ? dynamicOptions[`${selectedWidget.app_id}:${resolved}`] ?? [] : [])
                       : (p.options ?? [])
+                    // A picker that narrows by another param can't be filled until
+                    // that one is chosen — say so instead of showing "Loading…".
+                    const blockedBy = p.options_path && !resolved
+                      ? optionsDeps(p.options_path)
+                          .filter(d => {
+                            const v = selectedWidget.config?.[d]
+                            return v === undefined || v === ''
+                          })
+                          .map(d => selectedWidgetManifest!.params!.find(x => x.key === d)?.label ?? d)
+                      : []
+
                     return (
                       <label key={p.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
-                        <span style={{ fontSize: '10px', color: '#a9a294' }}>{p.label}</span>
+                        <span style={{ fontSize: '10px', color: '#d2ccc0' }}>{p.label}</span>
                         <select
                           value={String(selectedWidget.config?.[p.key] ?? '')}
-                          onChange={e => updateWidgetConfig(selectedWidget.id, p.key, e.target.value)}
-                          style={inputSt}
+                          disabled={blockedBy.length > 0}
+                          onChange={e => {
+                            updateWidgetConfig(selectedWidget.id, p.key, e.target.value)
+                            // Clear any param narrowed by this one — its old value
+                            // belongs to the previous parent and would silently
+                            // point the widget at data from the wrong device.
+                            selectedWidgetManifest!.params!
+                              .filter(c => c.options_path && optionsDeps(c.options_path).includes(p.key))
+                              .forEach(c => updateWidgetConfig(selectedWidget.id, c.key, ''))
+                          }}
+                          style={{ ...inputSt, opacity: blockedBy.length > 0 ? 0.5 : 1 }}
                         >
                           {!p.options_path && <option value="">All</option>}
-                          {p.options_path && opts.length === 0 && <option value="">Loading…</option>}
+                          {blockedBy.length > 0 && <option value="">Choose {blockedBy.join(' & ')} first</option>}
+                          {p.options_path && !blockedBy.length && opts.length === 0 && <option value="">Loading…</option>}
                           {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </label>
@@ -630,24 +809,24 @@ export default function NOCEditorPage() {
           ) : (
             <>
               {/* Slide config */}
-              <div style={{ fontSize: '10px', fontWeight: 600, color: '#39414c', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Slide</div>
+              <div style={{ fontSize: '10px', fontWeight: 600, color: '#7f8a9b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>Slide</div>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '10px', color: '#a9a294' }}>Title</span>
+                <span style={{ fontSize: '10px', color: '#d2ccc0' }}>Title</span>
                 <input type="text" value={currentSlide?.title ?? ''} onChange={e => updateSlide({ title: e.target.value })} style={inputSt} />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
-                <span style={{ fontSize: '10px', color: '#a9a294' }}>Dwell (seconds)</span>
+                <span style={{ fontSize: '10px', color: '#d2ccc0' }}>Dwell (seconds)</span>
                 <input type="number" min={5} value={currentSlide?.dwell_seconds ?? 30} onChange={e => updateSlide({ dwell_seconds: Math.max(5, parseInt(e.target.value) || 30) })} style={inputSt} />
               </label>
 
               {/* Canvas info */}
               <div style={{ padding: '10px', borderRadius: '6px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', marginBottom: '10px' }}>
                 <div style={{ fontSize: '10px', color: '#466cc8', fontWeight: 600, marginBottom: '6px', letterSpacing: '0.04em' }}>Canvas</div>
-                <div style={{ fontSize: '11px', color: '#39414c' }}>1920 × 1080 px</div>
-                <div style={{ fontSize: '11px', color: '#39414c', marginTop: '3px' }}>{currentSlide?.widgets.length ?? 0} widget{(currentSlide?.widgets.length ?? 0) !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: '11px', color: '#7f8a9b' }}>1920 × 1080 px</div>
+                <div style={{ fontSize: '11px', color: '#7f8a9b', marginTop: '3px' }}>{currentSlide?.widgets.length ?? 0} widget{(currentSlide?.widgets.length ?? 0) !== 1 ? 's' : ''}</div>
               </div>
 
-              <div style={{ fontSize: '11px', color: '#39414c', lineHeight: 1.5, padding: '0 2px' }}>
+              <div style={{ fontSize: '11px', color: '#7f8a9b', lineHeight: 1.5, padding: '0 2px' }}>
                 Drag widgets from the library onto the canvas. Click a widget to select and configure it.
               </div>
             </>
