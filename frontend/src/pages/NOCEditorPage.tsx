@@ -457,7 +457,7 @@ export default function NOCEditorPage() {
       {!showOnPhone && (
         <div className="md:hidden f-panel m-3 p-6 text-center space-y-3">
           <p className="f-lbl">NOC Editor</p>
-          <p className="text-sm text-white leading-relaxed">The NOC editor is a drag-and-drop canvas sized for a wall display. It needs a pointer and a large screen.</p>
+          <p className="text-sm text-white leading-relaxed">This page is built for a larger screen — a drag-and-drop canvas laid out against a wall display.</p>
           <button onClick={() => setShowOnPhone(true)} className="f-chip f-chip-gold f-tap px-3">
             Show anyway
           </button>

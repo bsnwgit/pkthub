@@ -107,8 +107,8 @@ export default function NOCDisplayPage() {
         <div className="md:hidden f-panel m-3 p-6 text-center space-y-3">
           <p className="f-lbl">NOC Display</p>
           <p className="text-sm text-white leading-relaxed">
-            This is a wall display — widgets laid out on a wide reference canvas
-            and rotated on a timer. It is not built for a phone.
+            This page is built for a larger screen — a wide reference canvas
+            of live widgets, rotated on a timer.
           </p>
           <button onClick={() => setShowOnPhone(true)} className="f-chip f-chip-gold f-tap px-3">
             Show anyway
