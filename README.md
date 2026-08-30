@@ -67,6 +67,7 @@ inboxes, and no single view of whether anything is actually wrong.
 - [App Registry & Suite Integration](#app-registry--suite-integration)
 - [Settings Layout](#settings-layout)
 - [Registered apps in the hub's own nav](#registered-apps-in-the-hubs-own-nav)
+- [Resonance (the assistant)](#resonance-the-assistant)
 - [NOC Displays](#noc-displays)
 - [Alerting & Notifications](#alerting--notifications)
 - [Maintenance](#maintenance)
@@ -316,7 +317,7 @@ from a section bar above the tab bar:
 
 | Section | Tabs |
 |---|---|
-| **Common** | General · Security (Users, Auth, Suite Integration, SSL/TLS) · Data (Storage, Backups, Log Forwarding) · Notifications · User Keys · System |
+| **Common** | General · Security (Users, Auth, Suite Integration, SSL/TLS) · Data (Storage, Backups, Log Forwarding) · Notifications · Resonance · User Keys · System |
 | **pktHub** | Audit · App Registry · NOC · Maintenance |
 
 Common holds the settings that are identical across every pkt* app;
@@ -403,6 +404,82 @@ in place — steering admins toward configuring it from pktHub instead.
 Viewing Settings *through* pktHub's own embed is unaffected (it checks the
 same `via_suite_token` signal from point 4 above and skips the banner there),
 so there's no lockout-of-itself paradox.
+
+## Resonance (the assistant)
+
+pktHub registers with resonance the same way a sibling app does, and mounts the
+same vendored embed. What differs is what it can be asked about: a sibling
+exposes its own data, and pktHub exposes **every registered app's**.
+
+Configure it under **Settings → Common → Resonance** (admin only): the resonance
+interface server address, the embed key, pktHub's own origin, an optional CA
+bundle, and which roles may open the launcher. **Test connection** proves the
+key without switching the feature on, and reads back what that key actually
+grants so a missing control has an explanation.
+
+### The federated data surface
+
+Every sibling app already publishes two documents for its own assistant — a
+grant naming the operations it permits, and an OpenAPI narrowed to them. pktHub
+does not re-describe them. It fetches what each registered app declares and
+merges the lot into one document, the same way the APPS sidebar composes their
+menus: the app declares, the hub mirrors.
+
+| Path | What it is |
+|---|---|
+| `/.well-known/resonance.json` | The composed grant. Operation names only, public by contract |
+| `/api/resonance/openapi.json` | The composed OpenAPI, narrowed to those operations |
+| `/api/resonance/data/…` | pktHub's own operations |
+| `/api/resonance/data/{app}/…` | A registered app's operation, proxied |
+
+Operations are namespaced by app — `pktipam_listSubnets`, `pktFlow_getFlowSummary`
+— and each summary is prefixed `[pktIPAM]`, `[pktFlow]`, because nine
+near-identical "List alert events" descriptions are nine coin flips for a model.
+Schemas are namespaced for the same reason: two apps both defining `AlertEvent`
+would make the document unusable.
+
+Composition is cached for five minutes and dropped immediately when an app is
+registered or deregistered, so a new app is never invisible for a whole TTL.
+
+`HUB_GRANTED` in `app/resonance_data.py` declares pktHub's *own* operations, in
+the same shape a sibling's `GRANTED` tuple takes — the grant is generated from
+it and the spec filtered to it, so the two cannot disagree.
+
+### The ceiling
+
+pktHub holds a suite token for every registered app, so a proxy that forwarded
+whatever it was asked would be an authenticated open door to all of them. It is
+not one:
+
+- An operation reaches the composed documents only if it is in **that app's own
+  grant**. pktHub can narrow what an app permits, never widen it.
+- Every proxied call is matched against the granted method-and-path pairs from
+  that app's spec *before* anything is forwarded. No match answers 404 — the
+  same answer as an unknown app, so it does not disclose which operations exist.
+- **Writes are withheld.** An app granting a write to its own assistant is a
+  decision about one app; passing it through would make it a decision about the
+  whole estate. `resonance_allow_writes` is off by default.
+- Calls carry the asking person's identity and role to the owning app, so its
+  own checks still apply — the assistant is not a way around them.
+
+### Two things that differ from the sibling copies
+
+Both are consequences of pktHub's own auth, and both are commented where they
+live:
+
+1. **The embed cookie.** `embed.js` fetches `/api/resonance/code` itself, as a
+   plain browser request with no Authorization header, so that route can only be
+   cookie-authenticated. Siblings lean on their `refresh_token` cookie; pktHub
+   sets no cookie at login at all. `/api/resonance/config` therefore mints one —
+   it is already the first authenticated call the mount makes, before the script
+   tag exists. The cookie is HttpOnly, SameSite=Lax and path-scoped to
+   `/api/resonance/`, modelled on the proxy session in `app/auth.py`.
+2. **No `/docs` corpus route.** Siblings publish their guides for the
+   assistant's knowledge, authenticated by the suite token they each hold.
+   pktHub holds a token for every registered app and none of its own, so that
+   route has no equivalent gate here.
+
+---
 
 ## NOC Displays
 

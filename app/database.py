@@ -195,6 +195,58 @@ async def init_db():
             )
         """)
 
+        # ── Resonance embed integration ───────────────────────────────────────
+        # Three pieces of state, deliberately in SQLite rather than in-process:
+        # the worker count is configurable, and an in-process counter silently
+        # multiplies its own limit once there is more than one worker. The
+        # sibling apps carry the same schema as migrations/029_resonance.sql;
+        # pktHub has no migrations directory, so it lives here instead.
+
+        # Fixed-window counters for /api/resonance/code.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS resonance_rate (
+                bucket       TEXT PRIMARY KEY,
+                window_start TEXT NOT NULL,
+                count        INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+
+        # One row. A rejected key makes resonance apply a geometric per-IP
+        # backoff; this app is a single IP, so continuing to call with a bad key
+        # would take the widget down for every user at once. The breaker stops
+        # calling instead, and Settings reads this row so a paused integration
+        # says so rather than looking like a feature that quietly does nothing.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS resonance_breaker (
+                id                   INTEGER PRIMARY KEY CHECK (id = 1),
+                consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                open_until           TEXT,
+                last_error           TEXT NOT NULL DEFAULT '',
+                last_failure_at      TEXT
+            )
+        """)
+        await db.execute("INSERT OR IGNORE INTO resonance_breaker (id) VALUES (1)")
+
+        # embed.js gives up permanently and silently when its script fails to
+        # load (ad blocker, wrong address, resonance down), so a broken widget is
+        # invisible to the admin. The mount reports failures here, keyed by
+        # day+user+reason so the table is bounded by users x reasons x retained
+        # days rather than by how often a loop retries.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS resonance_load_failures (
+                day       TEXT NOT NULL,
+                username  TEXT NOT NULL DEFAULT '',
+                reason    TEXT NOT NULL DEFAULT '',
+                count     INTEGER NOT NULL DEFAULT 0,
+                last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (day, username, reason)
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_resonance_load_failures_day "
+            "ON resonance_load_failures(day DESC)"
+        )
+
         # Migration: per-user ipinfo.io section display preference (geolocation/
         # asn/company/privacy/abuse/domains), JSON array, NULL = all enabled.
         async with db.execute("PRAGMA table_info(user_api_keys)") as cur:

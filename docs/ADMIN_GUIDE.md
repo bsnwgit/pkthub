@@ -88,6 +88,48 @@ All 9 apps in the suite implement points 1–5 and publish a nav manifest from `
 
 Separate from and narrower than the `direct`/`managed` access mode above (which locks a sibling app's *entire* direct login) — this lock affects only that app's own Settings page. On register/deregister, pktHub calls that app's `POST /api/suite/settings-lock` (best-effort — silently no-ops on an app that hasn't implemented it). While locked, a direct visit to that app's Settings page shows an amber "Remotely Managed" banner and disables editing in place; viewing Settings *through* pktHub's embed is unaffected, so there's no lockout-of-itself paradox.
 
+## Resonance (the assistant)
+
+Settings → Common → Resonance, admin only. pktHub registers with resonance like any sibling app, but what it can be asked about is every registered app's data, not just its own.
+
+### Setting it up
+
+1. **In resonance**, register pktHub and copy the embed key.
+2. **In pktHub**, paste the key and the resonance *interface* server address — not its admin portal, which looks almost right and fails later on the session call. Set the roles allowed to open it.
+3. **Copy pktHub's own address** from the Origin field onto the resonance key's origins list. Resonance refuses to render inside a page nobody authorised, and that refusal looks exactly like a broken widget rather than a configuration gap.
+4. **Press Test connection.** It proves the key without the feature being on, and reads back what the key grants.
+5. **In resonance**, attach pktHub's application and tick the operations. Everything is off until an admin does this — the key alone gets you a conversation that knows nothing about pktHub.
+
+If pktHub's certificate is signed by an internal CA, set **CA bundle** to the system store (`/etc/ssl/certs/ca-certificates.crt` on Debian/Ubuntu). Python verifies against its own bundled roots, so a certificate every browser trusts is still rejected server-side.
+
+### How many operations to enable
+
+This is the setting that decides whether the assistant works at all, and it is not obvious.
+
+pktHub composes **one operation per operation each registered app grants** — with nine apps that is easily 60+. Every enabled operation is sent to the model on *every* question as a tool definition, at roughly **200 tokens each**. Enable all 64 and the prompt is ~13,600 tokens before anyone has typed anything.
+
+A model with a 4,096-token context rejects that outright, and the failure is unhelpful: the assistant answers from general knowledge, or says it could not reach anything. Nothing appears in pktHub's log, because no call was ever made.
+
+Rough budget: **usable tools ≈ (context − 1,500) ÷ 200**.
+
+| Model context | Roughly how many operations |
+|---|---|
+| 4K | 12 |
+| 8K | 32 |
+| 16K | 70+ (all of them) |
+
+Beyond arithmetic, prefer **breadth over depth** when choosing. Each app publishes a `…Summary` operation giving estate-wide counts — those answer the most per token. Each also publishes `listAlertEvents`, `listAlertRules` and `searchApplicationLog`, and with nine apps that is 27 tools whose descriptions differ only by app name. A small model picks badly between those; leaving them off usually improves answers rather than limiting them.
+
+### Where things fail
+
+| Symptom | Cause |
+|---|---|
+| Assistant answers from general knowledge | The operations are not ticked in resonance, or the prompt exceeds the model's context |
+| "Could not reach…" with nothing in pktHub's log | Same — the model refused the prompt, so no call was made. Check resonance's `server.log` for `exceed_context_size_error` |
+| Launcher never appears | Role set to No access, feature off, or `embed.js` failed to load — the Connection panel counts those failures |
+| Panel shows a framing refusal | pktHub's origin is not on the resonance key's origins list |
+| Certificate rejected on Test | Set the CA bundle. Test sends the bundle from the form, so it proves what is on screen |
+
 ## IP Intelligence Lookup
 
 `GET /api/ip-info/{ip}` combines ipinfo.io, ipapi.is, AbuseIPDB, and MXToolbox concurrently for a single public IP. Private/loopback/link-local/reserved/multicast addresses are rejected outright. Keys are per-user (Settings → User Keys) — no shared/admin key, no cross-user visibility. A fifth provider slot, IPQualityScore, can be saved/tested but isn't consumed by the lookup yet. MXToolbox's other commands (DNS/email record checks, active network probes) are reachable via `POST /api/mxtoolbox/lookup` but not linked from any IP in the UI yet.
