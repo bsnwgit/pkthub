@@ -24,18 +24,25 @@ React SPA are all live in the running app — not placeholder scaffolding.
 
 ## The pkt suite
 
-pktHub is the front door; each app below runs standalone and registers with the
-hub to share sign-in, alerting and NOC widgets.
+**pktHub** is one of ten apps in the pkt suite — self-hosted tooling for network
+and security operations. Each installs and runs standalone, so take only the ones
+you need; they share one architecture (FastAPI + React), one look, one
+`admin`/`analyst`/`viewer` role model, and a suite token that lets siblings read
+one another's data. Default ports don't collide (8760–8769), so any combination
+runs on a single host.
 
-| | |
-|---|---|
-| **[pktFlow](https://github.com/bsnwgit/pktflow)** | NetFlow, sFlow and IPFIX collection — traffic analytics, flow search, geo and topology views |
-| **[pktSNMP](https://github.com/bsnwgit/pktsnmp)** | SNMP polling and trap receiving for any OID — device health and metric history |
-| **[pktLog](https://github.com/bsnwgit/pktlog)** | Syslog over UDP, TCP and TLS — parsing, enrichment and full-text search |
-| **[pktIPAM](https://github.com/bsnwgit/pktipam)** | IP address management reconciling declared subnets against live DHCP, DNS and device data |
-| **[pktNode](https://github.com/bsnwgit/pktnode)** | Endpoint management for Mac, Windows and Linux via a lightweight Go agent |
-| **[pktCert](https://github.com/bsnwgit/pktCert)** | TLS certificate discovery and lifecycle, plus an internal CA |
-| **[pktPCAP](https://github.com/bsnwgit/pktpcap)** | Browser-based packet capture analysis — no Wireshark install |
+| App | Port | What it does |
+|---|---|---|
+| **[pktFlow](https://github.com/bsnwgit/pktflow)** | `8766` | NetFlow, sFlow and IPFIX collection — flow search, traffic analytics, geo and topology views |
+| **[pktSNMP](https://github.com/bsnwgit/pktsnmp)** | `8767` | SNMP polling and trap receiving for any OID — device health and metric history without a full NMS |
+| **[pktLog](https://github.com/bsnwgit/pktlog)** | `8768` | Syslog over UDP, TCP and TLS — parsing, enrichment, full-text search and forwarding |
+| **[pktPCAP](https://github.com/bsnwgit/pktpcap)** | `8765` | Packet capture analysis in the browser — drop in a `.pcap` for TCP, DNS and threat findings, no Wireshark install |
+| **[pktWiFi](https://github.com/bsnwgit/pktwifi)** | `8769` | Access point, RF and client visibility from Meraki and UniFi controllers or plain SNMP polling |
+| **[pktIPAM](https://github.com/bsnwgit/pktipam)** | `8761` | IP address management reconciling declared subnets against live DHCP, DNS and device data, flagging conflicts |
+| **[pktNode](https://github.com/bsnwgit/pktnode)** | `8764` | Endpoint monitoring and management for Mac, Windows and Linux via a lightweight Go agent |
+| **[pktSecurity](https://github.com/bsnwgit/pktsecurity)** | `8762` | Security operations across the estate — CVE exposure, threat intelligence, ATT&CK-mapped detections and case management |
+| **[pktCert](https://github.com/bsnwgit/pktcert)** | `8763` | TLS certificate discovery and expiry tracking, plus an internal CA — issue, revoke and serve CRLs |
+| **pktHub** *(you are here)* | `8760` | The front door — one sign-in, one alert stream, NOC wallboards and user management across every registered app |
 
 More at **[pktsolution.com](https://pktsolution.com)**.
 
