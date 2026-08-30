@@ -20,7 +20,7 @@ import Layout from './components/Layout'
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const location = useLocation()
-  if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">Loading…</div>
+  if (loading) return <div className="flex items-center justify-center h-dvh text-gray-400">Loading…</div>
   // Carry the current route so login returns here rather than the dashboard.
   if (!user) {
     const next = encodeURIComponent(location.pathname + location.search)
