@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 import aiosqlite
 import json
+import logging
 import os
 from typing import List
 from app.database import get_db
@@ -223,4 +224,18 @@ async def set_settings_bulk(
             (item.key, stored_value)
         )
     await db.commit()
-    return {"updated": len(items)}
+
+    # base_url is copied onto every app in Managed mode as the address locked
+    # users are redirected to, so changing it here has to reach them — otherwise
+    # they carry on sending people to wherever the hub used to be, and nothing
+    # about that looks broken from the hub's side. The health poller repairs the
+    # same drift within a cycle; doing it now is what lets the operator see it.
+    hub_redirects = None
+    if any(item.key == "base_url" for item in items):
+        from app.registry import resync_hub_redirects
+        try:
+            hub_redirects = await resync_hub_redirects(db)
+        except Exception:
+            logging.getLogger("pkthub.settings").exception("hub redirect resync failed")
+
+    return {"updated": len(items), "hub_redirects": hub_redirects}
