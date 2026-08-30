@@ -7,7 +7,8 @@ import {
   LayoutGrid, AppWindow, ChevronDown, ChevronRight
 } from 'lucide-react'
 import clsx from 'clsx'
-import { api, type AppNavItem } from '../api/client'
+import { api, getToken, type AppNavItem } from '../api/client'
+import ResonanceMount from '../resonance/ResonanceMount'
 
 interface RegApp {
   id: number
@@ -289,6 +290,12 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+
+      {/* One mount for the whole authenticated shell, so a route change does not
+          cost a new resonance session. Deliberately here and not in App.tsx: the
+          public NOC display and the login page render outside this Layout, and
+          neither should ever carry an assistant. */}
+      <ResonanceMount getToken={getToken} />
     </div>
   )
 }

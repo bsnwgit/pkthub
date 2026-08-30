@@ -88,12 +88,34 @@ DEFAULTS = {
     "backup_retain_count": "5",
     # Maintenance
     "maintenance_mode": "false",
+    # Resonance (the embedded assistant). Off until an admin registers pktHub
+    # with resonance and pastes the key — see app/resonance.py.
+    "resonance_enabled": "false",
+    "resonance_base_url": "",
+    "resonance_origin": "",
+    "resonance_ca_bundle": "",
+    "resonance_style": "bubble",
+    "resonance_side": "right",
+    "resonance_label": "",
+    "resonance_target": "",
+    "resonance_width": "",
+    "resonance_height": "",
+    "resonance_open": "false",
+    # JSON in a text column, like every other structured setting here.
+    "resonance_role_levels": '{"admin": "read", "analyst": "read", "viewer": "read"}',
+    "resonance_exclude_paths": '["/login", "/display"]',
+    # Withheld by default: an app granting a write to its own assistant is a
+    # decision about one app, not about the whole estate. See resonance_data.py.
+    "resonance_allow_writes": "false",
 }
 
 # Sentinel mask written over secret values in GET responses.
 # If the UI sends this value back on Save, treat it as "unchanged" and skip the write.
 _MASK = "••••••••"
 _SECRET_KEYS = {
+    # The resonance embed key. It authenticates pktHub to resonance, so it is
+    # masked in responses and encrypted at rest like every other secret here.
+    "resonance_key",
     "notify_email_password", "notify_pagerduty_integration_key",
     "notify_tracecat_api_token", "notify_webhook_url",
     "notify_slack_webhook_url", "notify_tracecat_webhook_url",

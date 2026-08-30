@@ -82,6 +82,20 @@ Recent alerts surfaced from registered apps in one place.
 
 A log of administrative actions taken in pktHub. Analysts see only their own entries; admins see everyone's.
 
+## The assistant
+
+If an admin has switched it on, a launcher sits in the corner of every page. It is the same assistant the other pkt apps carry — but in pktHub it can see across **every registered app**, so one question can span pktFlow, pktIPAM and the rest rather than being answered app by app.
+
+Ask it things like "how is the estate", "how many subnets are tracked", or "which hosts are lowest on disk".
+
+Some things worth knowing:
+
+- **It reads, it does not change anything.** pktHub publishes no write operations, so it cannot acknowledge an alert or edit a rule from here — do that in the app itself.
+- **It only sees what you could see.** Every call carries your identity and role to the app that owns the data, so its own permission rules still apply.
+- **It knows a chosen set of operations**, not everything. An admin picks which ones are enabled, so if it says it cannot answer something, that operation probably is not switched on rather than the data being missing.
+- **The conversation happens on the resonance server**, not in pktHub. What appears inside the panel is resonance's, so its buttons and wording are not pktHub's to change.
+- It never appears on the login page or on a public NOC display.
+
 ## Looking up an IP address
 
 Any IP shown in the app is clickable, opening a lookup combining ipinfo.io, ipapi.is, AbuseIPDB, and MXToolbox data, using **your own** per-user API keys (Settings → User Keys). Private/loopback/reserved addresses aren't looked up — external providers have nothing useful to say about them.
