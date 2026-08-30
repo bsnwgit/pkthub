@@ -34,6 +34,21 @@ export default function Layout() {
   const { user, logout, isAdmin, isAnalyst } = useAuth()
   const location = useLocation()
   const [navOpen, setNavOpen] = useState(false)
+
+  // A phone tab holding the hub, a second app in an iframe and the assistant's
+  // socket and audio is enough for iOS to discard and reload it — which is what
+  // the Compliance page was doing every seven seconds. CSS cannot help here: a
+  // hidden component is still mounted and still holds its memory, so the mount
+  // itself has to be conditional.
+  const [isPhone, setIsPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const onChange = (e: MediaQueryListEvent) => setIsPhone(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
   // A NavLink does not unmount this component, so without this the drawer
   // stays open on top of the page it has just navigated to.
   useEffect(() => { setNavOpen(false) }, [location.pathname])
@@ -335,7 +350,7 @@ export default function Layout() {
           cost a new resonance session. Deliberately here and not in App.tsx: the
           public NOC display and the login page render outside this Layout, and
           neither should ever carry an assistant. */}
-      <ResonanceMount getToken={getToken} />
+      {!isPhone && <ResonanceMount getToken={getToken} />}
     </div>
   )
 }
