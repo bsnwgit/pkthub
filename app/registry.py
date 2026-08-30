@@ -493,6 +493,39 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
                 (health, app_id)
             )
 
+        # Managed apps drift a second way, and this one hides. pktHub's Base URL
+        # can change after an app was locked — moving from an IP to a hostname,
+        # most obviously — and the app goes on redirecting users to the address
+        # the hub used to have. Nothing above notices: the app is up, the lock is
+        # on, the heartbeat is fresh. Users are just delivered somewhere wrong.
+        # So compare what the app holds against what the hub would send now.
+        if stored_mode == "managed" and health != "unreachable":
+            expected = await _hub_redirect_url_for(db, app_id)
+            if expected:
+                try:
+                    async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                        held_resp = await client.get(
+                            f"{base_url.rstrip('/')}/api/suite/direct-access",
+                            headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
+                        )
+                    if held_resp.status_code == 200:
+                        held = (held_resp.json().get("hub_redirect_url") or "").strip()
+                        if held != expected:
+                            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                                push = await client.post(
+                                    f"{base_url.rstrip('/')}/api/suite/direct-access",
+                                    json={"locked": True, "hub_redirect_url": expected},
+                                    headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)}
+                                )
+                            if push.status_code == 200:
+                                await db.execute(
+                                    """INSERT INTO audit_log (user_id, username, action, resource, details)
+                                       VALUES (NULL, 'system', 'app.redirect_url_resynced', ?, ?)""",
+                                    (f"app_id:{app_id}", _json.dumps({"from": held, "to": expected}))
+                                )
+                except Exception:
+                    pass  # advisory — a failed resync is retried on the next poll
+
         # Update widget_manifest if we got a fresh copy from this health cycle
         if widget_manifest is not None:
             await db.execute(
@@ -564,6 +597,61 @@ async def poll_health(app_id: int, base_url: str, suite_token: str):
         await db.commit()
 
 
+async def _hub_redirect_url_for(db: aiosqlite.Connection, app_id: int) -> str:
+    """
+    Where locked users of this app are sent: pktHub's own Base URL plus the
+    app's id here. Empty when Base URL is unset, which is the single thing that
+    stops Managed mode working at all.
+
+    Computed on demand rather than stored, so it always reflects the Base URL as
+    it is now. What the app holds is a copy, and copies go stale — see
+    resync_hub_redirects and the poller, which exist to catch exactly that.
+    """
+    async with db.execute("SELECT value FROM platform_config WHERE key = 'base_url'") as cur:
+        row = await cur.fetchone()
+    value = row["value"] if row and row["value"] else ""
+    hub_base = str(value).strip().rstrip("/")
+    return f"{hub_base}/app/{app_id}" if hub_base else ""
+
+
+async def resync_hub_redirects(db: aiosqlite.Connection) -> dict:
+    """
+    Push pktHub's current address to every app already in Managed mode.
+
+    Base URL is copied onto each app when it is locked, so changing it — moving
+    from an IP to a hostname, most obviously — leaves every locked app sending
+    users to wherever the hub used to be. Nothing about the lock looks unhealthy
+    when that happens: the app is up, the hub is polling, and users are simply
+    delivered somewhere wrong.
+
+    The health poller repairs the same drift on its own. This runs at the moment
+    Base URL is saved so the operator is told, rather than finding out a poll
+    later.
+    """
+    async with db.execute(
+        "SELECT id, name, base_url, suite_token FROM registered_apps WHERE access_mode = 'managed'"
+    ) as cur:
+        apps = await cur.fetchall()
+
+    updated, failed = [], []
+    for app in apps:
+        expected = await _hub_redirect_url_for(db, app["id"])
+        if not expected:
+            continue
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                resp = await client.post(
+                    f"{app['base_url'].rstrip('/')}/api/suite/direct-access",
+                    json={"locked": True, "hub_redirect_url": expected},
+                    headers={"X-Suite-Token": decrypt_str(app["suite_token"]),
+                             "X-Suite-Version": str(SUITE_VERSION)})
+            (updated if resp.status_code == 200 else failed).append(app["name"])
+        except Exception:
+            failed.append(app["name"])
+
+    return {"updated": updated, "failed": failed}
+
+
 @router.post("/{app_id}/direct-access", response_model=dict)
 async def set_direct_access(
     app_id: int,
@@ -579,40 +667,65 @@ async def set_direct_access(
     base_url   = app["base_url"].rstrip("/")
     suite_token = decrypt_str(app["suite_token"])
 
+    hub_redirect_url = ""
     if body.locked:
-        # Pre-flight: confirm app has hub_redirect_url set
+        # Where locked users are sent. pktHub is the only party that can build
+        # this — it needs the hub's own address and the app's id here, and the
+        # app can see neither — so the hub supplies it with the lock rather than
+        # asking an operator to paste a hand-built URL into every app in turn.
+        hub_redirect_url = await _hub_redirect_url_for(db, app_id)
+        if not hub_redirect_url:
+            raise HTTPException(status_code=400,
+                detail="pktHub's Base URL is not set, so there is no address to send locked users to. Set it in pktHub Settings → General, then enable Managed mode.")
+
+        # Pre-flight: confirm the app serves the lock endpoint at all
         try:
             async with httpx.AsyncClient(verify=False, timeout=8) as client:
                 chk = await client.get(f"{base_url}/api/suite/direct-access",
                     headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
+            # The app answered, so it is reachable — report what it actually said.
+            # Only pktLog serves this route today; on every other sibling it 404s,
+            # and calling that "cannot reach app" sends the reader looking for a
+            # network fault that was never there.
+            if chk.status_code in (404, 405):
+                raise HTTPException(status_code=400,
+                    detail="This app does not serve /api/suite/direct-access, so it cannot be put into Managed mode yet. The app needs the suite direct-access endpoints first.")
+            if chk.status_code in (401, 403):
+                raise HTTPException(status_code=502,
+                    detail=f"The app rejected pktHub's suite token (HTTP {chk.status_code}). Rotate the token for this app and try again.")
             if chk.status_code != 200:
-                raise HTTPException(status_code=503, detail="Cannot reach app to verify redirect URL")
-            app_state   = chk.json()
-            redirect_url = app_state.get("hub_redirect_url", "")
-            if not redirect_url:
-                raise HTTPException(status_code=400,
-                    detail="hub_redirect_url is not set on the app. Set it in the app Settings → Integrations → pktHub Integration before enabling Managed mode.")
-            # Pre-flight: test redirect URL is reachable
+                raise HTTPException(status_code=502,
+                    detail=f"The app returned HTTP {chk.status_code} when asked for its redirect URL.")
             try:
-                async with httpx.AsyncClient(verify=False, timeout=6) as hc:
-                    pr = await hc.get(redirect_url)
-                if pr.status_code >= 500:
-                    raise HTTPException(status_code=400, detail=f"Redirect URL returned HTTP {pr.status_code}.")
-            except HTTPException:
-                raise
-            except Exception:
-                raise HTTPException(status_code=400,
-                    detail=f"Redirect URL '{redirect_url}' is not reachable. Verify the URL before enabling Managed mode.")
+                # Parsed to prove the endpoint answers in the shape we expect.
+                # The redirect target is no longer read from it: whatever the app
+                # has stored is replaced by the address computed above, so the
+                # hub's Base URL stays the one place that address is configured.
+                chk.json()
+            except ValueError:
+                # A 200 that isn't JSON means the app's SPA catch-all answered —
+                # the route is missing rather than broken.
+                raise HTTPException(status_code=502,
+                    detail="The app answered the redirect-URL check with a non-JSON body — /api/suite/direct-access is most likely missing and its frontend served the request instead.")
+            # The app's stored URL used to be fetched here to prove it was
+            # reachable. That test goes with the hand-typed URL it existed to
+            # catch: the hub cannot always fetch its own canonical address from
+            # inside itself — split-horizon DNS and proxy-only routes both break
+            # that — so a failure proved nothing about whether users can reach it.
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=503, detail=f"Cannot reach app: {e}")
 
-    # Send lock command
+    # Send lock command. The redirect target rides along with it — an app that
+    # predates this field ignores it, which the verification below then catches.
+    payload = {"locked": body.locked}
+    if body.locked:
+        payload["hub_redirect_url"] = hub_redirect_url
     try:
         async with httpx.AsyncClient(verify=False, timeout=10) as client:
             resp = await client.post(f"{base_url}/api/suite/direct-access",
-                json={"locked": body.locked},
+                json=payload,
                 headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
         if resp.status_code != 200:
             raise HTTPException(status_code=502, detail=f"App returned HTTP {resp.status_code}")
@@ -623,18 +736,36 @@ async def set_direct_access(
 
     # Verify
     verified = False
+    stored_redirect = None
     try:
         async with httpx.AsyncClient(verify=False, timeout=8) as client:
             vr = await client.get(f"{base_url}/api/suite/direct-access",
                 headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
         if vr.status_code == 200:
-            verified = vr.json().get("direct_ui_locked") == body.locked
+            vstate = vr.json()
+            verified = vstate.get("direct_ui_locked") == body.locked
+            stored_redirect = (vstate.get("hub_redirect_url") or "").strip()
     except Exception:
         pass
 
     if not verified:
         raise HTTPException(status_code=502,
             detail="Lock command sent but state could not be verified on the app.")
+
+    # An app built before hub_redirect_url was sent with the lock accepts the
+    # lock and drops the address, leaving it locked with nowhere to send anyone.
+    # It would sit there reporting Managed while still serving every visitor, so
+    # unlock it again and say what is actually wrong.
+    if body.locked and stored_redirect != hub_redirect_url:
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                await client.post(f"{base_url}/api/suite/direct-access",
+                    json={"locked": False},
+                    headers={"X-Suite-Token": suite_token, "X-Suite-Version": str(SUITE_VERSION)})
+        except Exception:
+            pass
+        raise HTTPException(status_code=502,
+            detail="The app did not store the redirect address pktHub sent, so a lock would leave it with nowhere to send users. It needs a version that accepts hub_redirect_url on /api/suite/direct-access. The app has been left unlocked.")
 
     new_mode = "managed" if body.locked else "direct"
     await db.execute(
@@ -655,30 +786,39 @@ async def bulk_direct_access(
     current_user: dict = Depends(require_admin),
     db: aiosqlite.Connection = Depends(get_db)
 ):
-    """Set all registered apps to managed or direct mode (best-effort)."""
+    """
+    Set every registered app to managed or direct mode. Best-effort: one app
+    failing does not stop the rest, and each result carries the reason.
+
+    This runs set_direct_access per app rather than posting to the apps itself.
+    The copy it used to keep never learned to send hub_redirect_url and never
+    verified anything, so "Set All Managed" quietly skipped every app it could
+    not lock and reported nothing at all. A second implementation of a
+    security-relevant path is a second implementation to forget about.
+    """
     async with db.execute("SELECT * FROM registered_apps ORDER BY registered_at") as cur:
         apps = await cur.fetchall()
+
     results = []
     for app in apps:
-        ok = False
+        entry = {"app_id": app["id"], "name": app["name"], "success": False, "detail": ""}
         try:
-            async with httpx.AsyncClient(verify=False, timeout=10) as client:
-                r = await client.post(f"{app['base_url'].rstrip('/')}/api/suite/direct-access",
-                    json={"locked": body.locked},
-                    headers={"X-Suite-Token": decrypt_str(app["suite_token"]), "X-Suite-Version": str(SUITE_VERSION)})
-            ok = r.status_code == 200
-        except Exception:
-            pass
-        if ok:
-            new_mode = "managed" if body.locked else "direct"
-            await db.execute(
-                "UPDATE registered_apps SET access_mode = ?, lock_verified_at = datetime('now') WHERE id = ?",
-                (new_mode, app["id"]))
-        results.append({"app_id": app["id"], "name": app["name"], "success": ok})
+            await set_direct_access(app["id"], body, current_user, db)
+            entry["success"] = True
+        except HTTPException as exc:
+            entry["detail"] = str(exc.detail)
+        except Exception as exc:
+            entry["detail"] = f"Unexpected error: {exc}"
+        results.append(entry)
+
     await db.commit()
     await write_audit(db, current_user, "app.bulk_direct_access_change", "all_apps",
                       {"locked": body.locked, "results": results})
-    return {"results": results}
+    return {
+        "results":   results,
+        "succeeded": sum(1 for r in results if r["success"]),
+        "failed":    sum(1 for r in results if not r["success"]),
+    }
 
 
 @router.get("/{app_id}/access-log", response_model=list)

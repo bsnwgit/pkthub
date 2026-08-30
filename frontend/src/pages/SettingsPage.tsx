@@ -2194,12 +2194,32 @@ function SuiteIntegrationTab() {
     showConfirm({
       title: toLocked ? 'Set All Apps to Managed?' : 'Restore Direct Access for All Apps?',
       message: toLocked
-        ? 'This will attempt to enable managed mode on all registered apps.\nEach app must have a hub_redirect_url configured in Settings → Integrations.'
+        ? 'This will attempt to enable managed mode on all registered apps.\nAn app that does not support it is left as it is, and reported below.'
         : 'This will restore direct URL access on all registered apps.',
       confirmLabel: toLocked ? 'Enable All' : 'Restore All', danger: !toLocked,
       onConfirm: async () => {
         setBulkWorking(true)
-        try { await api.bulkDirectAccess(toLocked); load() }
+        try {
+          const res = await api.bulkDirectAccess(toLocked)
+          const results: any[] = res?.results || []
+          const failures = results.filter(r => !r.success)
+          // Apps that cannot do this fail for the same reason as each other, so
+          // group by reason rather than printing the same sentence seven times.
+          // The old code discarded these entirely, which is why the button
+          // appeared to do nothing at all.
+          const byReason = new Map<string, string[]>()
+          for (const f of failures) {
+            const reason = f.detail || 'Failed'
+            byReason.set(reason, [...(byReason.get(reason) || []), f.name])
+          }
+          setError(
+            failures.length
+              ? [`${results.length - failures.length} of ${results.length} changed. ${failures.length} left unchanged:`,
+                 ...[...byReason.entries()].map(([reason, names]) => `• ${names.join(', ')} — ${reason}`)].join('\n')
+              : ''
+          )
+          load()
+        }
         catch (e: any) { setError(e.message) }
         finally { setBulkWorking(false) }
       },
@@ -2216,7 +2236,7 @@ function SuiteIntegrationTab() {
         <HelpButton title="Suite Integration — How It Works">
           <p>pktHub is the parent app in the suite, so this works in reverse of the sibling apps' "Suite Integration" tab: instead of showing one token to copy elsewhere, each registered app below gets its own suite token that pktHub uses to call <em>into</em> it (health checks, proxying).</p>
           <p>To register a new app: get its Suite Token from that app's own <span className="text-gray-300 font-medium">Settings → Integrations → Copy Token</span>, then paste it here.</p>
-          <p><span className="text-gray-300 font-medium">Managed mode</span> blocks direct URL access to that app — everyone must go through pktHub's proxy. Requires a <span className="text-gray-300 font-medium">hub_redirect_url</span> configured in the app's own Settings first.</p>
+          <p><span className="text-gray-300 font-medium">Managed mode</span> blocks direct URL access to that app — everyone must go through pktHub's proxy. pktHub tells the app where to send those visitors, built from <span className="text-gray-300 font-medium">Base URL</span> on the General tab, so that setting must be filled in first. Nothing needs configuring in the app itself, but the app does have to serve the suite direct-access endpoints — not all of them do yet.</p>
           <p>Read-only monitoring (health status, Open in Context, access log) for all roles lives on the <span className="text-gray-300 font-medium">App Registry</span> page in the sidebar — this tab is admin actions only.</p>
         </HelpButton>
       </div>
@@ -2245,7 +2265,7 @@ function SuiteIntegrationTab() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-red-900/15 border border-red-800/20 rounded-lg px-4 py-3">{error}</div>
+        <div className="text-sm text-red-400 bg-red-900/15 border border-red-800/20 rounded-lg px-4 py-3 whitespace-pre-line">{error}</div>
       )}
 
       {showForm && (
@@ -2461,14 +2481,26 @@ export default function SettingsPage() {
   const [generalSaving, setGeneralSaving] = useState(false)
   const [generalSaved, setGeneralSaved]   = useState(false)
   const [generalError, setGeneralError]   = useState('')
+  const [generalNote, setGeneralNote]     = useState('')
 
   const saveGeneral = async () => {
     if (portValue < 1 || portValue > 65535) { setGeneralError('Enter a port between 1 and 65535'); return }
-    setGeneralSaving(true); setGeneralSaved(false); setGeneralError('')
+    setGeneralSaving(true); setGeneralSaved(false); setGeneralError(''); setGeneralNote('')
     try {
       const subset: Record<string, string> = {}
       for (const k of ['app_name', 'base_url', 'timezone']) if (k in settings) subset[k] = settings[k]
-      await api.bulkUpdateSettings(subset)
+      const res: any = await api.bulkUpdateSettings(subset)
+      // Every app in Managed mode holds a copy of Base URL as its redirect
+      // target, so a change here is pushed out to them. Say what happened —
+      // silently leaving some of them pointing at the old address is how an
+      // app ends up redirecting users somewhere that no longer answers.
+      const hr = res?.hub_redirects
+      if (hr && (hr.updated?.length || hr.failed?.length)) {
+        const parts: string[] = []
+        if (hr.updated?.length) parts.push(`Redirect address updated on ${hr.updated.join(', ')}.`)
+        if (hr.failed?.length) parts.push(`Could not reach ${hr.failed.join(', ')} — the health poller will retry.`)
+        setGeneralNote(parts.join(' '))
+      }
       await api.setPort(portValue)
       await load()
       setGeneralSaved(true)
@@ -2579,9 +2611,10 @@ export default function SettingsPage() {
             />
           </Field>
           <PortField value={portValue} onChange={setPortValue} loaded={portLoaded} />
-          <Field label="Base URL" hint="Canonical URL for this pktHub instance — used for SAML ACS and notification links">
+          <Field label="Base URL" hint="Canonical URL for this pktHub instance — used for SAML ACS, notification links, and the address apps in Managed mode redirect their visitors to">
             <TextInput value={str('base_url')} onChange={v => set('base_url', v)} placeholder="https://10.0.0.10:8760" mono />
           </Field>
+          {generalNote && <p className="text-xs text-gray-400">{generalNote}</p>}
           <RestartServiceRow />
         </Section>
       )}
