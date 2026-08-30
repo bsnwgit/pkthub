@@ -146,7 +146,7 @@ export default function AuditPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
+      <div className="f-tbl-scroll rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800">

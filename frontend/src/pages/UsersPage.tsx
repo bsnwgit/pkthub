@@ -114,7 +114,7 @@ export default function UsersPage() {
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
 
       <div className="rounded-xl border border-gray-800 overflow-hidden" style={{ background: '#0d1219' }}>
-        <table className="w-full text-sm">
+        <table className="f-tbl-cards w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800">
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">User</th>
@@ -126,7 +126,7 @@ export default function UsersPage() {
           <tbody className="divide-y divide-gray-800/50">
             {users.map(u => (
               <tr key={u.id} className="hover:bg-white/2 transition-colors">
-                <td className="px-4 py-3">
+                <td data-label="User" className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                       style={{ background: ROLE_COLOR[u.role] + '25', color: ROLE_COLOR[u.role] }}>
@@ -146,8 +146,8 @@ export default function UsersPage() {
                     {u.id === me?.id && <span className="text-xs text-gray-500">(you)</span>}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-400">{u.email || '—'}</td>
-                <td className="px-4 py-3">
+                <td data-label="Email" className="px-4 py-3 text-gray-400">{u.email || '—'}</td>
+                <td data-label="Role" className="px-4 py-3">
                   {u.id !== me?.id ? (
                     <select
                       value={u.role}

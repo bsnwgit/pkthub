@@ -57,7 +57,7 @@ export default function AppViewPage() {
   const src = `/proxy/${id}${appPath}?chromeless=1${refreshNonce ? `&_r=${refreshNonce}` : ''}`
 
   return (
-    <div className="p-6 h-full flex flex-col space-y-4">
+    <div className="p-3 md:p-6 h-full flex flex-col space-y-3 md:space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-semibold text-gray-300">
           {item?.label || app?.display_name || 'App'}
