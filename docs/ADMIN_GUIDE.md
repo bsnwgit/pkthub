@@ -60,6 +60,14 @@ pktHub is the hub side of the suite-token mechanism every pkt app implements. Tw
 
 Each registered app has an access mode: `direct` (its own login still works) or `managed` (locks direct login — "Managed Mode" / the "Enable All" bulk action — forcing access only through pktHub's proxy/SSO). pktHub polls each managed app's reported lock state; if an app reports itself unlocked while the hub still expects `managed`, it's automatically reverted to `direct` and an `app.lock_drift_detected` audit entry is written — so a sibling app can never get silently stuck locked out of itself.
 
+**Set Base URL first.** A locked app has to send its visitors somewhere, and that address — `<Base URL>/app/<app id>` — can only be built by pktHub, since it needs the hub's own address and the app's id in this registry. pktHub sends it to the app along with the lock, so there is nothing to configure on the app itself. Managed mode is refused outright while Settings → General → **Base URL** is empty.
+
+Because each locked app holds a *copy* of that address, changing Base URL afterwards would otherwise leave them redirecting to wherever the hub used to be — an app that looks perfectly healthy while delivering users somewhere wrong. Two things prevent it: saving Base URL pushes the new address to every managed app immediately and reports which took it, and the health poller re-checks the stored address on every cycle, re-pushing on any mismatch and writing an `app.redirect_url_resynced` audit entry. An app that was down during the change is repaired when it returns.
+
+**The lock expires by itself.** Each app releases its own lock after five minutes without contact from pktHub — the health poll is what keeps it alive. A lock only pktHub can lift would strand an app precisely when pktHub is the thing that broke, so the failsafe matters more than the lock. When it fires, the app reports itself unlocked and the drift detection above returns the hub's record to `direct`.
+
+**Not every app can be managed.** It requires `GET`/`POST /api/suite/direct-access` on the app. An app without them is left as it is and reported by name — "Set All Managed" lists what it skipped and why, rather than silently changing nothing.
+
 ## APPS (proxy-embedded pages) and Reg App Settings
 
 Each registered app that publishes a nav manifest gets a collapsible group under the **APPS** divider, carrying that app's own menu. Selecting a row shows that app's **real, live page**, embedded beside pktHub's menu — not a re-implementation, so it can never drift from what the app actually looks like. An app that publishes no manifest gets no group, and instead keeps a Settings entry under the "REG APP SETTINGS" divider.
