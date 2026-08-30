@@ -35,7 +35,10 @@ export function clearMemoryToken(): void {
   _memoryToken = null
 }
 
-function getToken(): string | null {
+// Exported for ResonanceMount, which fetches with its own wrapper rather than
+// through `api` — it is vendored across the suite and takes the accessor as its
+// one app-specific dependency.
+export function getToken(): string | null {
   return _memoryToken
 }
 
@@ -178,6 +181,22 @@ export const api = {
         }))
       ),
     }),
+
+  // Resonance (the embedded assistant)
+  resonanceTest: (base_url?: string, key?: string, ca_bundle?: string) =>
+    request<{
+      ok: boolean; error?: string; detail?: string
+      origin: string; detected_origin?: string; user_id_sent?: string
+      parts?: string[]; cap?: Record<string, boolean>
+      expires_in?: number; code_expires_in?: number
+    }>('/resonance/test', { method: 'POST', body: JSON.stringify({ base_url, key, ca_bundle }) }),
+  resonanceStatus: () =>
+    request<{
+      module_version: string
+      origin: string; detected_origin: string
+      breaker: { open: boolean; failures: number; retry_in_seconds: number; last_error: string }
+      load_failures: { days: number; users: number; events: number; by_reason: Record<string, number> }
+    }>('/resonance/status'),
 
   // Notifications
   testNotification: (channel: string) =>

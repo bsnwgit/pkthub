@@ -1288,6 +1288,10 @@ function PersonalApiKeysSection() {
 // ── Module-level settings helpers (usable in sub-components) ──────────────────
 const strOf = (s: Record<string,string>, k: string, fallback = '') => s[k] ?? fallback
 const numOf = (s: Record<string,string>, k: string, fallback = 0) => parseInt(s[k] || String(fallback)) || fallback
+// Everything in platform_config is text, so "false" is a non-empty string and
+// would be truthy. Read the text, not the object.
+const boolOf = (s: Record<string,string>, k: string, fallback = false) =>
+  k in s ? ['1','true','yes','on'].includes(String(s[k]).toLowerCase()) : fallback
 
 // ── App registry colors / status ──────────────────────────────────────────────
 const APP_COLORS: Record<string, string> = {
@@ -1968,13 +1972,14 @@ function StorageSection({ settings, set, save }: {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type TabId = 'general' | 'security' | 'data' | 'notifications' | 'apikeys' | 'system' | 'audit' | 'registry' | 'noc' | 'maintenance'
+type TabId = 'general' | 'security' | 'data' | 'notifications' | 'resonance' | 'apikeys' | 'system' | 'audit' | 'registry' | 'noc' | 'maintenance'
 
 const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean; gapBefore?: boolean }> = [
   { id: 'general',       label: 'General' },
   { id: 'security',      label: 'Security' },
   { id: 'data',          label: 'Data' },
   { id: 'notifications', label: 'Notifications' },
+  { id: 'resonance',     label: 'Resonance', adminOnly: true },
   { id: 'apikeys',       label: 'User Keys' },
   { id: 'system',        label: 'System' },
   { id: 'audit',         label: 'Audit', gapBefore: true },
@@ -2039,6 +2044,122 @@ const DATA_TABS: Array<{ id: DataTabId; label: string }> = [
   { id: 'backups', label: 'Backups' },
   { id: 'logforward', label: 'Log Forwarding' },
 ]
+
+// ── Resonance origin ──────────────────────────────────────────────────────────
+// The one string that has to be copied onto the resonance key, so it is edited
+// and copied in the same place. Showing it twice — once editable in the form and
+// once read-only beside a Copy button — reliably sends people to the copy.
+function ResonanceOriginField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [detected, setDetected] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    api.resonanceStatus().then(r => setDetected(r.detected_origin || '')).catch(() => {})
+  }, [])
+
+  const effective = value.trim() || detected
+
+  return (
+    <div className="space-y-2">
+      <TextInput value={value} onChange={onChange} placeholder={detected || 'https://pkthub.example.com'} mono />
+      {effective && (
+        <div className="flex items-center gap-2">
+          <code className="text-xs text-blue-300 truncate">{effective}</code>
+          <button
+            onClick={() => { navigator.clipboard.writeText(effective); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+            className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-2 py-0.5 rounded transition-colors shrink-0"
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          {!value.trim() && <span className="text-xs text-gray-600">detected</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Resonance diagnostics ─────────────────────────────────────────────────────
+// The questions an admin would otherwise open the resonance console to answer:
+// what does this key actually allow, is this install paused, and is anybody's
+// browser failing to load the widget without saying so.
+function ResonanceDiagnostics({ baseUrl, keyValue, caBundle }: {
+  baseUrl: string; keyValue: string; caBundle: string
+}) {
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.resonanceTest>> | null>(null)
+  const [status, setStatus] = useState<Awaited<ReturnType<typeof api.resonanceStatus>> | null>(null)
+
+  const loadStatus = () => { api.resonanceStatus().then(setStatus).catch(() => {}) }
+  useEffect(() => { loadStatus() }, [])
+
+  const run = async () => {
+    setTesting(true)
+    setResult(null)
+    try {
+      setResult(await api.resonanceTest(baseUrl, keyValue, caBundle))
+    } catch (e: any) {
+      setResult({ ok: false, error: e.message || 'Test failed', origin: '' } as any)
+    } finally {
+      setTesting(false)
+      loadStatus()
+    }
+  }
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-800">
+        <h2 className="text-sm font-semibold text-white">Connection</h2>
+      </div>
+      <div className="px-6 py-4 space-y-3">
+        <button onClick={run} disabled={testing}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-5 py-2 transition-colors">
+          {testing ? 'Testing…' : 'Test connection'}
+        </button>
+
+        {result && (
+          <div className={`text-sm ${result.ok ? 'text-green-400' : 'text-red-400'}`}>
+            {result.ok ? 'Key accepted.' : (result.error || 'Failed')}
+            {result.detail && <span className="text-gray-500"> — {result.detail}</span>}
+          </div>
+        )}
+
+        {/* What the key actually grants, read back from resonance rather than
+            retyped here — so "the mic button never appears" has an answer. */}
+        {result?.ok && (
+          <div className="text-xs text-gray-400 space-y-1">
+            <p>Sent as <code className="text-gray-300">{result.user_id_sent}</code></p>
+            {result.parts && result.parts.length > 0 && <p>Grants: {result.parts.join(', ')}</p>}
+            {result.cap && Object.keys(result.cap).length > 0 && (
+              <p>Capabilities: {Object.entries(result.cap).map(([k, v]) => `${k}=${v ? 'on' : 'off'}`).join(', ')}</p>
+            )}
+          </div>
+        )}
+
+        {status?.breaker?.open && (
+          <div className="text-sm text-yellow-400">
+            Paused after repeated failures — retrying in {status.breaker.retry_in_seconds}s.
+            {status.breaker.last_error && <span className="text-gray-500"> {status.breaker.last_error}</span>}
+            <p className="text-xs text-gray-500 mt-1">A successful test clears this.</p>
+          </div>
+        )}
+
+        {/* embed.js gives up silently when its script will not load, so without
+            this an admin sees "enabled" and users see nothing. */}
+        {status && status.load_failures.events > 0 && (
+          <div className="text-sm text-yellow-400">
+            {status.load_failures.events} failed load{status.load_failures.events === 1 ? '' : 's'} across{' '}
+            {status.load_failures.users} user{status.load_failures.users === 1 ? '' : 's'} in the last {status.load_failures.days} days.
+            <span className="text-gray-500"> Common causes are an ad blocker, a wrong server address, or resonance being unreachable.</span>
+          </div>
+        )}
+
+        {status?.module_version && (
+          <p className="text-xs text-gray-600">Integration module {status.module_version}</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ── Suite Integration — admin actions for registered apps' suite tokens ──────
 // The read-only app list (health, context-launch, access log) for all roles
@@ -2519,6 +2640,29 @@ export default function SettingsPage() {
   const backupSave   = useSave(['backup_auto_enabled', 'backup_interval_hours', 'backup_path', 'backup_retain_count'], settings, load)
   const registrySave = useSave(['default_app_mode', 'health_poll_interval', 'health_timeout', 'auto_rotate_days'], settings, load)
   const nocSave    = useSave(['noc_default_dwell', 'noc_widget_refresh', 'display_token_expire_days'], settings, load)
+  const saveResonance = useSave([
+    'resonance_enabled', 'resonance_base_url', 'resonance_key', 'resonance_role_levels',
+    'resonance_origin', 'resonance_ca_bundle',
+    'resonance_style', 'resonance_target', 'resonance_label', 'resonance_side',
+    'resonance_width', 'resonance_height', 'resonance_open', 'resonance_exclude_paths',
+  ], settings, load)
+
+  // Role levels and excluded paths are JSON in a text column, so they are parsed
+  // on the way out and re-encoded on the way in. pktHub publishes no write
+  // operations, so "write" is deliberately not offered as a level here.
+  const RESONANCE_DEFAULT_LEVELS: Record<string, string> = { admin: 'read', analyst: 'read', viewer: 'read' }
+  const parseJson = <T,>(raw: string | undefined, fallback: T): T => {
+    if (!raw) return fallback
+    try { return JSON.parse(raw) as T } catch { return fallback }
+  }
+  const resonanceLevels = parseJson<Record<string, string>>(settings['resonance_role_levels'], RESONANCE_DEFAULT_LEVELS)
+  const resonanceLevel = (role: string) => {
+    const level = resonanceLevels[role]
+    return level === 'none' || level === 'read' ? level : 'read'
+  }
+  const setResonanceLevel = (role: string, level: string) =>
+    set('resonance_role_levels', JSON.stringify({ ...resonanceLevels, [role]: level }))
+  const resonanceExcludePaths = parseJson<string[]>(settings['resonance_exclude_paths'], ['/login', '/display'])
   const authSave     = useSave([
     'auth_local_enabled', 'session_timeout_minutes',
     'okta_saml_enabled', 'okta_saml_idp_entity_id', 'okta_saml_idp_sso_url',
@@ -2724,6 +2868,7 @@ export default function SettingsPage() {
                 <SslPanel />
               </div>
             )}
+
           </div>
         </div>
       )}
@@ -2882,6 +3027,95 @@ export default function SettingsPage() {
           )}
 
         </Section>
+      )}
+
+      {tab === 'resonance' && (
+        <>
+        <Section title="Resonance" onSave={saveResonance.save} saving={saveResonance.saving}
+          saved={saveResonance.saved} error={saveResonance.error}
+          help={{
+            title: 'Resonance — How It Works',
+            content: <>
+              <p>Resonance is the shared assistant surface for the pkt suite. It mounts as a launcher in the corner of every page, but the assistant itself runs on the resonance server rather than inside pktHub.</p>
+              <p><span className="text-gray-300 font-medium">Resonance AI Interface Server</span> is the interface resonance serves embeds from — <span className="text-amber-500 font-medium">not its admin portal</span>, which usually answers on a different address and will look almost right: it serves <code>embed.js</code> too, and only fails later with a &ldquo;not found&rdquo; on the session call.</p>
+              <p><span className="text-gray-300 font-medium">pktHub&rsquo;s own address</span> is what a browser types to reach this app, and it is the string that has to appear on the resonance key&rsquo;s origins list. Leave it blank and pktHub works it out from the request — correct for a direct install, and wrong behind a reverse proxy, where it sees the internal address rather than the one users type.</p>
+              <p><span className="text-gray-300 font-medium">pktHub never sends your login credentials.</span> It vouches for whoever is signed in and receives a short-lived, single-use code the browser spends on opening the widget. The key below never reaches the browser.</p>
+              <p><span className="text-amber-500 font-medium">What the assistant will discuss is configured in resonance, not here.</span> The subjects it will engage with are set by the profile the key is authorised against.</p>
+              <p><span className="text-gray-300 font-medium">This is the hub, so the assistant reads across every registered app.</span> pktHub publishes one surface composed from what each app already grants its own assistant — so it can answer about pktFlow, pktIPAM and the rest in one conversation, and can never call an operation an app did not permit. The composed list is published at <code>/.well-known/resonance.json</code>.</p>
+              <p><span className="text-gray-300 font-medium">Writes are withheld.</span> An app may grant a write to its own assistant; that is a decision about one app. Passing it through here would make it a decision about the whole estate, so pktHub publishes read operations only.</p>
+              <p>Each call carries the signed-in person&rsquo;s identity and role to the owning app, so it reaches only what that person could already open there.</p>
+              <p>Resonance must be reachable from the <span className="text-gray-300 font-medium">browser</span>, over HTTPS, with a certificate those browsers already trust. An untrusted certificate produces an empty widget with nothing in the console to explain it.</p>
+              <p><span className="text-gray-300 font-medium">pktHub also calls resonance directly</span>, server to server, so this host must resolve resonance&rsquo;s name and trust its certificate — the browser doing both is not enough. Python verifies against its own bundled roots rather than the system store, so a certificate signed by an internal CA is trusted by every browser and still rejected here. <span className="text-gray-300 font-medium">CA bundle</span> points it at the system store instead; on Debian and Ubuntu that is <code>/etc/ssl/certs/ca-certificates.crt</code>.</p>
+            </>,
+          }}
+        >
+          <Field label="Enabled" hint="Show the launcher to users. Separate from Test Connection on purpose.">
+            <Toggle value={bool('resonance_enabled')} onChange={v => set('resonance_enabled', v)} />
+          </Field>
+          <Field label="Resonance AI Interface Server" hint="The interface server, not the admin portal — they are different addresses.">
+            <TextInput value={str('resonance_base_url')} onChange={v => set('resonance_base_url', v)} placeholder="https://resonance.example.com" mono />
+          </Field>
+          <Field label="Key" hint="Issued by resonance, one per placement. Never sent to the browser.">
+            <TextInput value={str('resonance_key')} onChange={v => set('resonance_key', v)} secret mono />
+          </Field>
+          <Field label="pktHub's own address" hint="What browsers type to reach pktHub. Copy it onto the resonance key.">
+            <ResonanceOriginField value={str('resonance_origin')} onChange={v => set('resonance_origin', v)} />
+          </Field>
+          <Field label="CA bundle" hint="Only needed if resonance uses an internal CA. Blank trusts public CAs only.">
+            <TextInput value={str('resonance_ca_bundle')} onChange={v => set('resonance_ca_bundle', v)} placeholder="/etc/ssl/certs/ca-certificates.crt" mono />
+          </Field>
+          <Field label="What each role can do" hint="No access hides the launcher entirely. Read only lets the assistant look — pktHub publishes no write operations.">
+            <div className="space-y-2">
+              {['admin', 'analyst', 'viewer'].map(role => (
+                <div key={role} className="flex items-center gap-3">
+                  <span className="w-20 text-sm text-white">{role}</span>
+                  <SelectInput
+                    value={resonanceLevel(role)}
+                    onChange={v => setResonanceLevel(role, v)}
+                    options={[
+                      { value: 'none', label: 'No access' },
+                      { value: 'read', label: 'Read only' },
+                    ]}
+                  />
+                </div>
+              ))}
+            </div>
+          </Field>
+          <Field label="Placement" hint="Bubble is a launcher in the corner. Inline renders into an element you name instead.">
+            <SelectInput value={str('resonance_style', 'bubble')} onChange={v => set('resonance_style', v)}
+              options={[{ value: 'bubble', label: 'Bubble' }, { value: 'inline', label: 'Inline' }]} />
+          </Field>
+          {str('resonance_style', 'bubble') === 'inline' && (
+            <Field label="Target element" hint="id of an element that already exists. Without it nothing mounts.">
+              <TextInput value={str('resonance_target')} onChange={v => set('resonance_target', v)} mono />
+            </Field>
+          )}
+          <Field label="Side" hint="Which corner the launcher sits in.">
+            <SelectInput value={str('resonance_side', 'right')} onChange={v => set('resonance_side', v)}
+              options={[{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }]} />
+          </Field>
+          <Field label="Label" hint="Optional text on the launcher.">
+            <TextInput value={str('resonance_label')} onChange={v => set('resonance_label', v)} />
+          </Field>
+          <Field label="Panel size" hint="Width and height of the open panel. Blank uses resonance's defaults.">
+            <div className="flex items-center gap-2">
+              <TextInput value={str('resonance_width')} onChange={v => set('resonance_width', v)} placeholder="420" mono />
+              <span className="text-xs text-gray-500">&times;</span>
+              <TextInput value={str('resonance_height')} onChange={v => set('resonance_height', v)} placeholder="640" mono />
+            </div>
+          </Field>
+          <Field label="Open on load" hint="Show the panel expanded rather than waiting for a click.">
+            <Toggle value={bool('resonance_open')} onChange={v => set('resonance_open', v)} />
+          </Field>
+          <Field label="Hide on pages" hint="Comma-separated paths. Listing a page discards conversations on it.">
+            <TextInput value={resonanceExcludePaths.join(', ')}
+              onChange={v => set('resonance_exclude_paths', JSON.stringify(v.split(',').map(x => x.trim()).filter(Boolean)))}
+              mono />
+          </Field>
+        </Section>
+        <ResonanceDiagnostics baseUrl={str('resonance_base_url')} keyValue={str('resonance_key')}
+          caBundle={str('resonance_ca_bundle')} />
+        </>
       )}
 
       {/* User Keys — per-user vault for external lookup providers, plus the

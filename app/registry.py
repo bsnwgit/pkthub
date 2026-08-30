@@ -18,6 +18,17 @@ router = APIRouter(prefix="/api/apps", tags=["registry"])
 
 SUITE_VERSION = 1
 
+
+def _invalidate_resonance_cache() -> None:
+    """Imported lazily so resonance_data can import from here without a cycle.
+    Best-effort: a missed invalidation costs one cache TTL, not correctness."""
+    try:
+        from app.resonance_data import invalidate_cache
+        invalidate_cache()
+    except Exception:                                          # noqa: BLE001
+        pass
+
+
 # Widget param pickers are served from this namespace on every pktApp. The
 # widget-options proxy refuses anything outside it — see get_widget_options.
 _OPTIONS_PREFIX = "/api/widgets/options/"
@@ -145,6 +156,10 @@ async def register_app(
     await db.commit()
 
     await write_audit(db, current_user, "app.register", f"app:{body.name}", {"base_url": body.base_url})
+    # The assistant's federated surface is built from the registered apps, and
+    # is cached — drop it so a newly registered app is not invisible to the
+    # assistant for the rest of the TTL.
+    _invalidate_resonance_cache()
     background_tasks.add_task(poll_health, row["id"], body.base_url, suite_token)
     background_tasks.add_task(_set_settings_lock, body.base_url, suite_token, True)
 
@@ -216,6 +231,7 @@ async def deregister_app(
     await db.execute("DELETE FROM registered_apps WHERE id = ?", (app_id,))
     await db.commit()
     await write_audit(db, current_user, "app.deregister", f"app:{app['name']}", {})
+    _invalidate_resonance_cache()
 
 @router.patch("/{app_id}/status", response_model=AppOut)
 async def set_app_status(

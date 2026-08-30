@@ -27,6 +27,8 @@ from app.user_api_keys import router as user_api_keys_router
 from app.ip_info import router as ip_info_router
 from app.mxtoolbox import router as mxtoolbox_router
 from app.docs_api import router as docs_router
+from app.resonance import router as resonance_router
+from app.resonance_data import router as resonance_data_router
 from app.system_api import router as system_router
 from app.version import get_version
 
@@ -60,6 +62,11 @@ app.include_router(user_api_keys_router)
 app.include_router(ip_info_router)
 app.include_router(mxtoolbox_router)
 app.include_router(docs_router)
+app.include_router(resonance_router)
+# Carries its own absolute paths — /api/resonance/data/* plus the two documents
+# at /api/resonance/openapi.json and /.well-known/resonance.json — so it is
+# mounted without a prefix, and before the SPA catch-all so the grant file wins.
+app.include_router(resonance_data_router)
 
 @app.get("/api/health")
 async def health():
