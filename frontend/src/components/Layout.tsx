@@ -33,6 +33,11 @@ const navItems = [
 export default function Layout() {
   const { user, logout, isAdmin, isAnalyst } = useAuth()
   const location = useLocation()
+  const [navOpen, setNavOpen] = useState(false)
+  // A NavLink does not unmount this component, so without this the drawer
+  // stays open on top of the page it has just navigated to.
+  useEffect(() => { setNavOpen(false) }, [location.pathname])
+
   const [regApps, setRegApps] = useState<RegApp[]>([])
   const [regAppsExpanded, setRegAppsExpanded] = useState(
     () => localStorage.getItem('pkthub_reg_app_settings_expanded') === '1'
@@ -125,7 +130,7 @@ export default function Layout() {
         to={item.to}
         end={item.exact}
         className={({ isActive }) => clsx(
-          'flex items-center gap-3 px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
+          'flex items-center gap-3 px-3 py-3.5 md:py-2.5 text-[13px] md:text-[11.5px] uppercase tracking-[0.1em] md:tracking-[0.13em] transition-colors',
           isActive
             ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
             : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -138,9 +143,29 @@ export default function Layout() {
   )
 
   return (
-    <div className="relative z-10 flex h-screen overflow-hidden text-white">
+    <div className="relative z-10 flex h-dvh overflow-hidden text-white">
       {/* Sidebar */}
-      <aside className="flex flex-col w-60 shrink-0 border-r border-gray-800" style={{ background: 'linear-gradient(180deg, rgba(216,180,110,.025), transparent 40%)' }}>
+      {navOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={() => setNavOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      <aside
+        className={clsx(
+          'f-drawer flex flex-col w-[min(82vw,320px)] md:w-60 shrink-0 border-r border-gray-800',
+          // Off-canvas overlay on a phone, the desk rail from md up. This nav
+          // is the whole suite's navigation — Apps expands into every
+          // registered app's own menu — so as a drawer it is also what the
+          // embedded app needs, which is why chromeless stays correct.
+          'fixed inset-y-0 left-0 z-40 transition-transform duration-200',
+          'md:static md:z-auto md:translate-x-0 md:transition-none',
+          navOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+        style={{ background: 'linear-gradient(180deg, rgba(216,180,110,.025), transparent 40%)' }}
+      >
         {/* Logo */}
         <div className="flex items-center px-5 py-4 border-b border-gray-800">
           <PktSuiteLockup height={44} />
@@ -159,7 +184,7 @@ export default function Layout() {
               <button
                 onClick={toggleAppsSection}
                 className={clsx(
-                  'flex items-center gap-3 w-full px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
+                  'flex items-center gap-3 w-full px-3 py-3.5 md:py-2.5 text-[13px] md:text-[11.5px] uppercase tracking-[0.1em] md:tracking-[0.13em] transition-colors',
                   onAnyAppRoute && !appsExpanded
                     ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
                     : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -179,7 +204,7 @@ export default function Layout() {
                     <button
                       onClick={() => toggleAppNav(app.id)}
                       className={clsx(
-                        'flex items-center gap-3 w-full pl-6 pr-3 py-2 text-[11px] uppercase tracking-[0.1em] transition-colors',
+                        'flex items-center gap-3 w-full pl-6 pr-3 py-3 md:py-2 text-[12.5px] md:text-[11px] uppercase tracking-[0.1em] transition-colors',
                         onThisApp && !expanded
                           ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
                           : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -197,7 +222,7 @@ export default function Layout() {
                           to={`/app/${app.id}${item.path}`}
                           end={item.path === '/'}
                           className={({ isActive }) => clsx(
-                            'flex items-center gap-3 pl-11 pr-3 py-1.5 text-[10.5px] uppercase tracking-[0.1em] transition-colors',
+                            'flex items-center gap-3 pl-11 pr-3 py-2.5 md:py-1.5 text-[12px] md:text-[10.5px] uppercase tracking-[0.1em] transition-colors',
                             isActive
                               ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
                               : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -224,7 +249,7 @@ export default function Layout() {
               <button
                 onClick={toggleRegAppsExpanded}
                 className={clsx(
-                  'flex items-center gap-3 w-full px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
+                  'flex items-center gap-3 w-full px-3 py-3.5 md:py-2.5 text-[13px] md:text-[11.5px] uppercase tracking-[0.1em] md:tracking-[0.13em] transition-colors',
                   onRegAppSettingsRoute && !regAppsExpanded
                     ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
                     : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -239,7 +264,7 @@ export default function Layout() {
                   key={app.id}
                   to={`/app-settings/${app.id}`}
                   className={({ isActive }) => clsx(
-                    'flex items-center gap-3 pl-9 pr-3 py-2 text-[11px] tracking-[0.1em] transition-colors',
+                    'flex items-center gap-3 pl-9 pr-3 py-3 md:py-2 text-[12.5px] md:text-[11px] tracking-[0.1em] transition-colors',
                     isActive
                       ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
                       : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -257,7 +282,7 @@ export default function Layout() {
           <NavLink
             to="/documentation"
             className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 text-[11.5px] uppercase tracking-[0.13em] transition-colors',
+              'flex items-center gap-3 px-3 py-3.5 md:py-2.5 text-[13px] md:text-[11.5px] uppercase tracking-[0.1em] md:tracking-[0.13em] transition-colors',
               isActive
                 ? 'bg-gradient-to-r from-blue-500/[0.12] to-transparent text-blue-300 border-l-2 border-blue-500'
                 : 'text-gray-400 hover:text-white hover:bg-blue-500/[0.04] border-l-2 border-transparent'
@@ -269,7 +294,7 @@ export default function Layout() {
         </div>
 
         {/* User footer */}
-        <div className="border-t border-gray-800 px-3 py-3">
+        <div className="f-safe-b border-t border-gray-800 px-3 py-3">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-200 truncate">{user?.username}</p>
@@ -278,7 +303,7 @@ export default function Layout() {
             <button
               onClick={logout}
               title="Sign out"
-              className="p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors"
+              className="f-tap p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors"
             >
               <LogOut size={15} />
             </button>
@@ -287,9 +312,24 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="md:hidden h-12 flex-shrink-0 border-b border-gray-800 flex items-center px-4 gap-3">
+          <button
+            onClick={() => setNavOpen(true)}
+            aria-label="Open navigation"
+            className="f-tap -ml-2 text-white"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+            </svg>
+          </button>
+          <PktSuiteLockup height={26} />
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
 
       {/* One mount for the whole authenticated shell, so a route change does not
           cost a new resonance session. Deliberately here and not in App.tsx: the
