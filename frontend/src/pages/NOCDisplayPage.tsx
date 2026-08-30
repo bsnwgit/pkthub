@@ -41,6 +41,9 @@ interface NOCSlide {
 }
 
 export default function NOCDisplayPage() {
+  // A wall display: a wide reference canvas on a timer. Below md it says so
+  // rather than rendering a NOC wall into a 390px viewport.
+  const [showOnPhone, setShowOnPhone] = useState(false)
   const { token } = useParams()
   const [noc, setNOC] = useState<any>(null)
   const [error, setError] = useState('')
@@ -85,13 +88,13 @@ export default function NOCDisplayPage() {
   }, [noc, currentSlide, slides])
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center text-sm text-red-400" style={{ background: '#04060a' }}>
+    <div className="min-h-dvh flex items-center justify-center text-sm text-red-400" style={{ background: '#04060a' }}>
       {error === 'Not Found' ? 'Display token not found or revoked.' : error}
     </div>
   )
 
   if (!noc) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#04060a' }}>
+    <div className="min-h-dvh flex items-center justify-center" style={{ background: '#04060a' }}>
       <PktSuiteIcon size={48} />
     </div>
   )
@@ -99,7 +102,24 @@ export default function NOCDisplayPage() {
   const slide = slides[currentSlide]
 
   return (
-    <div className="flex flex-col" style={{ background: '#04060a', height: '100vh', overflow: 'hidden' }}>
+    <>
+      {!showOnPhone && (
+        <div className="md:hidden f-panel m-3 p-6 text-center space-y-3">
+          <p className="f-lbl">NOC Display</p>
+          <p className="text-sm text-white leading-relaxed">
+            This is a wall display — widgets laid out on a wide reference canvas
+            and rotated on a timer. It is not built for a phone.
+          </p>
+          <button onClick={() => setShowOnPhone(true)} className="f-chip f-chip-gold f-tap px-3">
+            Show anyway
+          </button>
+        </div>
+      )}
+
+      {/* contents so the wrapper is transparent to layout above md — the
+          element below keeps the 100vh sizing the display depends on. */}
+      <div className={showOnPhone ? 'contents' : 'hidden md:contents'}>
+        <div className="flex flex-col" style={{ background: '#04060a', height: '100vh', overflow: 'hidden' }}>
 
       {/* Minimal header bar */}
       <div className="flex items-center justify-between px-6 border-b border-gray-800/60"
@@ -175,5 +195,8 @@ export default function NOCDisplayPage() {
         )}
       </div>
     </div>
+      </div>
+    </>
+
   )
 }

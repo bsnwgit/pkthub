@@ -151,6 +151,9 @@ const LAYER: React.CSSProperties = { transform: 'translateZ(0)', willChange: 'tr
 
 // ─── Component ──────────────────────────────────────────────────────────────────
 export default function NOCEditorPage() {
+  // A desk surface. Below md it says so rather than collapsing badly, but
+  // it does not lock the door: anything might matter at 2am.
+  const [showOnPhone, setShowOnPhone] = useState(false)
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -450,7 +453,21 @@ export default function NOCEditorPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0e131c', overflow: 'hidden' }}>
+    <>
+      {!showOnPhone && (
+        <div className="md:hidden f-panel m-3 p-6 text-center space-y-3">
+          <p className="f-lbl">NOC Editor</p>
+          <p className="text-sm text-white leading-relaxed">The NOC editor is a drag-and-drop canvas sized for a wall display. It needs a pointer and a large screen.</p>
+          <button onClick={() => setShowOnPhone(true)} className="f-chip f-chip-gold f-tap px-3">
+            Show anyway
+          </button>
+        </div>
+      )}
+
+      {/* contents so the wrapper is transparent to layout above md — the
+          element below keeps whatever sizing it already had. */}
+      <div className={showOnPhone ? 'contents' : 'hidden md:contents'}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0e131c', overflow: 'hidden' }}>
 
       {/* ── Top bar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px', height: '52px', borderBottom: '1px solid rgba(255,255,255,0.15)', flexShrink: 0, background: '#19212d', ...LAYER }}>
@@ -834,5 +851,8 @@ export default function NOCEditorPage() {
         </div>
       </div>
     </div>
+      </div>
+    </>
+
   )
 }

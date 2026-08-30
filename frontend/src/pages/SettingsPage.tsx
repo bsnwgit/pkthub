@@ -2527,6 +2527,9 @@ function SuiteIntegrationTab() {
 }
 
 export default function SettingsPage() {
+  // A desk surface. Below md it says so rather than collapsing badly, but
+  // it does not lock the door: anything might matter at 2am.
+  const [showOnPhone, setShowOnPhone] = useState(false)
   const { user: me } = useAuth()
   const isAdmin = me?.role === 'admin'
   const [searchParams] = useSearchParams()
@@ -2689,7 +2692,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-4 max-w-5xl">
+    <>
+      {!showOnPhone && (
+        <div className="md:hidden f-panel m-3 p-6 text-center space-y-3">
+          <p className="f-lbl">Settings</p>
+          <p className="text-sm text-white leading-relaxed">This page is built for a larger screen — dense configuration grids and the widest tables in the hub.</p>
+          <button onClick={() => setShowOnPhone(true)} className="f-chip f-chip-gold f-tap px-3">
+            Show anyway
+          </button>
+        </div>
+      )}
+
+      {/* contents so the wrapper is transparent to layout above md — the
+          element below keeps whatever sizing it already had. */}
+      <div className={showOnPhone ? 'contents' : 'hidden md:contents'}>
+        <div className="p-6 space-y-4 max-w-5xl">
       <h1 className="text-xl font-bold text-white">Settings</h1>
 
       {/* Section bar */}
@@ -3240,5 +3257,8 @@ export default function SettingsPage() {
         </Section>
       )}
     </div>
+      </div>
+    </>
+
   )
 }

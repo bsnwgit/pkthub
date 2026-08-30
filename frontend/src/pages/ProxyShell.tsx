@@ -42,7 +42,7 @@ export default function ProxyShell() {
   const proxyUrl = app ? `/proxy/${appId}/` : null
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: '#04060a' }}>
+    <div className="flex flex-col h-dvh" style={{ background: '#04060a' }}>
       {/* Thin 44px top bar */}
       <header
         className="flex items-center justify-between px-4 shrink-0 border-b border-gray-800/80 z-50"
