@@ -603,3 +603,7 @@ storage connection test) — a different tab from Backups.
 cd frontend && npm install && npm run dev   # Vite dev server (proxies /api and /proxy to :8760)
 cd .. && venv/bin/uvicorn app.main:app --reload --port 8760
 ```
+
+## License
+
+This project is distributed under the PolyForm Noncommercial License 1.0.0 — see [`LICENSE`](LICENSE).
