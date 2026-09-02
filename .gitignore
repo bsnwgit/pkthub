@@ -8,6 +8,3 @@ logs/*.log
 __pycache__/
 *.pyc
 config.yaml
-
-# Claude project notes (local only)
-CLAUDE.md
