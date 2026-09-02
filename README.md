@@ -4,6 +4,17 @@
   <img src="lockup-256h.png" alt="pktHub" height="64">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.webp" alt="pktHub — Dashboard" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/noc.webp" alt="pktHub — NOC wallboard" width="430">
+  <img src="docs/screenshots/apps.webp" alt="pktHub — Registered apps" width="430">
+</p>
+
+<p align="center"><sub>Dashboard &middot; NOC wallboard &middot; Registered apps</sub></p>
+
 NOC/SOC management hub — the front door to the pkt suite. Registers and
 proxies the sibling pkt* apps behind a single login, builds NOC wallboard
 displays from any of their data, and centralizes user management, audit
