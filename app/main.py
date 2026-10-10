@@ -87,6 +87,9 @@ async def startup():
 
     asyncio.create_task(health_poller())
 
+    from app.self_update import run_forever as self_update_run_forever
+    asyncio.create_task(self_update_run_forever())
+
 async def health_poller():
     """Background loop: poll health of all registered apps every N seconds."""
     settings = get_settings()
