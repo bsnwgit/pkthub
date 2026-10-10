@@ -7,13 +7,17 @@ from __future__ import annotations
 import logging
 
 import aiosqlite
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.auth import get_current_user, require_admin
+from app.database import get_db
 from app.config import get_settings
 from app.version import get_version
 
+log = logging.getLogger("pkthub.system")
 router = APIRouter(prefix="/api/system", tags=["system"])
 
 
@@ -102,3 +106,57 @@ async def start_log_forwarding() -> None:
     except Exception:
         # Forwarding must never be able to stop the app from starting.
         logging.getLogger("pkthub").warning("log forwarding failed to start", exc_info=True)
+
+
+# -- Self-update ---------------------------------------------------------------
+# Checks the GitHub releases for a newer version and applies it in place — see
+# app/self_update.py. Status is readable by any signed-in user (the Settings →
+# System page shows it); checking, configuring and applying are admin-only.
+
+class UpdateConfigBody(BaseModel):
+    mode: Optional[str] = None
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
+    github_token: Optional[str] = None  # None = leave alone, "" = clear
+
+
+@router.get("/update-status")
+async def get_update_status(user: dict = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    from app import self_update
+    return await self_update.status(db)
+
+
+@router.post("/update-check")
+async def force_update_check(user: dict = Depends(require_admin), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    from app import self_update
+    return await self_update.check_latest(db)
+
+
+@router.put("/update-config")
+async def save_update_config(body: UpdateConfigBody, user: dict = Depends(require_admin), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    from app import self_update
+    try:
+        return await self_update.save_config(
+            db, mode=body.mode, window_start=body.window_start,
+            window_end=body.window_end, github_token=body.github_token,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
+
+@router.post("/update-apply")
+async def apply_update_now(user: dict = Depends(require_admin), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    """Download the newest release, swap it in, and exit shortly after
+    answering so systemd starts the new code. The delay is what lets this
+    response reach the browser before the process goes away."""
+    from app import self_update
+    try:
+        result = await self_update.apply_now(db)
+    except self_update.UpdateRefused as exc:
+        raise HTTPException(409, str(exc))
+    except Exception as exc:
+        log.exception("Update now failed")
+        raise HTTPException(502, f"Update failed: {exc}")
+    log.info("Self-update applied by %s: %s", user["username"], result.get("applied"))
+    self_update.restart_soon()
+    return {**result, "restarting": True}
