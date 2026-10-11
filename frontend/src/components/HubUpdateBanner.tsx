@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getToken } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 // Small strip above the page when the hub, or any registered app, has a newer
@@ -19,10 +18,7 @@ export default function HubUpdateBanner() {
 
   useEffect(() => {
     let live = true
-    const token = getToken()
-    fetch('/api/system/suite-updates', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
+    fetch('/api/system/suite-updates')
       .then(res => (res.ok ? res.json() : null))
       .then(s => { if (live && s) setSt(s) })
       .catch(() => {})
