@@ -120,10 +120,84 @@ class UpdateConfigBody(BaseModel):
     github_token: Optional[str] = None  # None = leave alone, "" = clear
 
 
+# A page load re-checks GitHub, but not more than once per this many seconds —
+# the status route is open to every signed-in user, so it must not be a way to
+# hammer the GitHub API.
+_REFRESH_MIN_AGE_SECONDS = 300
+
+
+def _check_is_stale(checked_at: str | None) -> bool:
+    if not checked_at:
+        return True
+    from datetime import datetime, timezone
+    try:
+        then = datetime.fromisoformat(checked_at)
+    except ValueError:
+        return True
+    return (datetime.now(timezone.utc) - then).total_seconds() > _REFRESH_MIN_AGE_SECONDS
+
+
 @router.get("/update-status")
-async def get_update_status(user: dict = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+async def get_update_status(user: dict = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db), refresh: bool = False) -> dict:
+    """refresh=true re-checks GitHub first when the last check is stale — the
+    update banner passes it on every app load."""
     from app import self_update
-    return await self_update.status(db)
+    st = await self_update.status(db)
+    if refresh and _check_is_stale(st.get("checked_at")):
+        return await self_update.check_latest(db)
+    return st
+
+
+@router.get("/suite-updates")
+async def get_suite_updates(user: dict = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    """The hub's own update status plus every registered app's, for the
+    banner. Each app is asked with its suite token and refresh=true, so its
+    own (rate-limited) check runs; an app that is down or too old to have the
+    route is reported with update_available false rather than failing the
+    whole call."""
+    import asyncio
+    import httpx
+    from app import self_update
+    from app.crypto import decrypt_str
+    from app.registry import SUITE_VERSION
+
+    own = await self_update.status(db)
+    if _check_is_stale(own.get("checked_at")):
+        own = await self_update.check_latest(db)
+
+    async with db.execute("SELECT id, name, display_name, base_url, suite_token FROM registered_apps ORDER BY registered_at") as cur:
+        apps = await cur.fetchall()
+
+    async def one(app) -> dict:
+        row = {"app_id": app["id"], "name": app["name"],
+               "display_name": app["display_name"] or app["name"],
+               "current_version": None, "latest_tag": None, "update_available": False}
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=8) as client:
+                resp = await client.get(
+                    f"{app['base_url'].rstrip('/')}/api/system/update-status",
+                    params={"refresh": "true"},
+                    headers={"X-Suite-Token": decrypt_str(app["suite_token"]),
+                             "X-Suite-Version": str(SUITE_VERSION)},
+                )
+            if resp.status_code == 200:
+                st = resp.json()
+                row["current_version"] = st.get("current_version")
+                row["latest_tag"] = st.get("latest_tag")
+                row["update_available"] = bool(st.get("update_available"))
+        except Exception:
+            pass  # unreachable app: same contract as the health poll — report nothing, don't fail
+        return row
+
+    results = await asyncio.gather(*(one(a) for a in apps))
+    return {
+        "hub": {
+            "current_version": own.get("current_version"),
+            "latest_tag": own.get("latest_tag"),
+            "update_available": bool(own.get("update_available")),
+        },
+        "apps": list(results),
+    }
 
 
 @router.post("/update-check")

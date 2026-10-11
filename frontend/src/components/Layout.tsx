@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import HubUpdateBanner from './HubUpdateBanner'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PktSuiteLockup } from './Logo'
@@ -341,6 +342,7 @@ export default function Layout() {
           <PktSuiteLockup height={26} />
         </header>
 
+        <HubUpdateBanner />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
