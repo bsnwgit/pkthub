@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
 import { api } from '../api/client'
 
@@ -12,6 +12,8 @@ interface RegApp {
 export default function AppSettingsPage() {
   const { appId } = useParams<{ appId: string }>()
   const id = Number(appId)
+  // ?tab=system opens the app's Settings on that tab (the update banner's View link)
+  const tab = useSearchParams()[0].get('tab')
 
   const [app, setApp] = useState<RegApp | null>(null)
   const [ready, setReady] = useState(false)
@@ -68,7 +70,7 @@ export default function AppSettingsPage() {
       {ready ? (
         <iframe
           key={refreshNonce}
-          src={`/proxy/${id}/settings?chromeless=1&_r=${refreshNonce}`}
+          src={`/proxy/${id}/settings?chromeless=1${tab ? `&tab=${encodeURIComponent(tab)}` : ''}&_r=${refreshNonce}`}
           className="flex-1 w-full"
           style={{ border: '1px solid #211c14', borderRadius: '0.75rem', background: '#04060a' }}
           title={`${app?.display_name || app?.name || 'App'} Settings`}

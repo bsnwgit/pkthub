@@ -130,59 +130,58 @@ async def get_update_status(user: dict = Depends(get_current_user), db: aiosqlit
     return await self_update.status(db)
 
 
-@router.get("/suite-updates")
-async def get_suite_updates(db: aiosqlite.Connection = Depends(get_db)) -> dict:
-    """The hub's own update status plus every registered app's, for the
-    banner. Each app is asked with its suite token and refresh=true, so its
-    own (rate-limited) check runs; an app that is down or too old to have the
-    route is reported with update_available false rather than failing the
-    whole call."""
-    import asyncio
-    import httpx
+@router.get("/update-banner")
+async def get_update_banner(db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    """pktHub's own banner data. Open on purpose, so the banner shows whatever
+    the hub's auth or update settings are; version strings only. Asks GitHub
+    only while no update is known."""
     from app import self_update
-    from app.crypto import decrypt_str
-    from app.registry import SUITE_VERSION
-
-    own = await self_update.check_latest(db)
-
-    async with db.execute("SELECT id, name, display_name, base_url, suite_token FROM registered_apps ORDER BY registered_at") as cur:
-        apps = await cur.fetchall()
-
-    async def one(app) -> dict:
-        row = {"app_id": app["id"], "name": app["name"],
-               "display_name": app["display_name"] or app["name"],
-               "current_version": None, "latest_tag": None, "update_available": False}
-        try:
-            async with httpx.AsyncClient(verify=False, timeout=8) as client:
-                resp = await client.get(
-                    f"{app['base_url'].rstrip('/')}/api/system/update-banner",
-                    headers={"X-Suite-Token": decrypt_str(app["suite_token"]),
-                             "X-Suite-Version": str(SUITE_VERSION)},
-                )
-            if resp.status_code == 200:
-                st = resp.json()
-                row["current_version"] = st.get("current_version")
-                row["latest_tag"] = st.get("latest_tag")
-                row["update_available"] = bool(st.get("update_available"))
-        except Exception:
-            pass  # unreachable app: same contract as the health poll — report nothing, don't fail
-        return row
-
-    results = await asyncio.gather(*(one(a) for a in apps))
+    st = await self_update.status(db)
+    parsed = self_update._parse_tag(st.get("latest_tag") or "")
+    if not (st.get("update_available") and parsed and parsed > self_update.current_version()):
+        # Nothing known yet: ask GitHub. Once an update is known it is simply
+        # reported, with no request, until the app is on that release.
+        st = await self_update.check_latest(db)
     return {
-        "hub": {
-            "current_version": own.get("current_version"),
-            "latest_tag": own.get("latest_tag"),
-            "update_available": bool(own.get("update_available")),
-        },
-        "apps": list(results),
+        "update_available": bool(st.get("update_available")),
+        "latest_tag": st.get("latest_tag"),
+        "current_version": st.get("current_version"),
     }
 
 
-@router.post("/update-check")
-async def force_update_check(user: dict = Depends(require_admin), db: aiosqlite.Connection = Depends(get_db)) -> dict:
-    from app import self_update
-    return await self_update.check_latest(db)
+@router.get("/app-update/{app_id}")
+async def get_app_update(app_id: int, db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    """One registered app's banner data, asked of that app with its suite
+    token. Only the app being shown is ever asked. An app that is down, or too
+    old to have the route, reports update_available false."""
+    import httpx
+    from app.crypto import decrypt_str
+    from app.registry import SUITE_VERSION
+
+    async with db.execute(
+        "SELECT id, display_name, name, base_url, suite_token FROM registered_apps WHERE id = ?", (app_id,)
+    ) as cur:
+        app = await cur.fetchone()
+    if not app:
+        raise HTTPException(404, "App not found")
+
+    out = {"app_id": app["id"], "display_name": app["display_name"] or app["name"],
+           "update_available": False, "latest_tag": None, "current_version": None}
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=8) as client:
+            resp = await client.get(
+                f"{app['base_url'].rstrip('/')}/api/system/update-banner",
+                headers={"X-Suite-Token": decrypt_str(app["suite_token"]),
+                         "X-Suite-Version": str(SUITE_VERSION)},
+            )
+        if resp.status_code == 200:
+            st = resp.json()
+            out["update_available"] = bool(st.get("update_available"))
+            out["latest_tag"] = st.get("latest_tag")
+            out["current_version"] = st.get("current_version")
+    except Exception:
+        pass  # unreachable app: report nothing, don't fail
+    return out
 
 
 @router.put("/update-config")
