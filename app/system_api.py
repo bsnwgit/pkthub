@@ -120,36 +120,18 @@ class UpdateConfigBody(BaseModel):
     github_token: Optional[str] = None  # None = leave alone, "" = clear
 
 
-# A page load re-checks GitHub, but not more than once per this many seconds —
-# the status route is open to every signed-in user, so it must not be a way to
-# hammer the GitHub API.
-_REFRESH_MIN_AGE_SECONDS = 300
-
-
-def _check_is_stale(checked_at: str | None) -> bool:
-    if not checked_at:
-        return True
-    from datetime import datetime, timezone
-    try:
-        then = datetime.fromisoformat(checked_at)
-    except ValueError:
-        return True
-    return (datetime.now(timezone.utc) - then).total_seconds() > _REFRESH_MIN_AGE_SECONDS
-
-
 @router.get("/update-status")
 async def get_update_status(user: dict = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db), refresh: bool = False) -> dict:
-    """refresh=true re-checks GitHub first when the last check is stale — the
-    update banner passes it on every app load."""
+    """refresh=true re-checks GitHub first — the update banner passes it on
+    every app load. A conditional request, so an unchanged release is free."""
     from app import self_update
-    st = await self_update.status(db)
-    if refresh and _check_is_stale(st.get("checked_at")):
+    if refresh:
         return await self_update.check_latest(db)
-    return st
+    return await self_update.status(db)
 
 
 @router.get("/suite-updates")
-async def get_suite_updates(user: dict = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)) -> dict:
+async def get_suite_updates(db: aiosqlite.Connection = Depends(get_db)) -> dict:
     """The hub's own update status plus every registered app's, for the
     banner. Each app is asked with its suite token and refresh=true, so its
     own (rate-limited) check runs; an app that is down or too old to have the
@@ -161,9 +143,7 @@ async def get_suite_updates(user: dict = Depends(get_current_user), db: aiosqlit
     from app.crypto import decrypt_str
     from app.registry import SUITE_VERSION
 
-    own = await self_update.status(db)
-    if _check_is_stale(own.get("checked_at")):
-        own = await self_update.check_latest(db)
+    own = await self_update.check_latest(db)
 
     async with db.execute("SELECT id, name, display_name, base_url, suite_token FROM registered_apps ORDER BY registered_at") as cur:
         apps = await cur.fetchall()
@@ -175,8 +155,7 @@ async def get_suite_updates(user: dict = Depends(get_current_user), db: aiosqlit
         try:
             async with httpx.AsyncClient(verify=False, timeout=8) as client:
                 resp = await client.get(
-                    f"{app['base_url'].rstrip('/')}/api/system/update-status",
-                    params={"refresh": "true"},
+                    f"{app['base_url'].rstrip('/')}/api/system/update-banner",
                     headers={"X-Suite-Token": decrypt_str(app["suite_token"]),
                              "X-Suite-Version": str(SUITE_VERSION)},
                 )
